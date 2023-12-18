@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output, ViewChild } from '@angular/core'
+import { Component, EventEmitter, Input, OnInit, Output, ViewChild, ViewContainerRef } from '@angular/core'
 import { DynamicDialogConfig, DynamicDialogRef } from 'primeng/dynamicdialog'
 import {
   ButtonDialogConfig,
@@ -35,7 +35,7 @@ export class ButtonDialogComponent implements OnInit {
     label: 'Cancel',
     icon: 'pi pi-times',
     closeDialog: true,
-    valueToEmit: false,
+    valueToEmit: false, // optional
   }
 
   defaultDialogData: ButtonDialogData = {
@@ -49,11 +49,21 @@ export class ButtonDialogComponent implements OnInit {
   }
 
   @Input() config: ButtonDialogConfig = {}
+  @Input() primaryButtonLabel: string
+  // if you pass a label, the button should be activated
+  @Input() secondButtonLabel: string
+  // if you pass a label, the button should be activated
+  // setter getter couple --> primaryButtonLabel
+
+  // question: icon
+  @Input() primaryButtonIcon: string
+  @Input() secondButtonIcon: string
+  // final information tomorrow
 
   @Output() resultEmitter = new EventEmitter()
 
-  @ViewChild(ButtonDialogHostDirective, { static: true })
-  dialogHost!: ButtonDialogHostDirective
+  @ViewChild('container')
+  dialogHost!: ViewContainerRef
 
   dialogData: ButtonDialogData = this.defaultDialogData
 
@@ -86,7 +96,7 @@ export class ButtonDialogComponent implements OnInit {
   }
 
   loadComponent() {
-    const viewContainerRef = this.dialogHost.viewContainerRef
+    const viewContainerRef = this.dialogHost
     viewContainerRef.clear()
 
     if (this.dynamicDialogConfig.data !== undefined) {
@@ -120,7 +130,7 @@ export class ButtonDialogComponent implements OnInit {
       this.dialogData.componentData = dynamicConfigData.componentData
     }
 
-    const viewContainerRef = this.dialogHost.viewContainerRef
+    const viewContainerRef = this.dialogHost
     viewContainerRef.clear()
 
     const componentRef = viewContainerRef.createComponent<any>(this.dialogData.component!)

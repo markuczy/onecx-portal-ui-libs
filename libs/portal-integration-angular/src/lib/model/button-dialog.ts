@@ -2,8 +2,8 @@ import { EventEmitter, Type } from '@angular/core'
 
 export interface ButtonDialogDetails {
   label: string
-  icon: string
-  valueToEmit: any
+  icon?: string // sollte beides optional sein. Wenn es keins gibt, keins anzeigen.
+  valueToEmit?: any // wenn valueToEmit leer ist, dann label emitten
 }
 
 export interface ButtonDialogDynamicDialogDetails extends ButtonDialogDetails {
