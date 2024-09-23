@@ -47,9 +47,9 @@ $scaleSM: 0.875;
 $scaleLG: 1.25;
 
 //focus
-$focusOutlineColor: transparent;
-$focusOutline: 0 none;
-$focusOutlineOffset: 0;
+$focusOutlineColor: var(--primary-color) !default;
+$focusOutline: 1px solid $focusOutlineColor !default;
+$focusOutlineOffset: 2px !default;
 $focusShadow: none;
 
 //action icons
