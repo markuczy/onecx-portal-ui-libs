@@ -1,27 +1,330 @@
-
 = Theme Overrides
 
 :idprefix:
 :idseparator: -
-:theme_overrides: https://onecx.github.io/docs/guides/current/angular/theming.html#theme-overrides
-:custom_use_style_service: ../../libs/angular-utils/src/lib/services/custom-use-style.service.ts
+:toc: macro
+:toclevels: 3
+:source-highlighter: highlight.js
+:schema_root: ../../libs/integration-interface/src/lib/topics/current-themes/v1
+:theme_service: ../../libs/angular-utils/theme/primeng/src/services/theme-config.service.ts
+:custom_use_style: ../../libs/angular-utils/theme/primeng/src/services/custom-use-style.service.ts
+:app_config: ../../libs/angular-utils/theme/primeng/src/utils/application-config.ts
 
-The goal of this document is to explain theme overrides for PrimeNG design tokens available in OneCX and technical details behind them. After reading this document it should be clear how theme overrides are achieved and how to use them.
+This document explains the two override mechanisms available in the OneCX theming system: **theme-level overrides** delivered from the backend and **MFE-level overrides** provided by individual microfrontends. After reading this document it should be clear how each mechanism works, when to use which, and the technical details behind them.
+
+toc::[]
 
 [#overview]
 == Overview
-Theme overrides is a mechanism available for applications, that need to integrate with OneCX, allowing to override default design token values constructed by OneCX.
 
-[#when-to-use]
-== When to use
-This mechanism should be used to control display of PrimeNG components inside the application. Each distinct application has to provide the overrides.
+The OneCX theming system provides two distinct layers of customization:
 
-[#how-to-use]
-== How to use
-Explanation of theme overrides mechanism and an example from the application side can be found {theme_overrides}[here].
+[cols="1,2,2,1"]
+|===
+| | Scope | Origin | Mechanism
 
-[#technical-details]
-== Technical details
-link:{custom_use_style_service}[CustomUseStyle] is responsible for applying overrides. Every time any PrimeNG style sheet is created/updated it is making sure that overrides are present and that they are overwriting the default values.
+| **Theme-level overrides**
+| All MFEs that share a theme
+| Backend (admin console)
+| `ThemeOverride[]` array merged into the PrimeNG preset
 
-On every PrimeNG style sheet update, link:{custom_use_style_service}[CustomUseStyle] checks if overrides were provided by its owner application. If that was the case, it makes sure that a style sheet with those overrides is present in the DOM and then makes sure that it's located *AFTER* any PrimeNG style sheet. Because of the CSS rules priority, the overrides will be applied prior to any PrimeNG CSS variables.
+| **MFE-level overrides**
+| A single microfrontend or remote component
+| Application code (`provideThemeConfig`)
+| `<style>` element injected by `CustomUseStyle`
+|===
+
+Both mechanisms target PrimeNG design tokens, but they operate at different points in the theming pipeline and serve different use cases.
+
+[#theme-level-overrides]
+== Theme-Level Overrides
+
+Theme-level overrides are defined on the backend and attached to a theme configuration. They affect **all** MFEs that use that theme.
+
+[#theme-override-model]
+=== Model
+
+Each override is a `ThemeOverride` object (link:{schema_root}/theme-override.model.ts[theme-override.model.ts]):
+
+[source,typescript]
+----
+export enum OverrideType {
+  PRIMENG = 'PRIMENG',    // PrimeNG design token override (JSON string)
+  CSS = 'CSS'             // CSS variable override (not processed by MFE)
+}
+
+export interface ThemeOverride {
+  type?: OverrideType;
+  value?: string;         // JSON-serialized object for PRIMENG type
+}
+----
+
+`OverrideType.PRIMENG` overrides contain a JSON string in `value` that represents a partial PrimeNG preset structure. `CSS` overrides are currently not processed by the MFE pipeline.
+
+[#theme-override-pipeline]
+=== Processing Pipeline
+
+When a theme is applied, the xref:primeng.adoc#theme-config-service[ThemeConfigService] processes overrides through `generateThemeOverrides()`:
+
+. **Filter** — only overrides with `type === OverrideType.PRIMENG` are processed.
+. **Parse** — each override's `value` string is parsed via `JSON.parse()` to recover the object structure.
+. **Merge** — all parsed overrides are deep-merged into a single object via `foldOverrides()`, processed in order (later overrides win on conflict).
+. **Apply** — the merged result is merged into the PrimeNG preset:
++
+--
+[source,typescript]
+----
+// v2: overrides merged after mapping
+const primeNgPreset = mergeDeep(primeNgPresetFromTheme, primeNgThemeOverrides);
+PrimeNG.setThemeConfig({ theme: { preset: primeNgPreset, ... } });
+
+// v1: overrides merged with custom preset and theme config
+PrimeNG.setThemeConfig({
+  theme: {
+    preset: mergeDeep(preset, mergeDeep(themeConfig.getConfig(), overridesFolded)),
+    ...
+  }
+});
+----
+--
+
+IMPORTANT: Theme-level overrides are **only applied** when `isAdvancedTheming` is enabled (see <<advanced-theming>>). If the flag is `false`, overrides are present in the theme data but silently ignored.
+
+[#advanced-theming]
+=== Advanced Theming Flag
+
+The `isAdvancedTheming` option controls whether theme-level overrides are processed:
+
+[source,typescript]
+----
+// In ThemeConfigService.generateThemeOverrides():
+return this.isAdvancedTheming || this.options.isAdvanced
+  ? this.foldOverrides(this.parsePrimeNGOverridesValue(overrides))
+  : {}  // overrides silently dropped
+----
+
+An MFE enables this via `provideThemeConfig()`:
+
+[source,typescript]
+----
+provideThemeConfig({
+  isAdvancedTheming: true,   // enables theme-level override processing
+  maxVersion: 2,
+})
+----
+
+[#mfe-level-overrides]
+== MFE-Level Overrides
+
+MFE-level overrides are defined in the application's provider configuration. They affect **only** the microfrontend or remote component that provides them, ensuring style isolation across multiple MFEs on the same page.
+
+[#mfe-override-provision]
+=== Provision
+
+Overrides are passed to xref:primeng.adoc#provide-theme-config[`provideThemeConfig()`] via the `overrides` option (link:{app_config}[application-config.ts]):
+
+[source,typescript]
+----
+export interface ThemeConfigProviderOptions {
+  overrides?: ThemeOverrides;       // PrimeNG design token overrides
+  cssOverrides?: CssOverrides;     // Raw CSS string overrides
+  isAdvancedTheming?: boolean;
+  maxVersion?: number;
+}
+
+// ThemeOverrides can be sync, async, or a factory function
+export type ThemeOverrides = (() => Promise<any> | any) | Promise<any> | any
+export type CssOverrides = (() => Promise<string> | string) | Promise<string> | string
+----
+
+[source,typescript]
+----
+// Static overrides
+provideThemeConfig({
+  overrides: {
+    semantic: {
+      colorScheme: {
+        light: {
+          content: { background: '#FFFFFF' }
+        }
+      }
+    }
+  },
+  maxVersion: 2,
+})
+
+// Async factory (e.g., fetched from an API)
+provideThemeConfig({
+  overrides: () => fetch('/api/overrides').then(r => r.json()),
+  maxVersion: 2,
+})
+----
+
+[#mfe-override-application]
+=== Application Flow
+
+MFE-level overrides are applied by xref:primeng.adoc#custom-use-style[CustomUseStyle] (link:{custom_use_style}[custom-use-style.service.ts]), which replaces PrimeNG's default `UseStyle` service:
+
+. A PrimeNG style sheet is created via `CustomUseStyle.use()`.
+. After scoping, `applyOverrides()` is invoked.
+. Overrides are resolved (supports sync value, async promise, or injection-context-aware factory).
+. The override object is converted to CSS variables via `toVariables()` from `@primeuix/styled`.
+. A dedicated `<style>` element is created or retrieved (identified by `data-variable-override-id` attribute).
+. The CSS is scoped (prefixed with the MFE's scope identifier, wrapped with `@scope`) and written into the style element.
+. The style element is appended to `<head>` as the last child, ensuring it takes precedence over PrimeNG's base styles.
+
+[source]
+----
+┌─────────────────────────┐
+│   CustomUseStyle.use()  │
+│  (PrimeNG style call)   │
+└──────────┬──────────────┘
+           │
+           ▼
+┌─────────────────────────┐
+│  Scope CSS + inject     │
+│  (super.use())          │
+└──────────┬──────────────┘
+           │
+           ▼
+┌─────────────────────────┐
+│  applyOverrides(scopeId)│
+└──────────┬──────────────┘
+           │
+    ┌──────┴───────┐
+    ▼               ▼
+┌─────────┐    ┌──────────────────┐
+│ No      │    │ toVariables()    │
+│ overrides│   │ (design tokens   │
+│ → return │    │  → CSS vars)    │
+└─────────┘    └──────┬───────────┘
+                      │
+                      ▼
+             ┌────────────────────┐
+             │ Scoped <style>     │
+             │ element appended   │
+             │ to <head>          │
+             └────────────────────┘
+----
+
+[#mfe-override-scoping]
+=== Scoping
+
+The override style element carries the MFE's scope identifier:
+
+[source,html]
+----
+<style data-variable-override-id="onecx-help-onecx-help-ui">
+  /* Scoped CSS variables that override PrimeNG defaults */
+  @scope(...){
+    :scope {
+      --onecx-help-onecx-help-ui-p-content-background: #FFFFFF;
+      ...
+    }
+  }
+</style>
+----
+
+This ensures that overrides from one MFE do not leak into another MFE on the same page. The scoping pipeline applied to override CSS is identical to the one used for PrimeNG styles:
+
+. `replacePrimengPrefix(css, scopeId)` — replaces `--p-` prefix with scoped prefix
+. `replaceRootWithScope(...)` — replaces `:root` with scope selector
+. `scopePrimengCss(..., scopeId)` — wraps with `@scope` at-rule
+
+[#css-overrides]
+=== CSS Overrides
+
+In addition to design token overrides, `cssOverrides` allows injecting raw CSS:
+
+[source,typescript]
+----
+provideThemeConfig({
+  cssOverrides: `
+    .p-button {
+      border-radius: 0 !important;
+    }
+  `,
+  maxVersion: 2,
+})
+----
+
+For v2 themes, `cssOverrides` are appended to the custom CSS generated by the mapping pipeline (after the CSS produced by `CSS_RULES`). This is handled by `ThemeConfigService.applyThemeVariablesV2()`:
+
+[source,typescript]
+----
+const primeNgCssOverrides = await this.resolvePrimeNgCssOverrides();
+const customCss = cssFromTheme + (primeNgCssOverrides ?? '');
+----
+
+[#override-priority]
+== Override Priority and CSS Specificity
+
+When multiple sources define the same token, the following order applies (last wins):
+
+[cols="1,2"]
+|===
+| Layer | Source
+
+| 1
+| PrimeNG default preset values
+
+| 2
+| Mapped theme tokens (v2) or ThemeConfig values (v1)
+
+| 3
+| Theme-level overrides (`theme.overrides`, from backend)
+
+| 4
+| MFE-level overrides (`options.overrides`, via CustomUseStyle `<style>` element)
+|===
+
+MFE-level overrides always win because:
+
+* They are injected as the **last** `<style>` element in `<head>`.
+* CSS cascade rules give precedence to later definitions at the same specificity.
+* They are scoped to the MFE, so they never affect other MFEs even if those MFEs have different override values.
+
+[#comparison]
+== Mechanism Comparison
+
+[cols="1,2,2"]
+|===
+| Aspect | Theme-Level | MFE-Level
+
+| **Scope**
+| All MFEs sharing a theme
+| Single MFE/RC
+
+| **Origin**
+| Backend (admin console)
+| Application code
+
+| **Type**
+| `ThemeOverride[]` with `type` field
+| Plain object matching PrimeNG preset structure
+
+| **Processing**
+| `generateThemeOverrides()` in ThemeConfigService
+| `toVariables()` + `<style>` injection in CustomUseStyle
+
+| **Requires flag**
+| `isAdvancedTheming: true`
+| None
+
+| **Scoping**
+| Applied before `setThemeConfig()` (global to MFE)
+| Per-MFE `@scope` rules
+
+| **Use case**
+| Organization-wide brand adjustments
+| Application-specific component tweaks
+|===
+
+[#cross-references]
+== Related Documentation
+
+* link:concept.adoc[Theming Concept] — what themes are in OneCX, how variables work
+* link:primeng.adoc[PrimeNG Theming Integration] — provideThemeConfig API, ThemeConfigService flow
+* link:theme-v2.adoc[Theme V2 Architecture] — v2 schema, mapping pipeline, region overrides
+* link:../styles/primeng-integration.adoc[PrimeNG Integration] — how PrimeNG CSS is scoped per-MFE
+* link:../styles/primeng-integration.adoc#token-variable-prefixing[PrimeNG Token Variable Prefixing] — CSS variable prefixing

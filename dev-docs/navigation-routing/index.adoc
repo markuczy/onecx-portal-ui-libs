@@ -1,0 +1,471 @@
+= Navigation & Routing
+
+== Overview
+
+The shell orchestrates which MFE loads where, tracking location, page context, and workspace.
+
+In a multi-MFE environment, each application runs its own router (Angular Router or React Router). The challenge: when a user navigates, _every_ MFE's guards must be checked before the navigation proceeds. One MFE may allow access while another blocks it. The navigation system coordinates this through guard synchronization, fake navigations, and cross-context communication via xref:../gatherer/index.adoc[Gatherer].
+
+== Current Location Topic
+
+The Current Location topic broadcasts the active URL across all MFEs so every context stays aware of where the user is.
+
+[source,ts]
+----
+// CurrentLocationTopic
+topic.publish({ url: '/orders/123' })
+----
+
+Each MFE subscribes to detect when the global location changes, enabling router synchronization without direct coupling.
+
+== Current Page Topic
+
+Tracks the semantic "page" the user is on (e.g., `order-detail`, `dashboard`). Unlike the location topic which carries a raw URL, the page topic carries a normalized identifier that MFEs can use to highlight active menu items, update breadcrumbs, or conditionally render content.
+
+== Current Workspace Topic
+
+Identifies the active workspace (e.g., `admin`, `customer-portal`). MFEs use this to filter relevant routes, menus, and features.
+
+== Routes Service
+
+The shell's Routes service registers all known routes from every loaded MFE, building a consolidated route tree used for menu rendering, direct navigation, and guard evaluation.
+
+== Guards
+
+Route guards control whether a navigation can proceed. In a single-router application, guards are straightforward: the router checks `canActivate`/`canDeactivate` and proceeds or blocks. In a multi-MFE architecture, each application has its own router, so guard results must be coordinated _before_ any MFE navigates.
+
+=== The Problem
+
+When a user clicks a link in MFE A that should navigate to a route in MFE B:
+
+. MFE A's `canDeactivate` guards must pass
+. MFE B's `canActivate` guards must pass
+. MFE C (any other loaded MFE) may also have guards that affect this navigation
+
+Without coordination, MFE A might deactivate and navigate, while MFE B's guards would then reject -- leaving the application in an inconsistent state.
+
+=== The Solution: Cross-MFE Guard Synchronization
+
+The system uses the xref:../gatherer/index.adoc[Gatherer] to broadcast a guard-check request to all MFEs, collects boolean results, and only proceeds if _all_ MFEs return `true`.
+
+.Guard synchronization flow
+[.ascii-diagram]
+....
+  User clicks link in MFE A
+
+  MFE A: useGuards() hook triggers
+       │
+       ├─ 1. Create GuardCheckPromise
+       │
+       ├─ 2. GuardsGatherer.gather({ url: '/target' })
+       │      │
+       │      │  Publish via Topic to all contexts
+       │      │
+       │      ├────► MFE A (local): Guard check on own routes
+       │      │       Fake navigation with GUARD_CHECK state
+       │      │       Guards execute ──► true
+       │      │
+       │      ├────► MFE B: Guard check on own routes
+       │      │       Fake navigation with GUARD_CHECK state
+       │      │       canActivate returns false (blocked)
+       │      │       resolveRoute('/target', false)
+       │      │
+       │      └────► MFE C: Guard check
+       │              ──► true
+       │
+       ├─ 3. gather() resolves with [true, false, true]
+       │
+       └─ 4. Every result must be true → navigation BLOCKED
+....
+
+=== Guard Navigation Modes
+
+The system distinguishes four navigation scenarios via flags in `GuardsNavigationState`. The mode determines how the guard wrappers behave.
+
+[cols="1,1,3"]
+|===
+| Mode | Flag(s) | Behavior
+
+| `INITIAL_ROUTER_SYNC`
+| `IS_INITIAL_ROUTER_SYNC`
+| First-time router synchronization on MFE load. Guards execute and combine as boolean. If navigation fails, a `revertNavigation` event is published for the shell to handle. No cross-MFE coordination.
+
+| `ROUTER_SYNC`
+| `IS_ROUTER_SYNC`
+| Router sync after initial load. Guards execute, combine as boolean, then a router-sync guard runs that always returns `true` (synchronization is pre-approved). No cross-MFE coordination.
+
+| `GUARD_CHECK`
+| `GUARD_CHECK`
+| Fake navigation triggered by a Gatherer guard request from another MFE. Guards execute locally. If any returns `false`, `guardsGatherer.resolveRoute(url, false)` signals the blocking result back to the requester. No actual route change occurs.
+
+| `NAVIGATION_REQUESTED`
+| (no flag -- default)
+| Real user-initiated navigation. The MFE first waits for external guard check results (via `GUARD_CHECK_PROMISE` in navigation state), then runs its own local guards. If external checks returned `false`, navigation is blocked immediately.
+|===
+
+The mode is determined by `GuardsNavigationStateController.getMode(state)`, which checks the flags in priority order: `INITIAL_ROUTER_SYNC` > `ROUTER_SYNC` > `GUARD_CHECK` > `NAVIGATION_REQUESTED` (default).
+
+=== Angular Guards
+
+==== Architecture
+
+[source,ts]
+----
+// Guard navigation state
+interface GuardsNavigationState {
+  [IS_ROUTER_SYNC]?: boolean           // 'isRouterSync'
+  [IS_INITIAL_ROUTER_SYNC]?: boolean   // 'isInitialRouterSync'
+  [GUARD_CHECK]?: boolean              // 'guardCheck'
+  [GUARD_CHECK_PROMISE]?: Promise<boolean>  // 'guardCheckPromise'
+}
+----
+
+==== GuardsGatherer Service
+
+`@onecx/angular-utils/guards` provides `GuardsGatherer`, an Angular injectable that wraps the Gatherer:
+
+[source,ts]
+----
+@Injectable({ providedIn: 'root' })
+export class GuardsGatherer implements OnDestroy {
+  // Request:  { url: string }
+  // Response: boolean (true = allow, false = block)
+
+  activate(): void          // Creates Gatherer with guard callback
+  gather(request: GuardResultRequest): Promise<GuardResultResponse>
+  resolveRoute(routeUrl: string, response: boolean): void
+  deactivate(): void
+  ngOnDestroy(): void
+}
+----
+
+When `gather()` is called, it broadcasts the request to all MFEs. The callback triggers a _fake_ navigation with `GUARD_CHECK` state:
+
+[source,ts]
+----
+// Inside executeGuardsCallback
+this.router.navigateByUrl(routeUrl, {
+  state: this.guardsNavigationStateController.createGuardCheckState(),
+  onSameUrlNavigation: 'reload',  // Force guard re-evaluation
+})
+
+// Store resolve function for when guards complete
+this.guardsChecks.set(routeUrl, resolve)
+----
+
+==== Guard Wrapping
+
+`wrapGuards(route)` intercepts all guard execution by replacing `canActivate`, `canDeactivate`, and `canActivateChild` with wrapper functions that delegate to `ActivateGuardsWrapper` and `DeactivateGuardsWrapper`:
+
+[source,ts]
+----
+// Applied to each route in the router config
+wrapGuards(route)
+wrapGuards(childRoute)  // Recursive for child routes
+----
+
+The wrapper:
+
+. Checks current navigation mode from `router.getCurrentNavigation()?.extras.state`
+. In `GUARD_CHECK` mode: executes guards, calls `resolveRoute(url, false)` if blocked
+. In `NAVIGATION_REQUESTED` mode: waits for `GUARD_CHECK_PROMISE`, then executes local guards
+. Sets `route.runGuardsAndResolvers = 'always'` to ensure guards run even on same-route navigation
+. Tags wrapped guards with `WRAPPED_GUARD_TAG` symbol to prevent double-wrapping
+
+==== Wrapper Services
+
+`ActivateGuardsWrapper` and `DeactivateGuardsWrapper` are Angular injectables that execute the actual guard logic:
+
+.ActivateGuardsWrapper.canActivate()
+[source,ts]
+----
+canActivate(route, state, guards): MaybeAsync<GuardResult> {
+  const mode = this.getModeFromState()
+
+  switch (mode) {
+    case GUARD_MODE.INITIAL_ROUTER_SYNC:
+      return executeGuards(guards, combineToBoolean)
+
+    case GUARD_MODE.ROUTER_SYNC:
+      return executeGuards(guards, combineToBoolean).then(() => true)
+
+    case GUARD_MODE.GUARD_CHECK:
+      return executeGuards(guards, combineToBoolean).then(result => {
+        if (result === false) {
+          this.guardsGatherer.resolveRoute(futureUrl, false)
+        }
+      })
+
+    case GUARD_MODE.NAVIGATION_REQUESTED:
+      return waitForExternalChecks().then(externalOk => {
+        if (!externalOk) return false
+        return executeGuards(guards, combineToGuardResult)
+      })
+  }
+}
+----
+
+==== Result Combination
+
+Two combination strategies:
+
+[cols="1,2"]
+|===
+| Function | Behavior
+
+| `combineToBoolean`
+| Returns `false` if any guard returned `false`; otherwise `true`. Used for sync and guard-check modes where redirects are not relevant.
+
+| `combineToGuardResult`
+| Returns `false` if any guard returned `false`. Returns `UrlTree` or `RedirectCommand` if any guard returned one. Otherwise `true`. Used for real navigations where redirects matter.
+|===
+
+==== Angular Navigation Lifecycle Integration
+
+The guards system hooks into Angular's navigation lifecycle:
+
+[cols="1,3"]
+|===
+| Event | Guard System Action
+
+| `RoutesRecognized`
+| Routes are wrapped with `wrapGuards()` to intercept guard execution
+
+| `GuardsCheckStart`
+| For `NAVIGATION_REQUESTED` mode: sets up the `GUARD_CHECK_PROMISE` so wrappers wait for external results
+
+| `GuardsCheckEnd`
+| For `INITIAL_ROUTER_SYNC`: publishes `revertNavigation` if guards failed. For `GUARD_CHECK`: cancels navigation to prevent actual route change and emits the result
+|===
+
+=== React Guards
+
+==== Architecture
+
+`@onecx/react-utils/guards` provides the same cross-MFE guard coordination for React Router applications, using a hook-based API.
+
+==== GuardsGatherer Class
+
+[source,ts]
+----
+class GuardsGatherer {
+  constructor(navigate: NavigateFunction)
+
+  activate(): void
+  gather(request: GuardResultRequest): Promise<GuardResultResponse[]>
+  resolveRoute(routeUrl: string, response: boolean): void
+  deactivate(): void
+  destroy(): void
+}
+----
+
+Identical to the Angular version but uses React Router's `navigate` function instead of Angular's `Router`. Includes a `guardCheckCounter` to generate unique guard check keys for state disambiguation.
+
+==== useGuardsGatherer Hook
+
+Manages the Gatherer lifecycle:
+
+[source,ts]
+----
+function useGuardsGatherer(options?: { activate?: boolean }): GuardsGatherer
+
+// Default usage (auto-activate on mount)
+const gatherer = useGuardsGatherer()
+
+// Manual control
+const gatherer = useGuardsGatherer({ activate: false })
+gatherer.activate()
+// ... later
+gatherer.deactivate()
+----
+
+==== Guard Types
+
+React guards are plain functions registered on route `handle` properties:
+
+[source,ts]
+----
+interface GuardsHandle {
+  canMatch?:       CanMatchGuard[]        // (context) => boolean | Promise<boolean>
+  canActivate?:    CanActivateGuard[]     // (context) => boolean | Promise<boolean>
+  canActivateChild?: CanActivateChildGuard[]
+  canDeactivate?:  CanDeactivateGuard[]   // (deactivationContext) => boolean | Promise<boolean>
+}
+
+// Guard context
+interface GuardExecutionContext {
+  location: Location
+  params: Params
+  matches: UIMatch[]
+}
+
+interface GuardDeactivationContext extends GuardExecutionContext {
+  nextLocation: Location
+}
+----
+
+==== Guard Collection
+
+`getGuardsFromMatches(matches)` walks all matched routes and collects guard handlers from each route's `handle` property, aggregating them into four arrays: `canMatch`, `canActivate`, `canActivateChild`, `canDeactivate`.
+
+==== useWrappedGuards Hook
+
+Builds guard executors for the current route matches:
+
+[source,ts]
+----
+const wrapped = useWrappedGuards({
+  guardsNavigationState,
+  guardsGatherer
+})
+
+// Returns WrappedGuards:
+// wrapped.canMatch()         -> Promise<boolean>
+// wrapped.canActivateChild() -> Promise<boolean>
+// wrapped.canActivate()      -> Promise<boolean>
+// wrapped.canDeactivate(nextLocation) -> Promise<boolean>
+// wrapped.guards             -> { canMatch, canActivate, canActivateChild, canDeactivate }
+----
+
+==== useGuardCheck Hook
+
+Runs guards automatically on location changes:
+
+[source,ts]
+----
+const { lastResult } = useGuardCheck({
+  enabled: true,
+  guardsNavigationState,
+  guardsGatherer,
+  onGuardCheck: (result) => { /* handle result */ }
+})
+----
+
+Executes `canMatch` → `canActivateChild` → `canActivate` in sequence, short-circuiting if any returns `false`.
+
+==== useGuardDeactivation Hook
+
+Runs deactivation guards for a target location:
+
+[source,ts]
+----
+const { lastResult } = useGuardDeactivation(nextLocation, {
+  guardsNavigationState,
+  guardsGatherer,
+  onGuardCheck: (result) => { /* handle result */ }
+})
+----
+
+=== GuardsGathererMock
+
+For unit testing, `@onecx/angular-utils/mocks` provides a mock that bypasses cross-context communication:
+
+[source,ts]
+----
+// Provider
+provideGuardsGathererMock()
+
+// Usage in tests
+guardsGathererMock.setGatherResult(false)  // Simulate blocked navigation
+await guardsGathererMock.gather({ url: '/orders' })  // -> false
+----
+
+=== Debug Logging
+
+==== Angular
+
+Enable via the Angular debug global:
+
+[source,js]
+----
+// Pre-v8 (legacy)
+window['@onecx/angular-utils'].guards ??= { debug: true }
+
+// v8+ (current) - via localStorage
+localStorage.debug = '@onecx/angular-utils:guards:*'
+location.reload()
+----
+
+==== React
+
+[source,js]
+----
+localStorage.debug = '@onecx/react-utils:guards:*'
+location.reload()
+----
+
+=== Summary of Key Files
+
+==== Angular
+
+[cols="1,2"]
+|===
+| File | Role
+
+| `libs/angular-utils/guards/src/services/guards-gatherer.service.ts`
+| GuardsGatherer Angular service
+
+| `libs/angular-utils/guards/src/services/guards-navigation-controller.service.ts`
+| Mode detection and state factory methods
+
+| `libs/angular-utils/guards/src/model/guard-navigation.model.ts`
+| GUARD_MODE enum, GuardsNavigationState interface, state flags
+
+| `libs/angular-utils/guards/src/utils/activate-guards-wrapper.utils.ts`
+| canActivate guard execution with mode awareness
+
+| `libs/angular-utils/guards/src/utils/deactivate-guards-wrapper.utils.ts`
+| canDeactivate guard execution with mode awareness
+
+| `libs/angular-utils/guards/src/utils/wrap-guards.utils.ts`
+| Route guard wrapping (canActivate, canDeactivate, canActivateChild)
+
+| `libs/angular-utils/guards/src/utils/guards-utils.utils.ts`
+| combineToBoolean, combineToGuardResult, resolveToPromise, logGuardsDebug
+
+| `libs/angular-utils/mocks/guards-gatherer-mock.ts`
+| GuardsGathererMock for unit testing
+|===
+
+==== React
+
+[cols="1,2"]
+|===
+| File | Role
+
+| `libs/react-utils/src/lib/guards/services/guards-gatherer.ts`
+| GuardsGatherer class for React Router
+
+| `libs/react-utils/src/lib/guards/services/guards-navigation-controller.ts`
+| Mode detection and state factory methods
+
+| `libs/react-utils/src/lib/guards/model/guard-navigation.model.ts`
+| GUARD_MODE enum and state interfaces
+
+| `libs/react-utils/src/lib/guards/utils/activate-guards-wrapper.utils.ts`
+| canActivate guard execution
+
+| `libs/react-utils/src/lib/guards/utils/deactivate-guards-wrapper.utils.ts`
+| canDeactivate guard execution
+
+| `libs/react-utils/src/lib/guards/utils/wrap-guards.utils.ts`
+| wrapGuards() with WrappedGuards interface
+
+| `libs/react-utils/src/lib/guards/utils/guard-handles.utils.ts`
+| getGuardsFromMatches() -- collects guards from route handles
+
+| `libs/react-utils/src/lib/guards/utils/guard-types.utils.ts`
+| Guard type definitions, context interfaces
+
+| `libs/react-utils/src/lib/guards/hooks/use-guards-gatherer.ts`
+| Lifecycle hook for GuardsGatherer
+
+| `libs/react-utils/src/lib/guards/hooks/use-wrapped-guards.ts`
+| Hook to build guard executors for current matches
+
+| `libs/react-utils/src/lib/guards/hooks/use-guard-check.ts`
+| Hook to run guards on location changes
+
+| `libs/react-utils/src/lib/guards/hooks/use-guard-deactivation.ts`
+| Hook to run deactivation guards
+|===

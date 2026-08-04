@@ -3,7 +3,8 @@
 
 :idprefix:
 :idseparator: -
-:application_styles: ./concept.adoc#application-styles
+:application_styles: ./application-styles.adoc
+:primeng_scoping: ./primeng-integration.adoc
 
 The goal of this document is to explain style types located on the OneCX page. After reading this document it should be clear what different styles are available on the OneCX page and what their purpose is.
 
@@ -43,7 +44,7 @@ There are plenty of style sheets on each page in OneCX. In order to distinguish 
 |Application
 |Application styles (exposed via styles.css)
 |data-app-styles="scopeId"
-|Contains CSS for the whole application recognized by the scope identifier.
+|Contains CSS for the whole application recognized by the scope identifier. See link:{application_styles}[Application Styles] for lifecycle details.
 
 |Global
 |Shell UI - splash.scss
@@ -73,7 +74,7 @@ There are plenty of style sheets on each page in OneCX. In order to distinguish 
 
 [#primeng]
 === Purpose - PrimeNG
-PrimeNG style sheets are constructed by the PrimeNG library and modified by OneCX, and in the case of theme overrides, style sheets are constructed by OneCX completely.
+PrimeNG style sheets are constructed by the PrimeNG library and modified by OneCX, and in the case of theme overrides, style sheets are constructed by OneCX completely. See link:{primeng_scoping}[PrimeNG Integration] for details.
 
 [#global]
 === Purpose - Global

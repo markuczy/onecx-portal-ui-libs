@@ -1,91 +1,346 @@
-= Topic Documentation
+= Topic System
 
 == Overview
 
-The `Topic` system is a messaging framework designed to synchronize state across multiple instances using JavaScript's event-driven architecture. This document explains how the `Topic` system works, focusing on synchronization, message types, publishing, and JavaScript scheduling. The implementation of the `Topic` class can be found in the xref:../../libs/accelerator/src/lib/topic/topic.ts[Topic class source code].
+Topics are the cross-context messaging layer that powers shell-to-MFE and MFE-to-shell communication. Every topic is an instance of `Topic<T>` from `@onecx/accelerator` — it publishes typed values and makes them available as an RxJS `Observable<T>` to all subscribers, even across browser tabs and iframes.
 
-== How Topics Sync with Other Existing Topics
+The pattern solves a fundamental problem: in a Module Federation architecture, the shell and MFEs live in different JavaScript contexts. Topics bridge that gap using `window.postMessage` and `BroadcastChannel`.
 
-* **Initialization and Message Listening**:
-** Each `Topic` instance registers an event listener on the `window` object to listen for `message` events.
-** When a `Topic` is created, it sends a `TopicGet` message to request the current state from other instances. This ensures that the new instance can synchronize with existing topics.
+Each topic is identified by a `(name, version)` pair and carries a single type `T`. Subscribers never need to know where a value came from — they subscribe to the topic and react to changes.
 
-* **Receiving Messages**:
-** The `onMessage` method processes incoming messages. It ensures that only relevant messages (matching the topic's `name` and `version`) are processed.
-** If a `TopicNext` message is received, the topic updates its internal state and marks itself as initialized.
-** If a `TopicGet` message is received and the topic is already initialized, it responds by posting its current state back to the sender.
+== Architecture
 
-* **Synchronization**:
-** Topics synchronize by broadcasting their state through `TopicNext` messages and responding to `TopicGet` requests. This ensures that all instances of a topic eventually converge to the same state.
+=== Message Flow
 
-== Types of Messages and Their Purpose
+When Topic A publishes a value, the sequence is:
 
-The `Topic` system defines three types of messages, represented by the `TopicMessageType` enum:
+. Topic A calls `publish(value)`.
+. A `TopicNext` message carrying the value is sent via `postMessage` or `BroadcastChannel`.
+. A `TopicResolve` message is queued immediately after.
+. All Topic instances listening on `window` (or BroadcastChannel) receive `TopicNext`.
+. If an instance matches `(name, version)` and the value is newer, it updates its internal `BehaviorSubject`.
+. The publisher's instance receives `TopicResolve`, resolves the stored promise, and `publish()` returns.
 
-* **`TopicNext`**:
-** Sent when a topic's state changes (e.g., when a new value is published).
-** Other topics use this message to update their state to match the sender's.
+The promise returned by `publish()` only resolves after all instances have processed `TopicNext`, because both messages are queued sequentially and the event loop processes them in order.
 
-* **`TopicGet`**:
-** Sent when a topic instance is created to request the current state from other instances.
-** Other topics respond to this message by posting their current state if they are initialized.
+=== Transport
 
-* **`TopicResolve`**:
-** Sent to signal that a previously published message has been processed.
-** Used to resolve the promise returned by the `publish` method, ensuring that the publisher knows when the message has been acknowledged.
+A topic uses three transport channels:
 
-== How the `publish` Method Works
+[cols="1,2"]
+|===
+| Channel | Purpose
 
-The `publish` method is responsible for broadcasting a new value to all topic instances. Here's how it works:
+| `window.postMessage` | Cross-context messaging — works between iframes and tabs. Always available.
+| `BroadcastChannel` (V1) | Same-origin cross-tab messaging on a named channel (`Topic-name|version`). Falls back from window events when detected.
+| `BroadcastChannel` (V2) | Same-origin per-tab messaging (`TopicV2-name|version-tabId`). Reduces cross-talk between tabs.
+|===
 
-. **Create a `TopicDataMessage`**:
-+
-A `TopicDataMessage` is created with the new value and sent using `window.postMessage`:
-+
+The system prefers BroadcastChannel V2 when enabled, falls back to BroadcastChannel V1, and ultimately relies on `window.postMessage`. When a message arrives via `window`, BroadcastChannel is disabled for that topic to avoid dual delivery.
+
+=== Message Types
+
+Three message types exist:
+
+[cols="1,2,3"]
+|===
+| Type | Class | Purpose
+
+| `TopicNext` | `TopicDataMessage<T>` | Broadcasts a new value. Contains the payload `data: T`.
+| `TopicGet` | `TopicMessage` | Requests current state. Sent by a new topic instance on construction. Initialized instances respond with their latest `TopicNext`.
+| `TopicResolve` | `TopicResolveMessage` | Acknowledges a publish. Contains the `resolveId` of the original `TopicNext` message, used to resolve the publisher's promise.
+|===
+
+All messages extend the `Message` base class, which provides:
+
+* `timestamp` — `performance.now()` or `Date.now()`, used for ordering.
+* `id` — a globally incrementing counter on `globalThis.onecxMessageId`, used for deterministic ordering when timestamps collide.
+
+=== Ordering
+
+Messages are ordered by timestamp first, then by `id`. When a topic receives `TopicNext`, it only updates if:
+
+* No value exists yet, OR
+* The incoming `id` is greater than the current `id`, OR
+* The incoming `timestamp` is greater than the current `timestamp`.
+
+== Topic Class
+
+*File:* `libs/accelerator/src/lib/topic/topic.ts`
+
+=== Constructor
+
 [source,typescript]
 ----
-     const message = new TopicDataMessage<T>(TopicMessageType.TopicNext, this.name, this.version, value);
-     window.postMessage(message, '*');
+constructor(name: string, version: number, sendGetMessage = true)
 ----
 
-. **Create a `TopicResolveMessage`**:
-+
-A `TopicResolveMessage` is created to track when the message is processed. A promise is created and stored in `publishPromiseResolver`:
-   
-+
+[cols="1,2"]
+|===
+| `name` | The topic name (e.g. `'permissions'`, `'currentTheme'`).
+| `version` | The API version (always `1` for current topics).
+| `sendGetMessage` | Whether to send a `TopicGet` on construction. Set to `false` for RPC-style topics where the subscriber initiates.
+|===
+
+On construction:
+
+. Creates a `BehaviorSubject<TopicDataMessage<T> | undefined>` for internal state.
+. Registers a `window` message listener.
+. Optionally sets up `BroadcastChannel` readers (V1 and V2).
+. If `sendGetMessage` is `true`, sends a `TopicGet` (with a 100ms delay if many topics start simultaneously within 2 seconds of the accelerator init date).
+
+=== Core API
+
+[cols="1,2"]
+|===
+| `isInitialized` | A `Promise<void>` that resolves when the topic has received its first value.
+
+| `asObservable()` | Returns `Observable<T>` filtered to only emit after initialization.
+
+| `subscribe(...)` | RxJS subscription to receive values.
+
+| `pipe(...)` | RxJS pipe for operators — chains through `asObservable()`.
+
+| `destroy()` | Cleans up event listeners and BroadcastChannel instances.
+|===
+
+=== TopicPublisher Base
+
+*File:* `libs/accelerator/src/lib/topic/topic-publisher.ts`
+
+`Topic` extends `TopicPublisher`, which provides the `publish()` method:
+
 [source,typescript]
 ----
-     const resolveMessage = new TopicResolveMessage(TopicMessageType.TopicResolve, this.name, this.version, message.id);
-     const promise = new Promise<void>((resolve) => {
-       this.publishPromiseResolver[message.id] = resolve;
-     });
-     window.postMessage(resolveMessage, '*');
+publish(value: T): Promise<void>
 ----
 
-. **Return the Promise**:
-+
-The promise is returned to the caller, allowing them to wait until the message is resolved.
+The `TopicPublisher` class can also be used standalone when only publishing is needed (no subscription), such as for RPC-style requests where a response is expected back on a separate topic.
 
-. **Resolve the Promise**:
-+
-When a `TopicResolve` message is received, the corresponding promise is resolved, signaling that the message has been processed.
+=== SyncableTopic (Deprecated)
 
-=== Why Awaiting the Promise Works
-When publishing a message via the `publish` method of a topic, right after sending the `TopicNext` message, a `TopicResolve` message is also sent. The promise created in the `publish` will be resolved when the `TopicResolve` message is processed in the `onMessage` method by the topic instance that published the message.
+*File:* `libs/accelerator/src/lib/topic/syncable-topic.ts`
 
-The question remains: Why does this work? The answer lies in JavaScript's event loop and message queue. When `window.postMessage` is called, the messages are queued in the browser's message queue. The `onMessage` event listener processes these messages in the order they were received.
+Provides synchronous access via `getValue()`. Deprecated — reading async data synchronously is unsafe. Use `Topic` with RxJS patterns instead.
 
-This means, that before `TopicResolve` is processed, `TopicNext` will have already been processed by all listening topics, ensuring that the state is updated before the promise is resolved.
+== Topics in the Integration Interface
 
-== How Topics Use JavaScript Scheduling
+All concrete topics live in `libs/integration-interface/src/lib/topics/`. Each topic defines a specific communication channel between the shell and MFEs.
 
-The `Topic` system leverages JavaScript's event-driven architecture and scheduling mechanisms to achieve its goals:
+=== Navigation and Routing
 
-* **Asynchronous Communication**:
-** Messages are sent asynchronously using `window.postMessage`, which queues them in the browser's message queue. This ensures that message handling does not block the main thread.
+[cols="1,2,3"]
+|===
+| Topic | Payload | Purpose
 
-* **Promise-Based Initialization**:
-** The `isInitializedPromise` ensures that the topic's state is not accessed until it is fully initialized. This is achieved by resolving the promise only after the topic has received its initial state.
+| `CurrentLocationTopic` | `CurrentLocationTopicPayload` | Tracks the current URL and whether it is the first navigation. Published by the shell on navigation.
+| `CurrentMfeTopic` | `MfeInfo` | Identity of the currently active MFE (appId, productName, mountPath, baseHref). Published by the shell when an MFE loads.
+| `CurrentPageTopic` | `PageInfo` | The current page within the active MFE (path, pageName, helpArticleId). Includes a `MutationObserver` to detect DOM-based path changes.
+| `CurrentWorkspaceTopic` | `Workspace` | The active workspace/portal, including routes, endpoints, and MFE registrations. Topic name is `'currentPortal'`.
+|===
 
-* **Event Listener**:
-** The `onMessage` method processes messages in the order they are received. This ensures that state updates are applied in the correct sequence.
+`CurrentPageTopic` overrides `asObservable()` to filter out values when the page path doesn't match `document.location.pathname`, ensuring consumers only see values relevant to the current browser URL.
+
+=== Appearance and Theming
+
+[cols="1,2,3"]
+|===
+| Topic | Payload | Purpose
+
+| `CurrentThemeTopic` | `Theme` | The active theme with assets, CSS, and overrides. Deprecated — use `CurrentThemesTopic`.
+| `CurrentThemesTopic` | `CurrentThemes` | Multi-version theme with properties, fonts, and version list. The current theming topic.
+|===
+
+=== Security and Configuration
+
+[cols="1,2,3"]
+|===
+| Topic | Payload | Purpose
+
+| `ConfigurationTopic` | `Config` (`Record<string, string>`) | Key-value configuration delivered by the shell. Published once at startup.
+| `IsAuthenticatedTopic` | `void` | Signals when the user becomes authenticated. Used to gate authentication-dependent initialization.
+| `PermissionsTopic` | `string[]` | The current permission set. Published by the shell when permissions change.
+| `PermissionsRpcTopic` | `PermissionsRpc` | RPC-style topic (no `sendGetMessage`). MFEs publish a request with `appId` and `productName`; the shell responds with permissions on the same topic.
+| `ParametersTopic` | `ParametersTopicPayload` | Application parameters keyed by `productName` and `appId`. Delivered by the shell.
+|===
+
+=== User Context
+
+[cols="1,2,3"]
+|===
+| Topic | Payload | Purpose
+
+| `UserProfileTopic` | `UserProfile` | User profile data (email, firstName, lastName, etc.). Published by the shell.
+|===
+
+=== UI Communication
+
+[cols="1,2,3"]
+|===
+| Topic | Payload | Purpose
+
+| `GlobalErrorTopic` | `string` | Displays a global error message. Published by MFEs, consumed by the shell's error UI.
+| `GlobalLoadingTopic` | `boolean` | Shows or hides the global loading indicator. Published by MFEs.
+| `MessageTopic` | `Message` | In-app messages with severity, summary, and detail. Published by MFEs, rendered by the shell.
+| `NotificationTopic` | `Notification` | Toast-style notifications. Published by MFEs, rendered by the shell.
+|===
+
+=== Events
+
+[cols="1,2,3"]
+|===
+| Topic | Payload | Purpose
+
+| `EventsTopic` | `TopicEventType` | General-purpose event bus. Supports `NAVIGATED` and `AUTH_LOGOUT_BUTTON_CLICKED` events. No `sendGetMessage` — only push events.
+|===
+
+=== Remote Components and Resizing
+
+[cols="1,2,3"]
+|===
+| Topic | Payload | Purpose
+
+| `RemoteComponentsTopic` | `RemoteComponentsInfo` | Delivers remote component metadata and slot mappings from the shell.
+| `ResizedEventsTopic` | `TopicResizedEventType` | Slot resize events with optional event filtering via `requestEvent()`. Supports `SLOT_RESIZED`, `SLOT_GROUP_RESIZED`, and `REQUESTED_EVENTS_CHANGED`.
+|===
+
+`ResizedEventsTopic` extends `Topic` with selective publishing — it only publishes resize events for entities that have registered interest via `ResizedEventsTopic.requestEvent()`. Unregistered entities are silently dropped.
+
+=== Assets
+
+[cols="1,2,3"]
+|===
+| Topic | Payload | Purpose
+
+| `IconTopic` | `Icon` | RPC-style icon requests. MFEs publish `IconRequested`; the shell responds with `IconsReceived`. No `sendGetMessage`.
+| `ImageRepositoryTopic` | `ImageRepository` | Image repository data. Published by the shell.
+|===
+
+=== Translations
+
+[cols="1,2,3"]
+|===
+| Topic | Payload | Purpose
+
+| `DynamicTranslationsTopic` | `DynamicTranslationsMessage` | RPC-style translation requests. MFEs publish `TranslationsRequested` with locale and contexts; the shell responds with `TranslationsReceived`. No `sendGetMessage`.
+|===
+
+== Usage Patterns
+
+=== Subscribing to a Topic
+
+[source,typescript]
+----
+// Create the topic — it automatically syncs with any existing instance
+const permissions = new PermissionsTopic()
+
+// Wait for initialization
+await permissions.isInitialized
+
+// Subscribe for reactive updates
+permissions.subscribe((perms) => {
+  console.log('Permissions:', perms)
+})
+
+// Use with RxJS operators
+this.data$ = permissions.pipe(
+  map(perms => perms.includes('admin'))
+)
+----
+
+=== Publishing to a Topic
+
+[source,typescript]
+----
+const loading = new GlobalLoadingTopic()
+
+// Show loading
+await loading.publish(true)
+
+// Hide loading
+await loading.publish(false)
+----
+
+=== RPC Pattern (Request-Response)
+
+For RPC-style topics like `PermissionsRpcTopic`, the subscriber initiates by publishing a request and listening for the response:
+
+[source,typescript]
+----
+const rpc = new PermissionsRpcTopic()  // sendGetMessage = false
+
+// Publish a request
+rpc.publish({ appId: 'my-app', productName: 'my-product' })
+
+// Listen for the response
+rpc.pipe(
+  filter(m => m.appId === 'my-app' && m.productName === 'my-product')
+).subscribe((response) => {
+  console.log('Permissions:', response.permissions)
+})
+----
+
+The `sendGetMessage = false` constructor argument prevents the topic from requesting initial state, because there is no state to sync — each message is an independent request-response pair.
+
+=== Cleaning Up
+
+Call `destroy()` when a topic is no longer needed (e.g., in `ngOnDestroy`):
+
+[source,typescript]
+----
+ngOnDestroy(): void {
+  this.remoteComponentsTopic.destroy()
+}
+----
+
+This removes the `window` event listener and closes BroadcastChannel instances.
+
+== Debugging
+
+See xref:debug.adoc[] for enabling topic debug logging.
+
+== Summary of Key Files
+
+[cols="1,2"]
+|===
+| File | Description
+
+| `accelerator/.../topic/message.ts` | Base Message class with timestamp and id
+| `accelerator/.../topic/topic-message-type.ts` | TopicNext, TopicGet, TopicResolve enum
+| `accelerator/.../topic/topic-message.ts` | TopicMessage with name and version
+| `accelerator/.../topic/topic-data-message.ts` | TopicDataMessage carrying the typed payload
+| `accelerator/.../topic/topic-resolve-message.ts` | TopicResolveMessage with resolveId
+| `accelerator/.../topic/topic-publisher.ts` | TopicPublisher with publish() and sendMessage()
+| `accelerator/.../topic/topic.ts` | Topic class — full subscriber + publisher
+| `accelerator/.../topic/syncable-topic.ts` | Deprecated SyncableTopic with getValue()
+|===
+
+== Summary of Topic Classes
+
+[cols="1,2"]
+|===
+| Topic | Purpose
+
+| `ConfigurationTopic` | Shell configuration key-value store
+| `CurrentLocationTopic` | Current URL and first-navigation flag
+| `CurrentMfeTopic` | Active MFE identity
+| `CurrentPageTopic` | Current page within the active MFE
+| `CurrentThemeTopic` | Active theme (deprecated)
+| `CurrentThemesTopic` | Multi-version active theme
+| `CurrentWorkspaceTopic` | Active workspace with routes and endpoints
+| `DynamicTranslationsTopic` | Translation request-response
+| `EventsTopic` | General-purpose event bus
+| `GlobalErrorTopic` | Global error display
+| `GlobalLoadingTopic` | Global loading indicator
+| `IconTopic` | Icon request-response
+| `ImageRepositoryTopic` | Image repository data
+| `IsAuthenticatedTopic` | Authentication state signal
+| `MessageTopic` | In-app messages
+| `NotificationTopic` | Toast notifications
+| `ParametersTopic` | Application parameters per MFE
+| `PermissionsRpcTopic` | Permission request-response
+| `PermissionsTopic` | Permission set broadcast
+| `RemoteComponentsTopic` | Remote component metadata and slot mappings
+| `ResizedEventsTopic` | Slot resize events with selective delivery
+| `UserProfileTopic` | User profile data
+|===

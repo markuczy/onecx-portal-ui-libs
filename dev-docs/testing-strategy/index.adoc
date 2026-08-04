@@ -1,0 +1,245 @@
+= Testing Strategy
+
+:idprefix:
+:idseparator: -
+
+This document describes the testing approach across the ONECX Portal UI Libraries monorepo, including unit tests, component harnesses, and schema verification.
+
+[#test-framework]
+== Test Framework
+
+All libraries use **Jest** as the test runner. Test discovery is handled by NX, which finds Jest configs for each library automatically.
+
+[#test-file-naming]
+=== Test File Naming
+
+|===
+| Library type | Suffix | Example
+
+| Angular libraries
+| `.spec.ts`
+| `auth-proxy.service.spec.ts`
+
+| React libraries
+| `.test.ts`
+| `composeProviders.test.ts`
+
+| Integration-interface
+| `.spec.ts`
+| `current-theme.spec.ts`, `dropdown.spec.ts`
+|===
+
+Test files live alongside source files under `src/lib/`, co-located with the module they test.
+
+[#jest-configuration]
+=== Jest Configuration
+
+Each library has its own `jest.config.ts` that extends the workspace preset at `jest.preset.js` and applies shared coverage and reporting config from `jest-config-factory.ts`.
+
+The preset enables NX defaults with strict snapshot formatting (`escapeString: true`, `printBasicPrototype: true`).
+
+[#test-environments]
+=== Test Environments
+
+|===
+| Environment | Libraries | Reason
+
+| `node`
+| integration-interface, ngrx-linter-rules, angular-linter-rules
+| Pure logic, no browser APIs needed
+
+| `jsdom`
+| angular-accelerator, angular-auth, react-utils, angular-testing, shell-auth
+| DOM-dependent code (components, interceptors, React utilities)
+|===
+
+Some spec files override the environment per-file with a JEST comment:
+
+```typescript
+/**
+ * @jest-environment jsdom
+ */
+```
+
+This is used in integration-interface topic tests that rely on `window` APIs.
+
+[#coverage]
+== Coverage
+
+Coverage is configured through `jest-config-factory.ts`. Reports are written to `reports/<library-name>/coverage/`.
+
+**Collected from:**
+* `src/lib/**/*.{ts,js}` (React libs also include `.tsx`, `.jsx`)
+
+**Excluded from coverage:**
+* `*.spec.ts`, `*.test.ts` — test files
+* `*.stories.ts` — Storybook files
+* `*.module.ts` — Angular module declarations
+* `*.harness.ts` — component harness files
+* `testing/` directories — test utilities
+* `logger.utils.ts` — logging helpers
+* `storybook-config.ts` — Storybook configuration
+* `index.ts` (React libs) — barrel exports
+
+**Reporters:** `json`, `lcov` (for SonarQube), `text`, `text-summary`, `html`.
+
+Sonar reports are written as `reports/<library-name>/sonarqube_report.xml` via the `jest-sonar` reporter.
+
+[#angular-testing-library]
+== Angular Testing Library
+
+The `angular-testing` library provides shared utilities used across Angular tests.
+
+[#harnesses]
+### Component Harnesses
+
+Harnesses extend `ContentContainerComponentHarness` from `@angular/cdk/testing`. They provide a stable API for interacting with components in tests, decoupled from internal DOM structure.
+
+**Base harnesses** (`@onecx/angular-testing`):
+
+* DOM primitives: `ButtonHarness`, `InputHarness`, `DivHarness`, `SpanHarness`, `PHarness`, `ListItemHarness`, `MenuItemHarness`, `MenuItemWithIconHarness`, `TableRowHarness`, `TableHeaderColumnHarness`
+* PrimeNG wrappers: `PButtonHarness`, `PButtonDirectiveHarness`, `PAccordionTabHarness`, `PDialogHarness`, `PMultiSelectHarness`, `PMultiSelectListItemHarness`, `PMenuHarness`, `PMultiSelectListItemHarness`, `PPaginatorHarness`, `PPickListHarness`, `PPanelMenuHarness`, `PPanelMenuItemHarness`, `PTableCheckboxHarness`, `PSelectButtonHarness`, `PPasswordHarness`
+* Utilities: `PrimeIcon` type
+
+**Component harnesses** (per library, in `testing/` directories):
+
+Angular-accelerator provides harnesses for every public component:
+
+```typescript
+// Example: DataTableHarness
+export class DataTableHarness extends ContentContainerComponentHarness {
+  static hostSelector = 'ocx-data-table'
+
+  getHeaderColumns = this.locatorForAll(TableHeaderColumnHarness)
+  getRows = this.locatorForAll(TableRowHarness)
+  getPaginator = this.locatorFor(PPaginatorHarness)
+  getOverflowMenu = this.locatorForOptional(PMenuHarness)
+
+  async getId(): Promise<string | null> { ... }
+  async rowSelectionIsEnabled(): Promise<boolean> { ... }
+  async clickExpansionToggle(rowIndex: number): Promise<void> { ... }
+}
+```
+
+Harnesses chain through `this.locatorFor` and `this.locatorForOptional` to find child components by their own harness classes, not by CSS selectors. This insulates tests from DOM changes.
+
+[#mocks]
+### Mocks
+
+`angular-testing` provides browser API mocks for use in Jest's Node environment:
+
+* **`IntersectionObserverMock`** — Simulates the IntersectionObserver API. `observe()` schedules a callback via `setTimeout` with `intersectionRatio: 1` and `isIntersecting: true`. Use `ensureIntersectionObserverMockExists()` to register it globally.
+
+* **`OriginMock`** — Sets `global.origin = ''` if not already present. Use `ensureOriginMockExists()` to register.
+
+[#test-utilities]
+### Test Utilities
+
+* **`FakeTranslateLoader`** — Implements `TranslateLoader` from `@ngx-translate/core`, returning static translations. `provideTranslateTestingService()` is a convenience function that wires it up with Angular's `provideTranslateService`.
+
+* **`waitForDeferredViewsToBeRendered`** — Waits for Angular deferred views (`@defer`) to render. Calls `waitForTasksOutsideAngular()` on the harness, then uses `setTimeout` scheduling to ensure the IntersectionObserver mock has triggered callbacks before calling `forceStabilize()`.
+
+[#topic-testing]
+== Topic Testing
+
+Integration-interface topics are tested by mocking the `window` APIs they depend on.
+
+**Pattern:** Capture `window.addEventListener` and `window.postMessage` in a `describe` block, restore them in `afterAll`, and seed global state with `ensureProperty` from `@onecx/accelerator`.
+
+```typescript
+describe('ResizedEventsTopic', () => {
+  const origAddEventListener = window.addEventListener
+  const origPostMessage = window.postMessage
+
+  let listeners: any[] = []
+  window.addEventListener = (_type: any, listener: any) => {
+    listeners.push(listener)
+  }
+
+  window.postMessage = (m: any) => {
+    listeners.forEach((l) => l({ data: m, stopImmediatePropagation: () => {}, stopPropagation: () => {} }))
+  }
+
+  afterAll(() => {
+    window.addEventListener = origAddEventListener
+    window.postMessage = origPostMessage
+  })
+
+  beforeEach(() => {
+    ensureProperty(globalThis, ['@onecx/accelerator', 'topic', 'initDate'], Date.now() - 1000000)
+    jest.restoreAllMocks()
+  })
+
+  it('should request resized event for an entity', () => {
+    ResizedEventsTopic.requestEvent(ResizedEventType.SLOT_RESIZED, 'test-slot')
+    // assertions...
+  })
+})
+```
+
+[#schema-testing]
+== Schema Testing
+
+Theme schema tests verify that Zod schemas apply correct default values and mark optional tokens as undefined.
+
+**Test utilities** (`expectExactTokens`, `expectExactUndefinedTokens`, `expectTokens`) are defined locally in each spec file.
+
+**Pattern — one test per section:**
+
+```typescript
+it('should apply defaults', () => {
+  const result = picklist.safeParse({})
+  expect(result.success).toBe(true)
+
+  const value = result.data
+
+  // 1. Verify which tokens are undefined (root schema has optional `settings`)
+  expectExactUndefinedTokens(value, picklist.shape, ['settings'])
+
+  // 2. Verify all default values and exact key count
+  expectExactTokens(value, {
+    background: '{{primitives.defaultVariant.defaultState.defaultSeverity.bg}}',
+    panel: expect.any(Object),
+    gap: '{{primitives.space.md}}',
+  })
+})
+```
+
+For nested objects, use `expect.any(Object)` at the parent level and test the nested section in its own nested `describe` block.
+
+State schemas use `.prefault({})` → `expectExactUndefinedTokens(obj, schema.shape, [])` (empty array means no undefined tokens).
+
+See `libs/integration-interface/src/lib/topics/current-themes/v1/schema/picklist.spec.ts` for a comprehensive example.
+
+[#running-tests]
+== Running Tests
+
+```bash
+# Run affected tests (default npm script)
+npm run test
+
+# Run tests for a specific library
+npx nx run <library-name>:test
+
+# Run a single test file
+npx nx run integration-interface:test --testFile=src/lib/topics/current-theme/v1/current-theme.spec.ts
+
+# Run all tests across all libraries
+npx nx run-many -t test
+
+# Run tests with coverage
+npx nx run <library-name>:test --coverage
+```
+
+[#test-architecture-notes]
+== Architecture Notes
+
+1. **No shared test setup file** — Each library may have its own `test-setup.ts` (Angular libs use `jest-preset-angular` setup). There is no global `setupFilesAfterEnv` beyond the preset.
+
+2. **Config loader** — Library Jest configs use `@jest-config-loader ts-node` to allow importing TypeScript in the config file, needed for the `createReportsConfig` factory.
+
+3. **Harness separation** — Harnesses live in `testing/` directories and are published as separate entry points (e.g., `@onecx/angular-accelerator/testing`). They are excluded from coverage since they are test infrastructure, not production code.
+
+4. **No end-to-end tests in this repo** — E2e testing is handled by consumer projects (shell, MFEs). The cacheable `e2e` target in `nx.json` is a placeholder for libraries that may add it.
+
+5. **`ensureProperty` for topic tests** — Topics expect `@onecx/accelerator` global state to be seeded before they initialize. Use `ensureProperty(globalThis, [...], value)` in `beforeEach` to set this up.

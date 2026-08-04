@@ -1,0 +1,176 @@
+= Dynamic Translations
+
+== Overview
+
+Dynamic translations are a shell-mediated mechanism for providing translation data to micro-frontends at runtime. Unlike file-based translations loaded via `TRANSLATION_PATH` (which load `.json` files from the browser), dynamic translations are delivered by the shell in response to a topic request, organized by context and version.
+
+The primary use case is the **multi-language fallback** chain: when a translation key is not found in any loaded file-based translation, the system falls back to dynamic translations as a last resort before returning the raw key.
+
+The mechanism uses the `DynamicTranslationsTopic` (`dynamicTranslations`, v1) from the integration interface.
+
+== Topic Definition
+
+*File:* `libs/integration-interface/src/lib/topics/dynamic-translations/v1/dynamic-translations.topic.ts`
+
+[source,typescript]
+----
+export class DynamicTranslationsTopic extends Topic<DynamicTranslationsMessage> {
+  constructor() {
+    super('dynamicTranslations', 1, false);
+  }
+}
+----
+
+The topic is not bidirectional (`false`), meaning the app sends a request and the shell responds asynchronously when translations are available.
+
+=== Message Types
+
+*File:* `libs/integration-interface/src/lib/topics/dynamic-translations/v1/dynamic-translations.model.ts`
+
+[source,typescript]
+----
+export enum DynamicTranslationsMessageType {
+  REQUESTED = 'REQUESTED',
+  RECEIVED = 'RECEIVED'
+}
+
+export interface TranslationsRequested {
+  type: DynamicTranslationsMessageType.REQUESTED;
+  locale: string;
+  contexts: { name: string; version?: string }[];
+}
+
+export interface TranslationsReceived {
+  type: DynamicTranslationsMessageType.RECEIVED;
+}
+----
+
+Two message types define the protocol:
+
+* **`REQUESTED`** — The app requests translations for specific contexts in a given locale.
+* **`RECEIVED`** — The shell signals that translations for the requested contexts are now available in the cache.
+
+== Dynamic Translation Service
+
+*File:* `libs/integration-interface/src/lib/services/dynamic-translation.service.ts`
+
+`DynamicTranslationService` is a framework-agnostic service that orchestrates the request-publish cycle and manages the dynamic translation cache.
+
+=== Global Cache
+
+Dynamic translations are stored in a global structure:
+
+[source,typescript]
+----
+globalThis['onecx-portal-dynamic-translations'] = {
+  [locale: string]: {
+    [contextName: string]: {
+      [version: string]: Record<string, unknown>
+    }
+  }
+}
+----
+
+Organized as `locale → contextName → version → translations`. This allows multiple contexts and versions to coexist without collision.
+
+=== Request Flow
+
+When `getTranslations(locale, contexts)` is called:
+
+. The service checks the cache for each requested context.
+. If all contexts are present (with a matching version or unversioned fallback), returns immediately with the translations.
+. If any context is missing, publishes a `TranslationsRequested` message to the topic.
+. Waits for the `TranslationsReceived` message from the shell.
+. After receiving the message, checks the cache again and returns the translations.
+
+IMPORTANT: The service may return before all contexts are available. It returns whatever is in the cache after receiving the `RECEIVED` signal, and if some contexts are still missing, it returns an empty object for those.
+
+=== Version Matching
+
+When looking up a cached translation for a context, the service uses `semver` for version resolution:
+
+. If an exact version match exists in the cache, uses that.
+. Otherwise, finds the version with the highest semantic match (`semver.satisfies`).
+. Falls back to an unversioned entry (`undefined` version) if no versioned entry matches.
+
+=== Safety
+
+Cache keys are validated to prevent prototype pollution:
+
+[source,typescript]
+----
+function isSafeCacheKey(str: string): boolean {
+  return str &&
+    str !== '__proto__' &&
+    str !== 'prototype' &&
+    str !== 'constructor' &&
+    !str.match(/\.(?:__proto__|prototype|constructor\.)/gi);
+}
+----
+
+Any context name or locale that fails this check causes `getTranslations` to return an empty object.
+
+=== Shell Capability Check
+
+Before requesting dynamic translations, the service checks for the shell capability:
+
+[source,typescript]
+----
+if (!globalThis[LIB_NAME].capabilitiesService?.hasCapability(
+  ShellCapability.DYNAMIC_TRANSLATIONS_TOPIC
+)) {
+  return of({});
+}
+----
+
+If the shell does not advertise `DYNAMIC_TRANSLATIONS_TOPIC`, the service returns an empty object without sending a request.
+
+== Integration with Missing Translation Handler
+
+*File:* `libs/angular-utils/src/lib/utils/multi-language-missing-translation-handler.utils.ts`
+
+`MultiLanguageMissingTranslationHandler` is the primary consumer of dynamic translations. When a translation key is not found in the loaded file-based translations, the handler:
+
+. Reloads the current language via `translateService.reloadLang(lang)`.
+. Searches for the key in the reloaded translations.
+. If still not found, calls `DynamicTranslationService.getTranslations()` with the registered `MultiLanguageIdentifier[]` contexts.
+. Deep-merges the dynamic results and searches again.
+. Falls back through the user's locale list if still missing.
+. Returns the raw key if all attempts fail.
+
+This means dynamic translations are a **last-resort fallback**, not a primary translation source. The system always attempts file-based translations first.
+
+=== MultiLanguageIdentifier
+
+*File:* `libs/angular-utils/src/lib/injection-tokens/multi-language-identifier.ts`
+
+[source,typescript]
+----
+type MultiLanguageIdentifier = {
+  name: string;
+  version?: string;
+  type: 'app' | 'lib';
+}
+----
+
+Registered via `provideMultiLanguageIdentifier()` and converted to context objects for the dynamic translation request:
+
+[source,typescript]
+----
+const context = { name: identifier.name, version: identifier.version }
+----
+
+The `type` field (`'app'` or `'lib'`) identifies the source; if no `app`-type identifier is provided, one is added automatically from `APP_ID.appElementName`.
+
+== Summary of Key Files
+
+[cols="1,2"]
+|===
+| File | Description
+
+| `integration-interface/.../dynamic-translations.topic.ts` | DynamicTranslationsTopic definition
+| `integration-interface/.../dynamic-translations.model.ts` | Message types and interfaces
+| `integration-interface/.../dynamic-translation.service.ts` | Framework-agnostic dynamic translation service
+| `angular-utils/.../multi-language-missing-translation-handler.utils.ts` | Missing translation handler with dynamic fallback
+| `angular-utils/.../multi-language-identifier.ts` | MultiLanguageIdentifier injection token
+|===

@@ -1,0 +1,389 @@
+= Style Utilities API
+
+:idprefix:
+:idseparator:
+
+
+This document provides a reference for the style utility functions and constants available in the OneCX Angular Utils libraries.
+
+[#scope-utilities]
+== Scope Utilities
+
+Link:link:../../libs/angular-utils/src/lib/utils/scope.utils.ts[`scope.utils.ts`]
+
+[#scope-constants]
+=== Constants
+
+[cols="1,3"]
+|===
+|Constant |Type |Description
+
+|`shellScopeId`
+|`string`
+|The scope identifier for Shell UI: `"shell-ui"`
+
+|`dataStyleIdKey`
+|`string`
+|Key for `data-style-id` — marks start of a scoped section with a given scope ID
+
+|`dataStyleIsolationKey`
+|`string`
+|Key for `data-style-isolation` — marks end of style scoping
+
+|`dataNoPortalLayoutStylesKey`
+|`string`
+|Key for `data-no-portal-layout-styles` — opts out of legacy portal layout styles
+
+|`dataMfeElementKey`
+|`string`
+|Key for `data-mfe-element` — marks MFE content start
+
+|`dataIntermediateStyleIdKey`
+|`string`
+|Key for `data-intermediate-style-id` — temporary scope ID metadata for dynamic content
+
+|`dataIntermediateMfeElementKey`
+|`string`
+|Key for `data-intermediate-mfe-element` — temporary MFE metadata for dynamic content
+
+|`dataIntermediateStyleIsolationKey`
+|`string`
+|Key for `data-intermediate-style-isolation` — temporary isolation metadata for dynamic content
+
+|`dataIntermediateNoPortalLayoutStylesKey`
+|`string`
+|Key for `data-intermediate-no-portal-layout-styles` — temporary opt-out metadata for dynamic content
+|===
+
+[#scope-attributes]
+=== HTML Attribute Constants
+
+[cols="1,3"]
+|===
+|Constant |Value |Description
+
+|`dataStyleIdAttribute`
+|`data-style-id`
+|HTML attribute for scope identifier
+
+|`dataStyleIsolationAttribute`
+|`data-style-isolation`
+|HTML attribute for scoping boundary end
+
+|`dataNoPortalLayoutStylesAttribute`
+|`data-no-portal-layout-styles`
+|HTML attribute for legacy style opt-out
+
+|`dataMfeElementAttribute`
+|`data-mfe-element`
+|HTML attribute marking MFE content
+|===
+
+[#scope-functions]
+=== Functions
+
+[#get-scope-identifier]
+==== `getScopeIdentifier()`
+
+Gets the scope identifier based on the application context.
+
+[source,ts]
+----
+getScopeIdentifier(
+  appStateService: AppStateService,
+  skipStyleScoping?: boolean | null,
+  remoteComponentConfig?: ReplaySubject<RemoteComponentConfig> | null
+): Promise<string>
+----
+
+* For **Shell**: Returns empty string (no scoping)
+* For **RCs**: Uses `remoteComponentConfig` to build scope ID from product name and app ID
+* For **MFEs**: Uses `currentMfe$` topic to build scope ID
+
+[#scope-primeng-css]
+==== `scopePrimengCss()`
+
+Wraps PrimeNG CSS in `@scope` rules. For browsers without native `@scope` support, wraps in `@supports` instead.
+
+[source,ts]
+----
+scopePrimengCss(css: string, scopeId: string): string
+----
+
+[#replace-primeng-prefix]
+==== `replacePrimengPrefix()`
+
+Replaces `--p-` prefix in CSS with a scope-specific prefix.
+
+[source,ts]
+----
+replacePrimengPrefix(css: string, scopeId: string): string
+----
+
+[#scope-identifier-to-variable-prefix]
+==== `scopeIdentifierToVariablePrefix()`
+
+Converts a scope ID to a CSS variable prefix.
+
+[source,ts]
+----
+scopeIdentifierToVariablePrefix(scopeId: string): string
+----
+
+Example: `"onecx-workspace|onecx-workspace-ui"` → `"--onecx-workspace-onecx-workspace-ui-"`
+
+[#scope-id-from-product-name-and-app-id]
+==== `scopeIdFromProductNameAndAppId()`
+
+Builds a scope ID from product name and application ID.
+
+[source,ts]
+----
+scopeIdFromProductNameAndAppId(productName: string, appId: string): string
+----
+
+Example: `"onecx-workspace"`, `"onecx-workspace-ui"` → `"onecx-workspace|onecx-workspace-ui"`
+
+[#is-css-scope-rule-supported]
+==== `isCssScopeRuleSupported()`
+
+Checks if the browser natively supports the CSS `@scope` at-rule.
+
+[source,ts]
+----
+isCssScopeRuleSupported(): boolean
+----
+
+[#app-styles-scope-utilities]
+== App Styles Scope Utilities
+
+Link:link:../../libs/angular-utils/style/src/utils/app-styles-scope.utils.ts[`app-styles-scope.utils.ts`]
+
+[#get-app-style-by-scope]
+=== `getAppStyleByScope()`
+
+Finds an existing application style element by its scope ID.
+
+[source,ts]
+----
+getAppStyleByScope(scopeId: string): HTMLStyleElement | null
+----
+
+[#replace-root-with-scope]
+=== `replaceRootWithScope()`
+
+Replaces `:root` with `:scope` in CSS text.
+
+[source,ts]
+----
+replaceRootWithScope(css: string): string
+----
+
+[#replace-root-and-html-with-scope]
+=== `replaceRootAndHtmlWithScope()`
+
+Replaces both `:root` and `:root, html` patterns with `:scope`.
+
+[source,ts]
+----
+replaceRootAndHtmlWithScope(css: string): string
+----
+
+[#create-application-scoped-css]
+=== `createApplicationScopedCss()`
+
+Wraps application CSS in `@scope` rules and transforms selectors for proper scoping.
+
+[source,ts]
+----
+createApplicationScopedCss(css: string, scopeId: string): string
+----
+
+[#app-styles-usage-utilities]
+== App Styles Usage Utilities
+
+Link:link:../../libs/angular-utils/style/src/utils/app-styles-usage.utils.ts[`app-styles-usage.utils.ts`]
+
+[#get-style-usage-count]
+=== `getStyleUsageCount()`
+
+Counts the number of usage attributes on a style element.
+
+[source,ts]
+----
+getStyleUsageCount(element: HTMLStyleElement): number
+----
+
+[#is-style-used-by-mfe]
+=== `isStyleUsedByMfe()`
+
+Checks if a style element is currently used by the active microfrontend.
+
+[source,ts]
+----
+isStyleUsedByMfe(element: HTMLStyleElement): boolean
+----
+
+[#use-style-for-mfe]
+=== `useStyleForMfe()`
+
+Registers an MFE as a consumer of a style element by adding `data-mfe-styles`.
+
+[source,ts]
+----
+useStyleForMfe(element: HTMLStyleElement): void
+----
+
+[#use-style-for-rc]
+=== `useStyleForRc()`
+
+Registers an RC slot as a consumer of a style element by adding `data-slot-{name}-styles`.
+
+[source,ts]
+----
+useStyleForRc(element: HTMLStyleElement, slotName: string): void
+----
+
+[#remove-mfe-usage-from-style]
+=== `removeMfeUsageFromStyle()`
+
+Removes `data-mfe-styles` from a style element.
+
+[source,ts]
+----
+removeMfeUsageFromStyle(element: HTMLStyleElement): void
+----
+
+[#remove-rc-usage-from-style]
+=== `removeRcUsageFromStyle()`
+
+Removes `data-slot-{name}-styles` from a style element.
+
+[source,ts]
+----
+removeRcUsageFromStyle(element: HTMLStyleElement, slotName: string): void
+----
+
+[#app-styles-lifecycle-utilities]
+== App Styles Lifecycle Utilities
+
+Link:link:../../libs/angular-utils/style/src/utils/app-styles-lifecycle.utils.ts[`app-styles-lifecycle.utils.ts`]
+
+[#update-styles-for-mfe-change]
+=== `updateStylesForMfeChange()`
+
+Handles style updates when the active MFE changes — cleans up old MFE styles and loads new ones.
+
+[#update-styles-for-rc-creation]
+=== `updateStylesForRcCreation()`
+
+Handles style updates when a new RC is created — loads and registers the RC's application styles.
+
+[#ensure-styles]
+=== `ensureStyles()`
+
+Ensures that application styles are loaded and properly registered for a given scope.
+
+[#remove-all-mfe-usages-from-styles]
+=== `removeAllMfeUsagesFromStyles()`
+
+Removes all MFE usage attributes from all application stylesheets.
+
+[#remove-all-rc-usages-from-styles]
+=== `removeAllRcUsagesFromStyles()`
+
+Removes all RC usage attributes for a given slot from all application stylesheets.
+
+[#dom-style-utilities]
+== DOM Style Utilities
+
+Link:link:../../libs/angular-utils/style/src/utils/dom-style.utils.ts[`dom-style.utils.ts`]
+
+[#add-style-to-head]
+=== `addStyleToHead()`
+
+Creates and appends a `<style>` element to `<head>`.
+
+[#replace-style-content]
+=== `replaceStyleContent()`
+
+Replaces the text content of an existing `<style>` element.
+
+[#create-style-used-by-mfe-rc]
+=== `createStyleUsedByMfeRc()`
+
+Creates a style element and marks it as used by the current MFE or RC slot.
+
+[#fetch-utilities]
+== Fetch Utilities
+
+Link:link:../../libs/angular-utils/style/src/utils/fetch-app-css.util.ts[`fetch-app-css.util.ts`]
+
+[#fetch-app-css]
+=== `fetchAppCss()`
+
+Fetches `styles.css` from an application's remote URL with Content-Type validation.
+
+[#api-constants]
+== API Constants
+
+Link:link:../../libs/angular-utils/style/src/api/constants.ts[`constants.ts`]
+
+[cols="1,3"]
+|===
+|Constant |Value |Description
+
+|`dataAppStylesKey`
+|`"appStyles"`
+|Key for application styles attribute
+
+|`dataAppStylesAttribute`
+|`"data-app-styles"`
+|HTML attribute identifying an application stylesheet by scope ID
+
+|`dataMfeStylesKey`
+|`"mfeStyles"`
+|Key for MFE styles usage attribute
+
+|`dataMfeStylesAttribute`
+|`"data-mfe-styles"`
+|HTML attribute marking stylesheet as used by MFE
+
+|`dataRcStylesKey`
+|`"rcStyles"`
+|Key for RC styles usage attribute
+
+|`dataRcStylesAttribute`
+|`"data-slot-{name}-styles"`
+|HTML attribute marking stylesheet as used by an RC slot
+
+|`dataShellStylesKey`
+|`"shellStyles"`
+|Key for Shell styles attribute
+
+|`dataShellStylesAttribute`
+|`"data-shell-styles"`
+|HTML attribute for Shell UI stylesheet
+|===
+
+[#theme-initializer]
+== Theme Initializer
+
+Link:link:../../libs/angular-utils/theme/primeng/src/utils/app-styles-initializer.ts[`app-styles-initializer.ts`]
+
+[#provide-app-styles-initializer]
+=== `provideAppStylesInitializer()`
+
+Provides an environment initializer that runs during application startup to update application styles with scoped PrimeNG variable prefixes.
+
+[source,ts]
+----
+provideAppStylesInitializer(): EnvironmentProvider[]
+----
+
+The initializer:
+
+1. Resolves the application's scope ID
+2. Finds the application's style element via `getAppStyleByScope()`
+3. Replaces all `--p-` references in the stylesheet with the scoped prefix using `replacePrimengPrefix()`
+4. Updates the element's content via `replaceStyleContent()`

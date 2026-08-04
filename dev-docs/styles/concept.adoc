@@ -1,87 +1,138 @@
-
 = Styles
 
 :idprefix:
-:idseparator: -
+:idseparator:
 :scope_at_rule: https://developer.mozilla.org/en-US/docs/Web/CSS/@scope
-:scoping: ./scoping.adoc
-:style_types: ./style-types.adoc
-:primeng_token_variables: ./primeng-token-variables.adoc
-:scope_polyfill: ./scope-polyfill.adoc
 
-This document outlines the styles mechanisms available in OneCX, focusing on how styles are structured, applied, and managed. It provides both conceptual and technical insights to help developers and administrators understand how to implement and customize styles effectively. After reading, you should be able to:
 
-- Understand the concept of style isolation in OneCX.
-- Use scoped styles and application styles.
-- Know how to apply and manage styles at runtime.
+This document provides an overview of the styles architecture in OneCX. It explains the core concept of style isolation, how styles are organized and applied, and how different applications coexist on the same page without CSS conflicts.
 
-[#style-isolation-idea]
+[#style-isolation]
 == Style Isolation
-Style isolation is a concept that aims to address the issue of styles sharing between different Microfrontends on a single page. By design, on a single page there will be at least Shell UI content and the current Microfrontend's content, making it 2 active applications that require different CSS styles for appropriate presentation. With Remote Components, the amount of the active applications grows to larger numbers making it more likely that CSS rules are clashing with each other. This can lead to potential unwanted side effects for the application display.
 
-The style isolation concept assumes that each application needs to set up the required CSS rules for itself and none of them are leaking to other application's content. In OneCX, the style isolation concept has been implemented since version 6.
+OneCX pages typically host multiple applications simultaneously:
 
-[#scoped-styles]
-=== Scoped Styles
-To support the style isolation concept in OneCX, all style sheets (apart from Shell UI's global style sheet) are scoped. A scoped style sheet is a CSS style sheet that contains no global CSS rules but only ones that are utilizing the {scope_at_rule}[CSS @scope at-rule]. This rule ensures that all CSS rules defined in it will be scoped to certain boundaries on a page.
+* **Shell UI** — always present, provides the portal layout, navigation, and slot infrastructure
+* **Microfrontend (MFE)** — the currently active application, loaded into a Shell slot
+* **Remote Components (RCs)** — additional components loaded from various applications into Shell or MFE slots
 
-More details on how scoping works in OneCX can be accessed link:{scoping}[here].
+Each application brings its own CSS, including frameworks (PrimeNG, Material), component libraries, and custom styles. Without isolation, rules from one application would leak into another, causing visual corruption.
 
-[#application-styles]
-=== Application Styles
-As already mentioned, each application has to take care of its own styles since nothing is declared globally. This is possible by dynamic CSS loading. Whenever a Microfrontend or Remote Component is created, the CSS style sheet of the application they belong to will be loaded on the page. The only requirement for the application is to expose the `styles.css` file.
+[#the-problem]
+=== The Problem
 
-The `styles.css` file has to be exposed by the application on the remote URL level. As an example, if the remote URL of the Microfrontend is `localhost:4200/deploymentUrl`, the style sheet has to be exposed on the `localhost:4200/deploymentUrl/styles.css` URL.
+In a traditional single-page setup, all styles are global. When multiple applications share the same `<head>` and DOM tree:
 
-[#nx-application-styles]
-==== NX Application Styles
-It's recommended to do the following modification to the `project.json` file to ensure it's exposed correctly (where input is a path to the application styles):
+* CSS class name collisions cause unexpected styling (e.g., two applications defining `.card { }` differently)
+* CSS custom properties (variables) from one theme override another's
+* UI framework resets (PrimeNG, Normalize) applied by one application affect all content
 
-.project.json modification
-[source,json]
+[#the-solution]
+=== The Solution: CSS @scope
+
+Since version 6, OneCX uses the {scope_at_rule}[CSS @scope at-rule] to create isolated style boundaries. Each application's styles are wrapped in `@scope` rules that restrict them to a specific DOM region identified by data attributes.
+
+[cols="1,3"]
+|===
+|Mechanism |Purpose
+
+|`@scope` at-rule
+|Restricts CSS rules to a DOM range defined by `from` and `to` selectors
+
+|`data-style-id` attribute
+|Marks the start of a scoped region with a unique application identifier
+
+|`data-style-isolation` attribute
+|Marks the boundary end — styles stop at this element
+
+|`data-no-portal-layout-styles` attribute
+|Opt-out of legacy portal layout styles (libs v6+ content)
+|===
+
+.Resulting in strict style isolation
+[source,html]
 ----
-{
+<body>
+  <!-- Shell content -->
+  <div data-style-id="onecx-shell|onecx-shell-ui" data-style-isolation>
     ...
-    "styles": [
-        {
-            "input": "./src/styles.scss",
-            "bundleName": "styles",
-            "inject": true
-        }
-    ],
-    ...
-}
+    <!-- Slot with MFE content -->
+    <div data-style-id="onecx-workspace|onecx-workspace-ui" data-style-isolation>
+      <!-- MFE styles only apply here -->
+      ...
+      <!-- Slot with RC content from a different app -->
+      <div data-style-id="other-app|other-app-ui" data-style-isolation>
+        <!-- RC styles only apply here, MFE styles do not leak in -->
+      </div>
+    </div>
+  </div>
+</body>
 ----
 
-[#angular-cli-application-styles]
-==== Angular CLI Application Styles
-It's recommended to do the following modification to the `package.json` file to ensure it's exposed correctly (where *my-project-name* should be the name of the modified project):
+Each application sets up its own styles. Nothing declared by one application leaks into another's region.
 
-.angular.json modification
-[source,json]
-----
-{
-    ...
-    "scripts": {
-        "postbuild": "mv \"$(find dist/my-project-name -maxdepth 1 -type f -name 'styles.*.css' | head -n 1)\" dist/my-project-name/styles.css",
-    }
-    ...
-}
-----
+[#style-overview]
+== Style Types at a Glance
 
-[#component-styles]
-==== Component Styles
-Component styles are a special case of style sheets that exists in technologies like Angular. In case of Angular, those style sheets are usually scoped by their definition (scoped to the component). Apart from the application styles, those are the other option to define styles for your content.
+A OneCX page contains several categories of stylesheets, each with a specific scope and responsibility:
 
-[#at-rule-scope-support]
-==== @scope support
-The `@scope` at-rule is not widely supported yet in all browsers. For that reason, a polyfill has been prepared (located in the Shell UI) that automatically takes care of the scoping for all browsers that do not support the rule.
+[cols="1,1,3"]
+|===
+|Type |Scope |Description
 
-[#technical-details]
-== Technical details
-Access the technical details for the following topics:
+|Shell Scoped
+|Shell content only
+|Styles for Shell UI, scoped to `data-style-id="onecx-shell|onecx-shell-ui"`
 
-* link:{scoping}[Style scoping details] - how style scoping is used in OneCX to ensure style isolation
-* link:{style_types}[Style sheets on the page] - what different style sheets are on a single OneCX page
-* link:{primeng_token_variables}[PrimeNG variable overrides] - how application and component style sheets are affected when using PrimeNG design token variables
-* link:{scope_polyfill}[@scope polyfill] - details on how the @scope polyfill works
+|Application Scoped
+|Specific application region
+|Styles from each application's `styles.css`, scoped to that application's `data-style-id`
+
+|PrimeNG Scoped
+|Specific application region
+|PrimeNG theme styles, scoped per-application with prefixed CSS variables
+
+|Global Scoped
+|Entire page
+|Reset, normalize, and truly shared styles (minimal usage)
+
+|Legacy
+|Entire page (opt-out available)
+|Portal layout styles for backward compatibility; v6+ content opts out via `data-no-portal-layout-styles`
+|===
+
+[#browser-support]
+== Browser Support
+
+The `@scope` at-rule is a relatively new CSS feature. OneCX handles both native and non-native environments:
+
+* **Native support** — Browsers implementing `CSSScopeRule` use `@scope` directly
+* **Polyfill** — The Shell UI includes a MutationObserver-based polyfill that simulates `@scope` behavior for older browsers
+
+For browsers without native support, `@scope` rules are wrapped in `@supports (@scope(...))` blocks, which the polyfill detects and processes.
+
+[#application-styles-overview]
+== Application Styles
+
+Each MFE and RC is responsible for providing its own styles. The application exposes a `styles.css` file at its remote URL, which is dynamically fetched, scoped, and injected when the application is activated on the page.
+
+The lifecycle of application styles involves:
+
+1. **Fetching** — Loading `styles.css` from the application's remote URL
+2. **Scoping** — Wrapping CSS in `@scope` rules and transforming `:root` to `:scope`
+3. **Usage tracking** — Registering which MFEs and RCs are using each style sheet
+4. **Cleanup** — Removing styles when no longer referenced by any active component
+
+See xref:application-styles.adoc[Application Styles] for the full lifecycle details.
+
+[#navigation]
+== Technical Documentation
+
+detailed:
+
+* xref:scoping.adoc[CSS Scoping] — How `@scope` rules are constructed, HTML attributes, expected behavior, dynamic content
+* xref:style-types.adoc[Style Types] — Detailed breakdown of each style sheet type, purposes, and Angular version differences
+* xref:application-styles.adoc[Application Styles] — Fetching, scoping, usage tracking, and lifecycle management
+* xref:primeng-integration.adoc[PrimeNG Integration] — PrimeNG style scoping, token variable prefixing, CustomUseStyle
+* xref:scope-polyfill.adoc[@scope Polyfill] — How the polyfill works for browsers without native @scope support
+* xref:style-utilities.adoc[Style Utilities API] — Reference for all style utility functions and constants

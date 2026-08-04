@@ -1,0 +1,172 @@
+= Application Styles
+
+:idprefix:
+:idseparator:
+:scope_utils: ../../libs/angular-utils/src/lib/utils/scope.utils.ts
+:app_styles_scope: ../../libs/angular-utils/style/src/utils/app-styles-scope.utils.ts
+:app_styles_usage: ../../libs/angular-utils/style/src/utils/app-styles-usage.utils.ts
+:app_styles_lifecycle: ../../libs/angular-utils/style/src/utils/app-styles-lifecycle.utils.ts
+:fetch_app_css: ../../libs/angular-utils/style/src/utils/fetch-app-css.util.ts
+:dom_style: ../../libs/angular-utils/style/src/utils/dom-style.utils.ts
+
+
+This document describes how application styles are managed in OneCX. It covers the lifecycle of an application's styles.css file from initial fetch to DOM injection, scoping, usage tracking, and cleanup.
+
+[#overview]
+== Overview
+
+Each microfrontend and remote component belongs to an application, identified by a scope ID (`productName|appId`). Each application exposes a `styles.css` file containing application-level CSS rules. OneCX manages these stylesheets dynamically:
+
+* Styles are **fetched** when content from the application first appears on the page
+* Styles are **scoped** to the application's DOM region using `@scope`
+* Styles are **tracked** — OneCX knows which MFEs and RCs use each stylesheet
+* Styles are **removed** when no active content references them anymore
+
+This ensures that styles exist on the page only when needed, and that multiple pieces of content from the same application share a single stylesheet.
+
+[#exposing-styles-css]
+== Exposing styles.css
+
+An application must expose its `styles.css` file at its remote entry URL. For example:
+
+[source,text]
+----
+Remote entry URL:  http://localhost:4200/deploymentUrl/
+Styles URL:        http://localhost:4200/deploymentUrl/styles.css
+----
+
+[#nx-configuration]
+=== NX Projects
+
+In `project.json`, configure styles as a named bundle:
+
+[source,json]
+----
+{
+    "styles": [
+        {
+            "input": "./src/styles.scss",
+            "bundleName": "styles",
+            "inject": true
+        }
+    ]
+}
+----
+
+[#angular-cli-configuration]
+=== Angular CLI Projects
+
+In `angular.json`, rename the hashed styles output to `styles.css`:
+
+[source,json]
+----
+{
+    "scripts": {
+        "postbuild": "mv \"$(find dist/my-project-name -maxdepth 1 -type f -name 'styles.*.css' | head -n 1)\" dist/my-project-name/styles.css"
+    }
+}
+----
+
+[#lifecycle]
+== Style Sheet Lifecycle
+
+[#step-1-fetch]
+=== 1. Fetch
+
+When content from an application is created, the system attempts to load its styles. The link:{fetch_app_css}[`fetchAppCss`] function fetches `styles.css` from the application's remote URL and validates the `Content-Type` response header to ensure the response is valid CSS (e.g., `text/css`). This prevents non-CSS content from being injected as a stylesheet.
+
+[#step-2-create-element]
+=== 2. Create Style Element
+
+If no existing stylesheet is found for the application's scope ID (checked via link:{app_styles_scope}[`getAppStyleByScope`]), a new `<style>` element is created and injected into `<head>` using link:{dom_style}[`addStyleToHead`]. The fetched CSS content is written into this element.
+
+The element is marked with `data-app-styles="scopeId"` for identification.
+
+[#step-3-scope]
+=== 3. Scope
+
+The raw CSS from `styles.css` is transformed to be scope-aware. The key transformation is performed by link:{app_styles_scope}[`createApplicationScopedCss`]:
+
+* **`:root` → `:scope`** — Any `:root` selector in the CSS is replaced with `:scope`, ensuring CSS custom properties defined at the root level are scoped to the application's region
+* **`:root, html` → `:scope`** — Combined `:root, html` selectors are also collapsed to `:scope`
+* **@scope wrapping** — The CSS is wrapped in `@scope(...)` rules targeting the application's `data-style-id`
+
+This ensures that all application-level styles, including CSS custom properties, are restricted to the application's DOM region.
+
+[#step-4-register-usage]
+=== 4. Register Usage
+
+Once the stylesheet exists, the system records which MFE or RC caused it to be loaded. This is handled by the link:{app_styles_usage}[usage tracking utilities]:
+
+* **MFE usage** — `useStyleForMfe()` adds a `data-mfe-styles` attribute to the stylesheet
+* **RC usage** — `useStyleForRc()` adds a `data-slot-{slot-name}-styles` attribute to the stylesheet
+
+These attributes serve as reference counts. If content from the same application appears in multiple places (e.g., an MFE and an RC both from `onecx-workspace|onecx-workspace-ui`), the stylesheet accumulates multiple usage attributes but is only loaded once.
+
+[#step-5-track-changes]
+=== 5. Track Changes
+
+When MFEs or RCs change, the link:{app_styles_lifecycle}[lifecycle utilities] manage the stylesheets:
+
+* **`updateStylesForMfeChange()`** — When the active MFE switches, the system:
+  - Removes `data-mfe-styles` from the old MFE's application stylesheets
+  - If no other usage remains, the old stylesheet is removed from the DOM
+  - Loads and registers the new MFE's application stylesheet
+
+* **`updateStylesForRcCreation()`** — When a new RC is created:
+  - If the RC's application stylesheet already exists, its `data-slot-{slot-name}-styles` attribute is added
+  - If not, a new stylesheet is fetched, scoped, and created
+
+[#step-6-cleanup]
+=== 6. Cleanup
+
+When content is removed, the corresponding usage attributes are cleaned up:
+
+* **`removeMfeUsageFromStyle()`** — Removes `data-mfe-styles` from the MFE's stylesheet
+* **`removeRcUsageFromStyle()`** — Removes the `data-slot-{slot-name}-styles` attribute
+
+After removal, link:{app_styles_usage}[`getStyleUsageCount`] checks if any usage attributes remain. If the count drops to zero, the `<style>` element is removed from the DOM entirely.
+
+Bulk cleanup is handled by:
+
+* **`removeAllMfeUsagesFromStyles()`** — Removes all MFE usages across all application stylesheets
+* **`removeAllRcUsagesFromStyles()`** — Removes all RC usages for a given slot
+
+[#usage-attributes]
+== Usage Tracking Attributes
+
+The system uses DOM attributes as a reference-counting mechanism on application style elements:
+
+[cols="1,3"]
+|===
+|Attribute |Purpose
+
+|`data-app-styles="scopeId"`
+|Identifies the stylesheet as belonging to a specific application scope
+
+|`data-mfe-styles`
+|Present when the active microfrontend uses this stylesheet
+
+|`data-slot-{slot-name}-styles`
+|Present when a remote component in the given slot uses this stylesheet
+|===
+
+Multiple usage attributes can coexist on one stylesheet (e.g., `data-mfe-styles` + `data-slot-workspace-user-list-styles` if both the MFE and an RC use the same application's styles).
+
+[#angular-version-differences]
+== Angular Version Differences
+
+[#angular-19-plus]
+=== Angular 19+ Applications
+
+Applications built with Angular 19+ and libs v6 fully support style isolation. Application styles are applied to all content originating from the application — both the MFE's own content and any RCs from the same application.
+
+[#angular-18]
+=== Angular 18 Applications
+
+Due to legacy assumptions in Angular 18 applications, application styles (`styles.css`) are applied only to the MFE's content by default, not to RCs originating from the same application. The `data-mfe-element` attribute is used to restrict application styles to the MFE region only.
+
+To apply application styles to RCs in Angular 18:
+
+* Disable portal layout styles for the RC (4th parameter of `bootstrapRemoteComponent`)
+* Move required CSS rules from application styles to component styles

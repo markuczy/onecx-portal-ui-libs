@@ -1,0 +1,94 @@
+= Icons & Image Repository
+
+== Overview
+
+The integration interface provides two services for visual assets: `IconService` for themed icons and `ImageRepositoryService` for image URLs. Both rely on shell communication — the shell provides the data, the application requests it via a topic or service.
+
+== Icon Service
+
+*File:* `libs/integration-interface/src/lib/services/icon.service.ts`
+
+Provides sync and async access to icons. Icons are requested from the shell via `IconTopic` and cached globally.
+
+=== Global Cache
+
+Icons are stored in `globalThis[LIB_NAME].iconCache` as `iconName → CSS class`.
+
+=== requestIcon (Sync)
+
+[source,typescript]
+----
+requestIcon(name: string, classType?: string): string | undefined
+----
+
+. Checks the global cache for the icon.
+. If found, returns the cached CSS class immediately.
+. If not found, publishes an `IconRequested` message to the topic and returns `undefined`.
+
+The CSS class is constructed as:
+
+[source]
+----
+onecx-theme-icon-{classType}-{normalizedName}
+----
+
+Where `normalizedName` lowercases the icon name and replaces spaces and underscores with hyphens.
+
+=== requestIconAsync (Async)
+
+[source,typescript]
+----
+requestIconAsync(name: string, classType?: string): Observable<string | undefined>
+----
+
+. Requests the icon from the shell.
+. Subscribes to `IconsReceived` messages.
+. Returns the CSS class once it arrives in the cache.
+
+=== Shell Capability Check
+
+Both methods check for `ShellCapability.ICON_TOPIC` before requesting. If unavailable, `requestIcon` returns `undefined` and `requestIconAsync` returns an empty Observable.
+
+== Image Repository Service
+
+*File:* `libs/integration-interface/src/lib/services/image-repository.service.ts`
+
+Looks up image URLs from the shell's image repository.
+
+=== getUrl
+
+[source,typescript]
+----
+getUrl(names: string[], fallbackUrl?: string): string | undefined
+----
+
+. Subscribes to `ImageRepositoryTopic.asObservable()` to get all available images.
+. Searches for the first name match (case-insensitive).
+. Returns the matching URL.
+. If no match, returns the `fallbackUrl` argument (or `undefined`).
+
+This first-match priority allows callers to provide a list of candidate names and get the first available image.
+
+=== Usage Example
+
+[source,typescript]
+----
+import { ImageRepositoryService } from '@onecx/integration-interface';
+
+const url = imageRepositoryService.getUrl(
+  ['logo-dark', 'logo', 'company-logo'],
+  '/assets/default-logo.png'
+);
+----
+
+== Summary of Key Files
+
+[cols="1,2"]
+|===
+| File | Description
+
+| `integration-interface/.../icon.service.ts` | IconService with sync and async icon requests
+| `integration-interface/.../image-repository.service.ts` | ImageRepositoryService for image URL lookups
+| `integration-interface/.../icon.topic.ts` | IconTopic for shell icon communication
+| `integration-interface/.../image-repository.topic.ts` | ImageRepositoryTopic for shell image data
+|===

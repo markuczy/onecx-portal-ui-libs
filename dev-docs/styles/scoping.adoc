@@ -6,7 +6,7 @@
 :idseparator: -
 :scope_at_rule: https://developer.mozilla.org/en-US/docs/Web/CSS/@scope
 :scope_utils: ../../libs/angular-utils/src/lib/utils/scope.utils.ts
-:primeng-dynamic-content: ./primeng-scoping#primeng-dynamic-content
+:primeng-dynamic-content: ./primeng-integration#dynamic-content
 
 This document outlines the styles scoping mechanisms in OneCX, detailing how styles are scoped on pages and the technical implementation behind them. It provides insights to help developers understand how to apply scoped styles effectively.
 

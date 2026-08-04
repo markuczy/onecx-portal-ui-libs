@@ -1,0 +1,414 @@
+= Translations
+
+== Overview
+
+The ONECX Portal UI Libraries use https://github.com/ngx-translate/core[@ngx-translate/core] (Angular) and https://www.i18next.com/[i18next] (React) for internationalization. The monorepo adds several layers on top of these libraries to handle the complexities of a module federation architecture where multiple micro-frontends and remote components each ship their own translation files.
+
+The core building blocks are:
+
+* **`TRANSLATION_PATH`** — injection token that declares where translation files can be found
+* **`OnecxTranslateLoader`** — combines all translation paths into a single loader
+* **`CachingTranslateLoader`** — HTTP loader with retry logic
+* **`TranslationCacheService`** — global cache with cross-application coordination via topic
+* **`TranslationConnectionService`** — syncs user language with TranslateService and PrimeNG
+
+== Why TRANSLATION_PATH
+
+In a traditional Angular application, a translation loader points to one base path (e.g. `/assets/i18n/`) and appends the language and `.json` suffix. In a module federation architecture, this approach breaks for several reasons:
+
+* Each micro-frontend ships its own translation files at its own base URL.
+* Remote components have their own isolated translation files.
+* Shared libraries (like `angular-accelerator`) ship translations that must be merged with application translations.
+* Multiple translation sources must be deep-merged so keys from different sources do not collide.
+
+`TRANSLATION_PATH` solves this by being a `multi: true` injection token that accepts multiple values. Each value represents a base path, and all paths are loaded and merged at runtime.
+
+=== Definition
+
+*File:* `libs/angular-utils/src/lib/injection-tokens/translation-path.ts`
+
+[source,typescript]
+----
+export const TRANSLATION_PATH = new InjectionToken<
+  (string | Observable<string> | Promise<string>)[]
+>('TRANSLATION_PATH');
+----
+
+The token accepts three types of values:
+
+[cols="1,2"]
+|===
+| Value Type | Use Case
+| `string` | Static path, e.g. `/assets/i18n/`
+| `Observable<string>` | Dynamic path derived from a micro-frontend base URL (deprecated approach)
+| `Promise<string>` | Async-resolved path
+|===
+
+=== Providing Translation Paths
+
+The recommended approach uses `import.meta.url` to construct an absolute path relative to the calling module:
+
+*File:* `libs/angular-utils/src/lib/providers/translation-path-from-meta.providers.ts`
+
+[source,typescript]
+----
+import { provideTranslationPathFromMeta } from '@onecx/angular-utils';
+
+// In module providers or bootstrapApplication()
+provideTranslationPathFromMeta(import.meta.url, 'assets/i18n/')
+----
+
+This strips the filename from `import.meta.url` and appends the provided path segment, producing an absolute translation base URL. In test environments (detected via `isTest()`), it falls back to the raw path string.
+
+WARNING: Webpack must be configured to expose `import.meta.url`. See https://webpack.js.org/configuration/module/#moduleparserjavascriptimportmeta[Webpack documentation].
+
+A convenience method, `provideTranslationPaths()`, bundles the library's own path, a `MultiLanguageIdentifier`, and a `LOCALE_ID` provider:
+
+[source,typescript]
+----
+import { provideTranslationPaths } from '@onecx/angular-utils';
+
+// Provides:
+// - LOCALE_ID from UserService
+// - Translation path for angular-utils translations
+// - MultiLanguageIdentifier for angular-utils
+provideTranslationPaths()
+----
+
+=== Deprecated Approaches
+
+Two factory-based approaches still work but should be migrated to `provideTranslationPathFromMeta`:
+
+* `translationPathFactory(path)` — requires `AppStateService` to resolve the micro-frontend base URL at runtime.
+* `remoteComponentTranslationPathFactory(path)` — requires `RemoteComponentConfig` to resolve the remote component base URL.
+
+Both produce an `Observable<string>` and are no longer needed because `import.meta.url` resolves correctly in module federation environments when Webpack is configured.
+
+== Loading Architecture
+
+The loading chain from provider to merged translation object:
+
+....
+TRANSLATION_PATH providers
+        |
+        v
+OnecxTranslateLoader
+        |
+        v
+CachingTranslateLoader  (one per unique path)
+        |
+        v
+TranslationCacheService
+        |-- Cache hit  -->  window.onecxTranslations
+        |-- Cache miss -->  HTTP GET (with retry)
+        |
+        v
+TranslateCombinedLoader
+        |
+        v
+Merged Translation Object
+....
+
+=== OnecxTranslateLoader
+
+*File:* `libs/angular-utils/src/lib/utils/onecx-translate-loader.utils.ts`
+
+The primary `TranslateLoader` for the monorepo. It:
+
+. Reads all `TRANSLATION_PATH` providers via `inject(TRANSLATION_PATH, { optional: true })`.
+. Converts each value (string, Observable, Promise) to an `Observable<string>`.
+. Uses `zip()` to wait for all paths to resolve.
+. Deduplicates paths with `Set`.
+. Creates a `CachingTranslateLoader` for each unique path (using the path as prefix, `.json` as suffix).
+. Wraps all loaders in a `TranslateCombinedLoader`.
+
+When `getTranslation(lang)` is called, the combined loader fires all individual loaders in parallel via `forkJoin` and deep-merges the results.
+
+=== TranslateCombinedLoader
+
+*File:* `libs/angular-utils/src/lib/utils/translate.combined.loader.ts`
+
+Given N `TranslateLoader` instances, calls `getTranslation(lang)` on each via `forkJoin`, catches errors per-loader (logs and returns `{}`), then deep-merges all successful results:
+
+[source,typescript]
+----
+forkJoin(
+  this._loaders.map(l =>
+    l.getTranslation(lang).pipe(
+      catchError(err => of({}))
+    )
+  )
+).pipe(
+  map(allTranslations => {
+    let result = {};
+    allTranslations.forEach(t => result = mergeDeep(result, t));
+    return result;
+  })
+)
+----
+
+Later paths override earlier paths for duplicate keys (via `mergeDeep`).
+
+=== CachingTranslateLoader
+
+*File:* `libs/angular-utils/src/lib/utils/caching-translate-loader.utils.ts`
+
+Wraps the standard `TranslateHttpLoader` with `TranslationCacheService`. Constructs the URL as `{prefix}{lang}.json` and delegates to the cache service. The HTTP fetch includes 2 retries at 50ms intervals.
+
+== TranslationCacheService
+
+*File:* `libs/angular-utils/src/lib/services/translation-cache.service.ts`
+
+Manages `window['onecxTranslations']` as a global cache for translation files. This is the key mechanism that enables sharing translation data across module federation boundaries — if one micro-frontend loads a translation file, others can reuse it without making another HTTP request.
+
+The service uses a `TranslationCacheTopic` (topic name: `translationCache`, v2) for cross-application coordination. This topic is defined in `angular-utils` rather than `integration-interface` because it is Angular-specific.
+
+=== Three Loading Scenarios
+
+When `getTranslationFile(url, cacheMissFunction)` is called, the service checks the cache and follows one of three paths:
+
+==== Scenario 1: Already Loaded
+
+The URL exists in `window['onecxTranslations']` with a non-null value:
+
+[source,typescript]
+----
+if (window['onecxTranslations'][url]) {
+  return of(window['onecxTranslations'][url]);
+}
+----
+
+The cached translations are returned immediately as an Observable. No HTTP request is made, no topic message is published. This is the fast path when another micro-frontend has already loaded the same translation file.
+
+==== Scenario 2: Scheduled for Loading
+
+The URL exists in the cache with a value of `null`, meaning another subscriber has already initiated the fetch:
+
+[source,typescript]
+----
+if (window['onecxTranslations'][url] === null) {
+  return this.translationTopic$.pipe(
+    filter((messageUrl) => messageUrl === url),
+    map(() => window['onecxTranslations'][url] ?? {}),
+    first()
+  );
+}
+----
+
+The caller subscribes to the `TranslationCacheTopic` and waits for the URL to be published. When the topic emits the matching URL, the cache now contains the loaded data (or an empty object on failure). The caller reads the result from the cache.
+
+This prevents duplicate HTTP requests — if two micro-frontends request the same translation file simultaneously, only one HTTP request is made and the other waits for the topic notification.
+
+==== Scenario 3: Not Yet Loaded
+
+The URL does not exist in the cache at all:
+
+[source,typescript]
+----
+window['onecxTranslations'][url] = null;
+return cacheMissFunction().pipe(
+  tap((t) => {
+    window['onecxTranslations'][url] = t;
+    this.translationTopic$.publish(url);
+  }),
+  map(() => window['onecxTranslations'][url]),
+  catchError(() => {
+    delete window['onecxTranslations'][url];
+    this.translationTopic$.publish(url);
+    return of({});
+  }),
+  first()
+);
+----
+
+The service:
+
+. Sets the URL to `null` in the cache (marking it as in-progress).
+. Calls the `cacheMissFunction` (the `CachingTranslateLoader`'s HTTP fetch).
+. On success: stores the result in the cache and publishes the URL to the topic.
+. On failure: deletes the cache entry and publishes the URL to the topic so waiting subscribers receive an empty object.
+
+IMPORTANT: Publishing the URL on both success and failure is critical. It ensures that subscribers waiting in Scenario 2 always receive a signal — they never hang indefinitely.
+
+=== Cache Flow
+
+....
+Micro-frontend A                           TranslationCacheService
+      |                                            |
+      |------ getTranslationFile(url, fetchFn) -->|
+      |                                            |
+      |                                            |-- sets url = null (in-progress)
+      |<--- calls fetchFn() -----------------------|
+      |                                            |
+Micro-frontend B
+      |                                            |
+      |------ getTranslationFile(url, fetchFn) -->|
+      |                                            |
+      |                                            |-- url is null, waits on topic
+      |                                            |-- subscribes to TranslationCacheTopic
+      |                                            |
+      |                                            |-- stores fetched data in cache
+      |                                            |-- publishes url to topic
+      |                                            |
+      |<--- reads from cache (via topic) ----------|
+      |                                            |
+      |<--- return translations -------------------|
+....
+
+== TranslationConnectionService
+
+*File:* `libs/angular-utils/src/lib/services/translation-connection.service.ts`
+
+Keeps the Angular `TranslateService` synchronized with the user's language preference from `UserService.lang$`. Additionally, it subscribes to translation change events and updates the PrimeNG `Configuration` with the `primeng` translation keys:
+
+[source,typescript]
+----
+this.languageSub = userService.lang$.subscribe((lang) => translateService.use(lang));
+
+this.translationSub = merge(
+  translateService.onLangChange,
+  translateService.onTranslationChange,
+  translateService.onFallbackLangChange
+).pipe(mergeMap(() => translateService.get('primeng')))
+  .subscribe((res) => configuration.setTranslation(res));
+----
+
+Register via:
+
+[source,typescript]
+----
+import { provideTranslationConnectionService } from '@onecx/angular-utils';
+
+provideTranslationConnectionService()
+----
+
+== Missing Translation Handler
+
+*File:* `libs/angular-utils/src/lib/utils/multi-language-missing-translation-handler.utils.ts`
+
+`MultiLanguageMissingTranslationHandler` implements `MissingTranslationHandler` from @ngx-translate/core. When a translation key is not found in the loaded translation files, it attempts to resolve it through a fallback chain:
+
+. Reloads the current language via `translateService.reloadLang(lang)`.
+. Searches for the key in the reloaded translations using `TranslateParser.interpolate()`.
+. If not found, calls `DynamicTranslationService.getTranslations()` with the registered `MultiLanguageIdentifier[]` contexts to fetch dynamic translations from the shell.
+. Deep-merges the dynamic results and searches again.
+. If still not found, falls back through the user's configured locale list (from `UserService.profile$.settings.locales` or browser locales via `getNormalizedBrowserLocales()`).
+. If all attempts fail, logs an error and returns the raw key.
+
+=== MultiLanguageIdentifier
+
+*File:* `libs/angular-utils/src/lib/injection-tokens/multi-language-identifier.ts`
+
+[source,typescript]
+----
+type MultiLanguageIdentifier = {
+  name: string;
+  version?: string;
+  type: 'app' | 'lib';
+}
+----
+
+Registered via:
+
+[source,typescript]
+----
+import { provideMultiLanguageIdentifier } from '@onecx/angular-utils';
+
+provideMultiLanguageIdentifier('@onecx/angular-accelerator', LIB_VERSION, 'lib')
+----
+
+If no `app`-type identifier is explicitly provided, the handler adds one automatically from `APP_ID.appElementName`.
+
+=== Application Usage
+
+Applications subclass the handler and register it with `TranslateModule`:
+
+[source,typescript]
+----
+// angular-accelerator module
+export class AngularAcceleratorMissingTranslationHandler extends MultiLanguageMissingTranslationHandler {}
+----
+
+This pattern allows each application to customize behavior without modifying the base class.
+
+== Locale Loading
+
+*File:* `libs/angular-utils/src/lib/utils/angular-locales.ts`
+
+An auto-generated file with 742 lazy-loading factory functions for all `@angular/common/locales`. Used by module initializers to register locale data dynamically:
+
+[source,typescript]
+----
+const lang = await firstValueFrom(userService.lang$.pipe(skip(1)));
+await localeLoaders[lang]?.().then(data => registerLocaleData(data.default ?? data))
+----
+
+This ensures Angular pipes (date, currency, number) format correctly for the user's locale. The file is regenerated during every build via the `generate-locales` script.
+
+== React Integration
+
+=== Translation Resources
+
+*File:* `libs/react-utils/src/lib/utils/translationResources.ts`
+
+Utilities for configuring i18next load paths:
+
+* `getTranslationPathFromMeta(metaUrl, path?)` — constructs a base path from `import.meta.url` (default: `assets/i18n/`).
+* `registerPortalPageTranslations(instance, metaUrl, path?)` — sets the `loadPath` on an i18next backend configuration.
+
+Both return early or throw when `metaUrl` is a local `file://` URL.
+
+=== Translation Bridge
+
+*File:* `libs/react-utils/src/lib/utils/translationBridge.tsx`
+
+A zero-render component that synchronizes `UserService.lang$` with i18next:
+
+[source,typescript]
+----
+export const TranslationBridge = () => {
+  const { i18n } = useTranslation()
+  const { lang$ } = useUserService()
+
+  useEffect(() => {
+    const sub = lang$.subscribe(lang => void i18n.changeLanguage(lang))
+    return () => sub.unsubscribe()
+  }, [i18n, lang$])
+
+  return null
+}
+----
+
+== Storybook Translation Setup
+
+*File:* `libs/angular-accelerator/src/lib/storybook-translate.module.ts`
+
+`StorybookTranslateModule` configures translations for Storybook previews:
+
+. Provides multiple `TRANSLATION_PATH` entries — one for base i18n, several for feature-specific storybook translations.
+. Uses `OnecxTranslateLoader` as the loader.
+. Registers German locale data.
+. Detects browser language (supports `de`, `en`), defaults to `en`.
+
+Feature-specific translation files are placed in `libs/angular-accelerator/assets/i18n/storybook-translations/` and referenced via additional `TRANSLATION_PATH` providers.
+
+== Summary of Key Files
+
+[cols="1,2"]
+|===
+| File | Description
+
+| `angular-utils/.../translation-path.ts` | TRANSLATION_PATH injection token
+| `angular-utils/.../translation-path-from-meta.providers.ts` | import.meta.url-based provider
+| `angular-utils/.../onecx-translate-loader.utils.ts` | Main loader combining all paths
+| `angular-utils/.../caching-translate-loader.utils.ts` | HTTP loader with cache and retry
+| `angular-utils/.../translate.combined.loader.ts` | Parallel loader with deep merge
+| `angular-utils/.../translation-cache.service.ts` | Global cache with topic coordination
+| `angular-utils/.../translation-connection.service.ts` | Lang sync + PrimeNG bridge
+| `angular-utils/.../multi-language-missing-translation-handler.utils.ts` | Multi-language fallback handler
+| `angular-utils/.../multi-language-identifier.ts` | MultiLanguageIdentifier injection token
+| `angular-utils/.../translation-path.providers.ts` | Convenience provider bundle
+| `angular-utils/.../angular-locales.ts` | Auto-generated locale loaders (742 locales)
+| `react-utils/.../translationResources.ts` | i18next path utilities
+| `react-utils/.../translationBridge.tsx` | React lang sync component
+|===

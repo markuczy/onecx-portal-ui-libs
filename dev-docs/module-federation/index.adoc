@@ -1,0 +1,350 @@
+= Module Federation Architecture
+
+== Overview
+
+Module Federation enables runtime code sharing and dynamic remote module loading between the shell and micro-frontends (MFEs). The shell exposes a Module Federation instance that MFEs use to load remote modules at runtime — including custom authentication services, remote components, and shared libraries.
+
+The architecture revolves around three concerns:
+
+* **Shared library configuration** — which libraries to share and how to resolve version conflicts.
+* **Remote module loading** — how to register and load remote modules from the shell's federation instance.
+* **Web component bootstrap** — how to bootstrap Angular applications inside custom elements for MFE hosting.
+
+== Shell Federation Instance
+
+The shell exposes its Module Federation instance globally, making it available to all MFEs. The utility function to retrieve it is:
+
+*File:* `libs/angular-utils/src/lib/utils/get-load-remote-entry-options.utils.ts`
+
+[source,typescript]
+----
+function getShellMfInstance(): ModuleFederation | null {
+  return (globalThis as any)['onecxFederationInstance'] ??
+    getInstance((instance: ModuleFederation) => instance.name === 'onecx-shell-ui')
+}
+----
+
+It checks two sources:
+
+* `globalThis.onecxFederationInstance` — the preferred reference, set directly by the shell.
+* `getInstance()` from `@module-federation/enhanced/runtime` — a fallback that searches for an instance named `onecx-shell-ui`.
+
+The React stack uses a slightly different approach:
+
+*File:* `libs/react-remote-components/src/lib/utils/getShellMfInstance.ts`
+
+[source,typescript]
+----
+const getShellMfInstance = (): ModuleFederation | undefined => {
+  const instances = globalThis.__FEDERATION__?.__INSTANCES__
+  if (!Array.isArray(instances)) return undefined
+  return instances.find((instance) => instance.name === 'onecx-shell-ui')
+}
+----
+
+=== Module Federation Instance API
+
+The instance provides two key methods:
+
+[cols="1,2"]
+|===
+| Method | Description
+
+| `registerRemotes(remotes[])` | Registers one or more remote configurations, making them available for loading.
+| `loadRemote(name)` | Loads a remote module by its qualified name (e.g. `productName|appId/ModuleName`) and returns a promise resolving to the module namespace.
+|===
+
+== Shared Library Configuration
+
+*File:* `libs/accelerator/src/lib/utils/get-onecx-shared-recommendations.ts`
+
+The OneCX platform defines a set of libraries that should be shared across all MFEs. This prevents duplicate copies and ensures singletons like Angular core or NgRx store are shared.
+
+=== Shared Library Patterns
+
+The following library name patterns are matched for sharing:
+
+[cols="1"]
+|===
+| `@angular/*`
+| `@onecx/*`
+| `rxjs/*`
+| `primeng/*`
+| `@ngx-translate/*`
+| `@ngrx/*`
+|===
+
+=== Recommendations
+
+For matched libraries, `getOneCXSharedRecommendations()` forces the following configuration:
+
+[cols="1,2"]
+|===
+| Setting | Value
+
+| `singleton` | `false` — allows multiple versions to coexist.
+| `strictVersion` | `false` — relaxes version matching so compatible versions can be shared.
+| `eager` | `false` — loads shared libraries lazily rather than at initialization.
+|===
+
+For libraries outside these patterns, the function returns `false`, meaning they are not shared and each MFE bundles its own copy.
+
+[source,typescript]
+----
+function getOneCXSharedRecommendations(
+  libraryName: string,
+  sharedConfig: SharedLibraryConfig
+): false | SharedLibraryConfig {
+  if (!sharedLibraryPatterns.some((pattern) => pattern.test(libraryName))) {
+    return false
+  }
+  sharedConfig.singleton = false
+  sharedConfig.strictVersion = false
+  sharedConfig.eager = false
+  return sharedConfig
+}
+----
+
+By setting `singleton: false` and `strictVersion: false`, the platform avoids version conflicts when different MFEs depend on different versions of the same shared library.
+
+== Remote Module Loading Utilities
+
+*File:* `libs/angular-utils/src/lib/utils/get-load-remote-entry-options.utils.ts`
+
+These utilities convert remote component metadata into Module Federation remote configurations and handle the registration and loading process.
+
+=== Remote Configuration
+
+[source,typescript]
+----
+type Remote = {
+  type: 'module' | 'script'
+  entry: string
+  name: string
+  shareScope: string
+}
+----
+
+A remote configuration defines how Module Federation should load a remote module:
+
+[cols="1,2"]
+|===
+| `type` | `'module'` for ES module remotes (Angular, WebComponentModule), `'script'` for script-based remotes (WebComponentScript).
+| `entry` | The URL of the remote entry JavaScript file.
+| `name` | The unique remote name, typically `productName|appId`.
+| `shareScope` | The sharing scope, defaulting to `'default'`.
+|===
+
+=== createRemoteConfig
+
+[source,typescript]
+----
+function createRemoteConfig(
+  entry: string,
+  name: string,
+  type: 'module' | 'script' = 'module',
+  shareScope = 'default'
+): Remote
+----
+
+Creates a remote configuration manually. Used when the remote details are known at configuration time (e.g., custom authentication service).
+
+=== toLoadRemoteEntryOptions
+
+[source,typescript]
+----
+async function toLoadRemoteEntryOptions(r: RemoteEntry): Promise<Remote>
+----
+
+Converts a `RemoteComponent` or `BffGeneratedRoute` into a remote configuration. Determines:
+
+* `type` — `'module'` for Angular and WebComponentModule, `'script'` for WebComponentScript.
+* `name` — `productName|appId` for most technologies. For WebComponentScript, uses `remoteName` from the config (which must match the name defined in the remote's Module Federation config).
+* `shareScope` — from the remote entry, defaulting to `'default'`.
+
+=== registerAndLoadRemote
+
+[source,typescript]
+----
+async function registerAndLoadRemote<T>(
+  instance: ModuleFederation,
+  remoteConfig: Remote,
+  exposedModule: string
+): Promise<T | undefined>
+----
+
+The primary entry point for loading remote modules:
+
+. Sanitizes `exposedModule` by stripping the leading `./` if present.
+. Calls `instance.registerRemotes([remoteConfig])` to register the remote.
+. Calls `instance.loadRemote(remoteConfig.name + '/' + sanitizedModule)` to load the module.
+. Returns the loaded module namespace typed as `T`.
+
+[source,typescript]
+----
+// Example: loading a module and extracting a named export
+const module = await registerAndLoadRemote<{ MyComponent: Type<any> }>(
+  shellMfInstance,
+  remoteConfig,
+  './MyModule'
+)
+const component = module['MyModule']
+----
+
+== Web Component Bootstrap
+
+*File:* `libs/angular-webcomponents/src/lib/utils/webcomponent-bootstrap.utils.ts`
+
+Angular web components running as MFEs need special bootstrap logic to integrate with the shell's Module Federation instance.
+
+=== Bootstrapping Modes
+
+Two bootstrap functions are provided:
+
+[cols="1,2,3"]
+|===
+| Function | App Type | Description
+
+| `bootstrapModule()` | `'shell'` or `'microfrontend'` | Bootstraps a full Angular module. For `'shell'`, shares the NgZone globally.
+| `bootstrapRemoteComponent()` | N/A (component only) | Bootstraps a single component as a custom element using `createApplication`.
+|===
+
+=== Platform Caching
+
+Angular platforms are cached by version in `window['@onecx/angular-webcomponents'].platformCache` to avoid duplicate platform initialization:
+
+[source,typescript]
+----
+function cachePlatform(production: boolean): PlatformRef {
+  let platformCache = getWindowState().platformCache
+  if (!platformCache) {
+    platformCache = new Map<Version, PlatformRef>()
+    getWindowState().platformCache = platformCache
+  }
+  const version = VERSION
+  let platform = platformCache.get(version)
+  if (!platform) {
+    platform = getPlatform() ?? platformBrowser()
+    platformCache.set(version, platform)
+  }
+  if (production) enableProdMode()
+  return platform
+}
+----
+
+=== NgZone Sharing
+
+The shell's NgZone is stored globally and can be retrieved by MFEs:
+
+* `setNgZone(ngZone)` — stores the NgZone on `window['@onecx/angular-webcomponents'].ngZone`.
+* `getNgZone()` — retrieves it for MFE bootstrap.
+
+When bootstrapping as `'shell'`, the NgZone is automatically shared via `setShellZone()`.
+
+=== Dynamic App ID
+
+The `APP_ID` provider is replaced with `DynamicAppId` in all providers. This wrapper adds application context to the Angular app ID, which is used by `SharedStylesHost` to scope styles to the correct element.
+
+[source,typescript]
+----
+function replaceOrAddAppId(providers: Array<any>) {
+  const existingProvider = findAndReplaceAppId(providers)
+  if (existingProvider === null) {
+    providers.push({ provide: APP_ID, useValue: new DynamicAppId() })
+  }
+}
+----
+
+=== Web Component Creation
+
+The `createEntrypoint()` function:
+
+. Creates a `WebcomponentConnector` for style and DOM lifecycle management.
+. Stores the element name in `DynamicAppId.appElementName` for style scoping.
+. Wraps `ngOnInit` and `ngOnDestroy` to connect/disconnect the web component connector.
+. Uses `createCustomElement()` from `@angular/elements` to create the custom element class.
+. Sets `data-no-portal-layout-styles` on the element in `connectedCallback`.
+. Registers the custom element via `customElements.define()`.
+
+=== Router Fallback
+
+For remote components, a fallback wildcard route (`**`) is added if one doesn't exist. This ensures the router is activatable and responds to guard-scanner requests:
+
+[source,typescript]
+----
+function adaptRemoteComponentRoutes(injector: Injector) {
+  const router = injector.get(Router)
+  if (!router) return
+  if (!router.config.find((val) => val.path === '**')) {
+    router.resetConfig(router.config.concat({ path: '**', children: [] }))
+  }
+}
+----
+
+== Custom Authentication Service Loading
+
+*File:* `libs/shell-auth/src/lib/auth-service-wrapper.ts`
+
+A practical example of using Module Federation for remote module loading is the custom authentication service. When configured with `serviceTypeConfig === 'custom'`, the shell loads the auth service from a remote module:
+
+. Reads the remote entry URL and exposed module name from configuration.
+. Creates a remote config with `createRemoteConfig()` using the alias `custom-auth-service`.
+. Gets the shell MF instance via `getShellMfInstance()`.
+. Loads the module with `registerAndLoadRemote()`.
+. Extracts the default export, which is an `AuthServiceFactory` function.
+
+[source,typescript]
+----
+async getAuthServiceFactory(): Promise<AuthServiceFactory> {
+  const remoteEntry = await this.configService.getProperty(CONFIG_KEY.AUTH_SERVICE_CUSTOM_URL)
+  const exposedModule = await this.configService.getProperty(CONFIG_KEY.AUTH_SERVICE_CUSTOM_MODULE_NAME) ?? './CustomAuth'
+  const customAuthShareScope = await this.configService.getProperty(CONFIG_KEY.CUSTOM_AUTH_SHARE_SCOPE)
+
+  const remoteConfig = createRemoteConfig(remoteEntry, 'custom-auth-service', 'module', customAuthShareScope)
+  const instance = getShellMfInstance()
+  if (!instance) throw new Error('Shell module federation instance not found')
+
+  const module = await registerAndLoadRemote<{ default: AuthServiceFactory }>(instance, remoteConfig, exposedModule)
+  if (!module) throw new Error('Failed to load custom auth service module')
+  return module.default
+}
+----
+
+The factory receives a callback to retrieve injectables from the shell, giving the custom auth service access to the shell's dependency injection.
+
+== Window State
+
+*File:* `libs/angular-webcomponents/src/lib/utils/webcomponent-bootstrap.utils.ts`
+
+The platform stores shared state on `window['@onecx/angular-webcomponents']`:
+
+[cols="1,2"]
+|===
+| Property | Description
+
+| `ngZone` | The shell's NgZone, shared with MFEs.
+| `platformCache` | A `Map<Version, PlatformRef>` caching Angular platforms by version.
+|===
+
+[source,typescript]
+----
+function getWindowState(): any {
+  const state = window as any
+  state['@onecx/angular-webcomponents'] ??= {} as unknown
+  return state['@onecx/angular-webcomponents']
+}
+----
+
+== Summary of Key Files
+
+[cols="1,2"]
+|===
+| File | Description
+
+| `accelerator/.../get-onecx-shared-recommendations.ts` | Shared library patterns and singleton/version recommendations
+| `angular-utils/.../get-load-remote-entry-options.utils.ts` | MF utilities: createRemoteConfig, toLoadRemoteEntryOptions, getShellMfInstance, registerAndLoadRemote
+| `angular-webcomponents/.../webcomponent-bootstrap.utils.ts` | Bootstrap utilities: platform caching, NgZone sharing, web component creation
+| `react-remote-components/.../getShellMfInstance.ts` | React-specific shell MF instance lookup
+| `shell-auth/.../auth-service-wrapper.ts` | Custom auth service loading via Module Federation
+| `angular-remote-components/.../slot.service.ts` | SlotService using MF for remote component loading
+|===

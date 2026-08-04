@@ -1,0 +1,354 @@
+= Gatherer (Scatter-Gather Pattern)
+
+The Gatherer is a cross-context request/response mechanism built on top of the xref:topics/overview.adoc[Topic] system. It enables one piece of code to broadcast a request to _all_ MFE instances (across tabs, iframes, web components) and collect the responses as a single `Promise<Response[]>`.
+
+== Why It Exists
+
+In a micro-frontend architecture, each MFE runs in its own rendering context with its own router, services, and state. When the shell or one MFE needs to ask a question that _every_ MFE must answer, a simple Topic subscription is not enough -- Topics deliver events but do not collect responses.
+
+The Gatherer fills this gap: it turns a Topic into a **request/response** channel with automatic response collection.
+
+.Example scenario
+[cols="1,2"]
+|===
+| Who acts? | What happens?
+
+| Shell / MFE A
+| Calls `gatherers.gather({ url: '/orders' })` to check navigation
+
+| MFE A (local)
+| Runs its own guards for `/orders` \-> returns `true`
+
+| MFE B (iframe)
+| Receives request via Topic, runs its guards \-> returns `false`
+
+| MFE C (web component)
+| Receives request, runs its guards \-> returns `true`
+
+| Caller
+| Awaits `Promise<boolean[]>` \-> receives `[true, false, true]` and blocks navigation
+|===
+
+== Scatter-Gather Pattern
+
+The pattern works in four phases:
+
+[.ascii-diagram]
+....
+ 1. SCATTER                     2. REGISTER                3. EXECUTE                  4. COLLECT
+
+  Publisher ─────────────────►  Gatherer Instance        Gatherer                   Promise.all
+  (gather())                   (topic.subscribe)         runs callback              ──────► Response[]
+       ▲                          │                        │
+       │  publish via Topic       │  pushes promise        │  callback(request)
+       │  to all contexts         │  to global state       │  ──► Response
+       │                          │                        │
+                          ┌───────┴────────────────────────┴───────┐
+                          │         Global State (globalThis)      │
+                          │  acceleratorState.gatherer.promises[id]│
+                          │  = [PromiseA, PromiseB, PromiseC]     │
+                          └───────────────────────────────────────┘
+....
+
+.Phases
+[cols="1,2,3"]
+|===
+| Phase | Actor | Action
+
+| 1. Scatter
+| Caller
+| `gather(request)` generates a unique `id`, stores an empty promise array in global state, and publishes `{id, request}` to the Topic
+
+| 2. Register
+| Every Gatherer instance (including the caller's own)
+| Topic subscription fires. Each instance checks if it owns the request (see xref:#self-identification[Self-Identification]). If not, it creates a `Promise<Response>` and pushes it to `acceleratorState.gatherer.promises[id]`
+
+| 3. Execute
+| Each Gatherer instance
+| The instance invokes its callback with the request. When the callback resolves, the instance resolves its promise with the response
+
+| 4. Collect
+| Caller
+| After `publish()` resolves (ensuring all instances have registered their promises), the caller retrieves the promise array, deletes the global state entry, and returns `Promise.all(promises)`
+|===
+
+IMPORTANT: The `await` on `topic.publish()` is critical. It ensures all remote instances have received the message and pushed their promises _before_ the caller collects the array. Without it, the caller might collect an incomplete set. See xref:topics/scheduling.adoc[Topic Scheduling] for details on why awaiting works.
+
+== Gatherer API
+
+`Gatherer<Request, Response>` is a generic class in `@onecx/accelerator`.
+
+.Constructor
+[source,ts]
+----
+new Gatherer<Request, Response>(
+  name: string,
+  version: number,
+  callback: (request: Request) => Promise<Response>
+)
+----
+
+[cols="1,2"]
+|===
+| Parameter | Description
+
+| `name` | Topic name -- all Gatherers with the same name + version form a group
+| `version` | Topic version -- only instances matching both name _and_ version communicate
+| `callback` | Function invoked when a request arrives; returns the response
+|===
+
+.gather(request)
+[source,ts]
+----
+async gather(request: Request): Promise<Response[]>
+----
+
+Broadcasts `request` to all Gatherer instances and returns an array of responses.
+
+.destroy()
+[source,ts]
+----
+destroy(): void
+----
+
+Cleans up the Topic subscription, destroys the Topic, and removes any pending promise arrays from global state.
+
+.Timing diagram
+[.ascii-diagram]
+....
+  Caller                      Gatherer (local)          Gatherer (remote)
+
+  new Gatherer(...) ──►  subscribe(topic)                        subscribe(topic)
+       │                      │                                       │
+       │  gather(req)         │                                       │
+       │  id = 42             │                                       │
+       │  promises[42] = []   │                                       │
+       │                      │                                       │
+       │──── publish({42,req}) ──────────────────────────► publish({42,req})
+       │                      │                                       │
+       │                      │  isOwnerOfRequest?                    isOwnerOfRequest?
+       │                      │  YES (ownIds has 42)                  NO
+       │                      │  -> skip                              │
+       │                      │                                       │
+       │                      │                        promises[42].push(Promise)
+       │                      │                        callback(req) ──► response
+       │                      │                        resolve(response)
+       │                      │                                       │
+       │  ← publish() resolved│                                       │
+       │  promises[42] = [P]  │                                       │
+       │  delete promises[42] │                                       │
+       │                      │                                       │
+       │  return Promise.all([P]) ──► [response]
+       │                      │                                       │
+       │  destroy()           │                                       │
+       │  unsubscribe, cleanup│                                       │
+....
+
+== Self-Identification
+
+When `gather()` publishes to the Topic, the message reaches _all_ subscribers -- including the caller's own local Gatherer instance. To prevent the caller from responding to its own request, each instance tracks the IDs it has generated in a `Set<number>` called `ownIds`.
+
+When a message arrives, `isOwnerOfRequest(m)` checks `ownIds.has(m.id)`. If `true`, the message is ignored. If `false`, the instance processes it as a foreign request.
+
+== Global State
+
+The Gatherer uses `globalThis['@onecx/accelerator']` to coordinate promise arrays across contexts:
+
+[source,ts]
+----
+// declarations.ts (initialized on library load)
+const gatherPromises = ensureProperty(
+  globalThis,
+  ['@onecx/accelerator', 'gatherer', 'promises'],
+  {} as Record<number, Array<Promise<any>>>
+)
+----
+
+The structure is a simple map: request ID → array of promises.
+
+[cols="1,2"]
+|===
+| Path | Shape
+
+| `globalThis['@onecx/accelerator'].gatherer.promises`
+| `Record<number, Promise<any>[]>`
+
+| Key
+| Auto-incrementing `id` from `Gatherer.id++`
+
+| Value
+| Array of promises -- one pushed by each Gatherer instance that receives the request
+|===
+
+Each entry is ephemeral: created when `gather()` is called and deleted immediately after collecting the promises.
+
+== Real-World Usage: GuardsGatherer
+
+The most prominent Gatherer implementation is the xref:#guards-gatherer[GuardsGatherer], used to coordinate Angular Router or React Router guard checks across all MFEs.
+
+=== GuardsGatherer Angular
+
+Found in `@onecx/angular-utils/guards`, the Angular GuardsGatherer wraps the router guard execution pipeline.
+
+.Typical setup
+[source,ts]
+----
+// In an MFE module or provider
+@Injectable({ providedIn: 'root' })
+class GuardsGathererService {
+  private gatherer: Gatherer<GuardResultRequest, GuardResultResponse>
+
+  // Request: { url: string }
+  // Response: boolean (true = allow, false = block)
+  activate(): void {
+    this.gatherer = new Gatherer(
+      'GuardGatherer',
+      1,
+      async (request) => this.executeGuardsCallback(request)
+    )
+  }
+
+  gather(request: GuardResultRequest): Promise<GuardResultRequest> {
+    return this.gatherer.gather(request).then((results) => {
+      // All MFEs returned their guard results
+      return results.every((r) => r) // true if ALL allow
+    })
+  }
+
+  resolveRoute(routeUrl: string, response: GuardResultResponse): void {
+    // Resolves a pending guard check from another MFE's perspective
+  }
+}
+----
+
+.Guard callback flow
+When a Gatherer receives a guard request, its callback:
+
+1. Creates a `Promise<boolean>` stored in a `guardsChecks` map
+2. Triggers a _fake_ navigation to the requested URL with xref:#guard-navigation-modes[GUARD_CHECK] state
+3. The Angular router runs the guard pipeline
+4. The result resolves the promise, which resolves the Gatherer's response
+
+=== GuardsGatherer React
+
+Found in `@onecx/react-utils/guards`, the React variant follows the same pattern but uses React Router's `navigate` function:
+
+[source,ts]
+----
+// useGuardsGatherer hook
+const gatherer = useMemo(() => new GuardsGatherer(navigate), [navigate])
+
+useEffect(() => {
+  gatherer.activate()
+  return () => gatherer.deactivate()
+}, [gatherer])
+----
+
+=== Guard Navigation Modes
+
+The guards system distinguishes four navigation scenarios via flags in `GuardsNavigationState`:
+
+[cols="1,1,3"]
+|===
+| Mode | Flag(s) | Behavior
+
+| `INITIAL_ROUTER_SYNC`
+| `IS_INITIAL_ROUTER_SYNC`
+| First-time router synchronization. Guards execute, combined as boolean. No side effects.
+
+| `ROUTER_SYNC`
+| `IS_ROUTER_SYNC`
+| Router sync after initial load. Guards execute, combined as boolean, then a router-sync guard runs.
+
+| `GUARD_CHECK`
+| `GUARD_CHECK`
+| Fake navigation triggered by a Gatherer guard request. Guards execute, and if any returns `false`, `guardsGatherer.resolveRoute()` is called to signal the blocking result back to the requester.
+
+| `NAVIGATION_REQUESTED`
+| (no flag)
+| Real user-initiated navigation. The MFE waits for external guard check results (via `GUARD_CHECK_PROMISE`), then runs its own local guards.
+|===
+
+The mode is determined by `GuardsNavigationStateController.getMode(state)`, which inspects the navigation state passed via router extras.
+
+=== Guard Wrapping
+
+To intercept all guard execution, `wrapGuards(route)` wraps `canActivate`, `canDeactivate`, and `canActivateChild` guards with wrapper functions that delegate to `ActivateGuardsWrapper` and `DeactivateGuardsWrapper`. These wrappers:
+
+. Check the current navigation mode
+. Execute local guards
+. If in `GUARD_CHECK` mode, resolve the result back via `guardsGatherer.resolveRoute()`
+. If in `NAVIGATION_REQUESTED` mode, wait for external guard checks before proceeding
+
+The wrapper tags each wrapped guard with a `WRAPPED_GUARD_TAG` symbol to avoid double-wrapping.
+
+[source,ts]
+----
+// Applied to each route tree
+wrapGuards(route) // wraps canActivate, canDeactivate, canActivateChild
+wrapGuards(child) // recursive for child routes
+----
+
+=== GuardsGathererMock
+
+For unit testing, `@onecx/angular-utils/mocks` provides `GuardsGathererMock`:
+
+[source,ts]
+----
+provideGuardsGathererMock() // Angular provider token
+
+// In tests
+guardsGathererMock.setGatherResult(false) // simulate blocked navigation
+await guardsGathererMock.gather({ url: '/orders' }) // -> Promise.resolve(false)
+----
+
+== Debug Logging
+
+xref:debug.adoc[See the debug guide] for instructions on enabling Gatherer-specific console output.
+
+== Summary of Key Files
+
+[cols="1,2"]
+|===
+| File | Role
+
+| `libs/accelerator/src/lib/utils/gatherer.ts`
+| Core `Gatherer<Request, Response>` class
+
+| `libs/accelerator/src/lib/declarations.ts`
+| Global state initialization (`acceleratorState.gatherer.promises`)
+
+| `libs/angular-utils/guards/src/services/guards-gatherer.service.ts`
+| Angular GuardsGatherer service
+
+| `libs/angular-utils/guards/src/model/guard-navigation.model.ts`
+| Guard navigation modes and state flags
+
+| `libs/angular-utils/guards/src/utils/wrap-guards.utils.ts`
+| Route guard wrapping utilities
+
+| `libs/angular-utils/guards/src/utils/activate-guards-wrapper.utils.ts`
+| Activate guard execution with mode awareness
+
+| `libs/angular-utils/guards/src/utils/deactivate-guards-wrapper.utils.ts`
+| Deactivate guard execution with mode awareness
+
+| `libs/react-utils/src/lib/guards/services/guards-gatherer.ts`
+| React GuardsGatherer class
+
+| `libs/react-utils/src/lib/guards/hooks/use-guards-gatherer.ts`
+| React hook for GuardsGatherer lifecycle
+
+| `libs/angular-utils/mocks/guards-gatherer-mock.ts`
+| GuardsGathererMock for unit testing
+|===
+
+== Relationship to Topics
+
+Gatherer is a _consumer_ of the Topic system, not a replacement. It wraps a `Topic<{id, request}>` internally and adds:
+
+* **Promise collection** -- responses accumulate in global state
+* **Self-identification** -- the caller doesn't respond to its own request
+* **ID tracking** -- each gather operation gets a unique ID for promise correlation
+
+The Topic handles the cross-context broadcast; the Gatherer handles the response aggregation.

@@ -1,0 +1,273 @@
+= Storybook
+
+:idprefix:
+:idseparator: -
+
+This document covers Storybook usage within the ONECX Portal UI Libraries monorepo.
+
+NOTE: This page consolidates content from the original files in this directory. See xref:concept.adoc[Target Picture], xref:setup.adoc[Setup Guide], xref:story-creation.adoc[Story Creation Guidelines], xref:docs-creation.adoc[Documentation Creation Guidelines], and xref:dod.adoc[Definition of Done] for the original references.
+
+[#purpose]
+== Purpose
+
+Storybooks serve as the primary resource and single source of truth for ONECX component documentation. They enable:
+
+* **Interactive component exploration** — The Controls panel lets developers adjust inputs and observe behavior in real time.
+* **Visual regression reference** — Stories capture component states for manual and automated visual checks.
+* **Developer onboarding** — External developers and MFE teams use Storybooks to understand library capabilities before implementation.
+
+[#current-state]
+== Current State
+
+Storybook is configured for a single library: **`angular-accelerator`**. This is the only library in the monorepo that contains Angular components and directives, so it is the only one that needs a Storybook.
+
+Other libraries (integration-interface, ngrx-accelerator, angular-auth, etc.) export services, utilities, or interfaces — none of which benefit from visual documentation.
+
+[#target-structure]
+== Target Structure
+
+The long-term vision described in xref:concept.adoc[Target Picture] calls for:
+
+* A **top-level Storybook** that explains what ONECX is, lists all libraries, provides migration guides, and links to external resources.
+* **Library-level Storybooks** composed as child Storybooks using Storybook's composition feature.
+* **Version-specific sections** within each library Storybook.
+
+This structure is aspirational; currently only the `angular-accelerator` Storybook exists.
+
+[#setup]
+== Setup
+
+Storybook is configured per-library using NX targets defined in the library's `project.json`.
+
+**Dependencies** (from root `package.json`):
+
+* `storybook` and `@storybook/angular` — core framework (v10.x)
+* `@nx/storybook` — NX executor for starting and building Storybooks
+* `@storybook/addon-docs` — automatic documentation generation
+* `@storybook/addon-a11y` — accessibility auditing
+* `@chromatic-com/storybook` — Chromatic integration for visual testing
+
+**Configuration files** (under `libs/angular-accelerator/.storybook/`):
+
+|===
+| File | Purpose
+
+| `main.ts`
+| Framework, addons, story file patterns, static directories
+
+| `preview.ts`
+| Global parameters, decorators, autodocs settings
+
+| `preview-head.html`
+| HTML injected into the Storybook preview iframe head
+
+| `theme_defaults.scss`
+| CSS custom properties defining colors and styles for the Storybook preview, ensuring components render with the required CSS variables
+
+| `tsconfig.json`
+| TypeScript config for Storybook, including story file patterns
+|===
+
+`main.ts`:
+* Framework: `@storybook/angular`
+* Addons: `@storybook/addon-docs`, `@storybook/addon-a11y`
+* Stories pattern: `../**/*.@(mdx|stories.@(js|jsx|ts|tsx))`
+
+`preview.ts`:
+* Global `tags: ['autodocs']` enables automatic documentation for all stories
+* Controls matchers for color and date types
+* Alphabetical story sorting within sections
+
+[#running]
+== Running Storybook
+
+```bash
+# Start Storybook (development mode with hot reload)
+npx nx run angular-accelerator:storybook
+
+# Build Storybook for deployment (static output)
+npx nx run angular-accelerator:build-storybook
+```
+
+The default port is **4400**, configured in the `project.json` storybook target.
+
+The `build-storybook` target is cacheable in NX, so subsequent builds skip when no source files have changed.
+
+[#project-targets]
+=== NX Targets
+
+The `angular-accelerator` `project.json` defines two Storybook targets:
+
+|===
+| Target | Executor | Purpose
+
+| `storybook`
+| `@storybook/angular:start-storybook`
+| Starts a development server with hot reload on port 4400. Used for local development and iteration.
+
+| `build-storybook`
+| `@storybook/angular:build-storybook`
+| Produces a static build output at `dist/storybook/angular-accelerator/` suitable for deployment.
+|===
+
+The `storybook` target additionally applies style imports in order:
+
+. `node_modules/primeicons/primeicons.css`
+. `libs/angular-accelerator/assets/styles.scss`
+. `libs/angular-accelerator/.storybook/theme_defaults.scss`
+. Component-level SCSS files for loading-indicator and content directives
+
+This ensures Storybook renders components with the same CSS variables and styles as a real application.
+
+The target also defines a `ci` configuration with `quiet: true` for pipeline builds.
+
+[#chromatic]
+== Chromatic Integration
+
+Chromatic (`@chromatic-com/storybook`) is configured in the workspace for visual regression testing. It is triggered as part of the CI pipeline when stories change, comparing rendered stories against baselines and flagging visual differences.
+
+[#creating-stories]
+== Creating Stories
+
+Stories are created per-component in `*.stories.ts` files alongside the component source.
+
+**File structure:**
+```
+libs/angular-accelerator/src/lib/components/
+  data-table/
+    data-table.component.ts
+    storybook/
+      data-table.component.stories.ts
+      data-table.component.stories.mdx   (optional)
+```
+
+**Basic story template:**
+
+```typescript
+import type { Meta, StoryObj } from '@storybook/angular'
+import { YourComponent } from '../your-component.component'
+import { moduleMetadata } from '@storybook/angular'
+
+const meta: Meta<YourComponent> = {
+  component: YourComponent,
+  title: 'Components/YourComponent',
+  decorators: [
+    moduleMetadata({
+      declarations: [YourComponent],
+      imports: [],
+      providers: [],
+    }),
+  ],
+  args: {
+    /* Default input values */
+  },
+  argTypes: {
+    /* Input type overrides */
+  },
+}
+
+export default meta
+type Story = StoryObj<YourComponent>
+
+export const Base: Story = {}
+```
+
+**Best practices:**
+
+* Import or declare all dependencies in `moduleMetadata`.
+* Define `args` for all component inputs to enable the Controls panel.
+* Use `argTypes` to restrict input types (e.g., select dropdowns for enum values).
+* Add actions for all component outputs using the `fn` spy function.
+* Create stories for common states and variations — the Base story covers edge cases via Controls.
+
+[#documentation]
+== Documentation Approaches
+
+Storybook supports multiple documentation approaches, each with trade-offs.
+
+[#autodocs]
+=== Autodocs
+
+Enabled globally via `tags: ['autodocs']` in `preview.ts`. Autodocs automatically generate documentation pages from JSDoc comments, component metadata, and story definitions.
+
+**Advantages:**
+* Zero boilerplate — documentation is generated automatically.
+* Stays in sync with code — JSDoc comments in the source are always fresh.
+
+**Disabling autodocs for a component:**
+
+```typescript
+export default {
+  title: 'Components/YourComponent',
+  component: YourComponent,
+  tags: ['!autodocs'],
+}
+```
+
+JSDoc comments above story exports render in the auto-generated docs:
+
+```typescript
+/**
+ * Displays the component in a compact layout with minimal spacing.
+ */
+export const Compact: Story = {
+  args: { compact: true },
+}
+```
+
+[#mdx-files]
+=== MDX Files
+
+MDX files combine Markdown and JSX to create fully customized documentation pages using Storybook blocks. The current `main.ts` config includes `.mdx` in the story patterns (`../**/*.@(mdx|stories.@(js|jsx|ts|tsx))`), and the Storybook tsconfig includes `../src/**/*.stories.mdx`, so MDX files are recognized and can be used.
+
+**Creating an MDX file:**
+
+```mdx
+import { Meta, Story, Primary, Controls, Title, Stories, Canvas } from '@storybook/blocks'
+import * as YourComponentStories from './your-component.component.stories.ts'
+
+<Meta of={YourComponentStories} />
+<Title />
+<Description />
+<Primary />
+<Controls />
+<Stories />
+```
+
+**Replacing Autodocs with MDX:**
+
+Two approaches:
+
+1. **Disable autodocs** — Add `tags: ['!autodocs']` to the story file, then create an MDX file with the same component title. Storybook blocks don't need explicit component references.
+
+2. **Override autodocs** — Keep autodocs enabled and set `<Meta title='Components/YourComponent' />` in the MDX file. Blocks require explicit `of={ComponentStories}` references.
+
+The disable approach is simpler to maintain; the override approach provides fallback documentation if the MDX file is removed.
+
+[#onecx-specific]
+== ONECX-Specific Considerations
+
+* **Translation support** — Add `StorybookTranslateModule` from `libs/angular-accelerator/src/lib/storybook-translate.module.ts` to the `imports` array of `moduleMetadata` for translated components.
+
+* **Theme styling** — The Storybook target applies `theme_defaults.scss` and `assets/styles.scss` to ensure components render with the correct CSS custom properties and theme variables.
+
+* **GenAI assistance** — Tools like GitHub Copilot can generate story boilerplate. A prompt such as:
++
+```
+Generate a storybook file for the following component. Only respond with valid CSF3 code compatible with the latest version of storybook or with follow-up questions should there be any. Only include one base story specifying all possible inputs and outputs and ask me what other stories I want.
+```
++
+produces reasonable starting points. Always verify generated code before committing.
+
+[#definition-of-done]
+== Definition of Done
+
+A component is sufficiently documented with Storybook when:
+
+. The component will be used in multiple places or by external teams.
+. A `storybook/` folder exists with a `<ComponentName>.component.stories.ts` file.
+. The story file contains a Base story with all inputs configurable via the Controls panel.
+. All component outputs are captured in the Actions tab.
+. Stories exist for all commonly used states and variations.
+
+Components used only in a single place by an internal team do not require Storybook documentation.

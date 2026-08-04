@@ -1,58 +1,181 @@
-
-= Theming
+= Theming Concept
 
 :idprefix:
-:idseparator: -
-:theme_variables_list: https://onecx.github.io/docs/guides/current/angular/theming.html#theme-variables
+:idseparator:
 
-This document outlines the theming capabilities in **OneCX**, focusing on how themes are structured, applied, and managed. It provides both conceptual and technical insights to help developers and administrators understand how to implement and customize themes effectively. After reading, you should be able to:
+This document provides a conceptual and technical overview of theming in ONECX. After reading, you should be able to:
 
-* Understand what a theme is in OneCX.
+* Understand what a theme is and how v1 and v2 themes differ.
+* Know how themes flow from the backend through the Shell to MFEs.
+* Understand how dark mode is supported.
 * Use theme variables in your styles.
-* Know how themes are applied at runtime.
 
-[#themes-idea]
-== Themes Idea
+[#what-is-a-theme]
+== What Is a Theme
 
-In OneCX, a **theme** is a suite of CSS variables (e.g., `--primary-color`). These variables can be used in CSS styles (e.g., `background-color: var(--primary-color)`). Each theme can assign different values to each variable, resulting in a unique look and feel for the page (e.g., `--primary-color: blue;`).
+A **theme** is a collection of design tokens that define the visual appearance of an application -- colors, typography, spacing, borders, shadows, and component-specific styling.
 
-Each **Workspace** can have one active theme (or none). Workspace administrators can change the active theme or edit the variables of the currently active theme.
+Each **Workspace** has one active theme. When a user switches workspaces, the active theme changes, and all UI components update to reflect the new appearance. The same code produces different looks depending on the workspace.
 
-When used properly, theming in OneCX allows the same pages to be displayed differently depending on the accessed Workspace and its currently active theme.
+[#theme-versions]
+== Theme Versions
 
-[#theme-variables]
-=== Theme Variables
+ONECX supports two theme versions that can coexist:
 
-A complete list of available theme variables in OneCX is available {theme_variables_list}[here].
+[cols="1,3"]
+|===
+| Version | Description
 
-[#utilizing-theme-variables]
-=== Utilizing Theme Variables
+| v1
+| Flat key-value pairs of CSS custom properties (e.g. `--primary-color: #3B82F6`). Simple but unstructured -- any application can define arbitrary variable names. Still supported for backwards compatibility.
 
-When creating styles for UI components (both library and application components), it's important to consider whether a style should be theme-aware. Example of a stylesheet using a theme variable:
+| v2
+| Structured token tree with primitives (foundational design tokens) and usages (component-specific tokens). Validates against a Zod schema, supports theme references (`{{primitives.font.family}}`), dual-mode colors (`{ light, dark }`), and region overrides. Maps to PrimeNG presets via a deterministic pipeline.
+|===
 
-[.source,css]
+[cols="1,2"]
+|===
+| v1 example
+| `ThemeProperties = { "primary-color": "#3B82F6", "font-family": "Inter" }`
+
+| v2 example
+| `ThemePropertiesV2 = { primitives: { font: { family: "Inter" }, variant: { primary: { bg: "#3B82F6" } } }, usages: { table: { ... } } }`
+|===
+
+The backend stores both versions side by side. The Shell publishes a `versions` array (`[1]`, `[2]`, or `[1, 2]`) alongside theme data so MFEs can determine which version to use.
+
+[#theme-lifecycle]
+== Theme Lifecycle
+
+.A theme flows from backend to rendered UI in five stages:
+[.ascii-diagram]
+....
+  Backend                      Shell                       CurrentThemesTopic              MFE
+  (BFF)                       (theme-apply)              (BroadcastChannel)           (ThemeConfigService)
+
+    │                           │                            │                           │
+    │  1. Theme object          │                            │                           │
+    │  ──────────────────────►  │                            │                           │
+    │  { properties: { v1, v2 },│                            │                           │
+    │    overrides: [...],      │                            │                           │
+    │    versions: [1, 2] }     │                            │                           │
+    │                           │                            │                           │
+    │                           │  2. Validate v2 with Zod   │                           │
+    │                           │  3. Set CSS vars on <html> │                           │
+    │                           │  4. Publish to topic       │                           │
+    │                           │  ────────────────────────►  │                           │
+    │                           │                            │                           │
+    │                           │                            │  5. Subscribe             │
+    │                           │                            │  ───────────────────────►  │
+    │                           │                            │                           │  6. Map to preset
+    │                           │                            │                           │  7. Apply overrides
+    │                           │                            │                           │  8. PrimeNG.setThemeConfig()
+    │                           │                            │                           │
+....
+
+.Stages
+[cols="1,3"]
+|===
+| 1. Backend publishes theme
+| The BFF provides a `Theme` object containing `properties` (v1 and/or v2), `overrides` (per-application token overrides), and `versions` (supported version numbers).
+
+| 2. Shell parses and validates
+| `ThemeApplyService.applyTheme()` detects v2 data (presence of `"usages"` key), validates with Zod `themeSchema.safeParse()`, and determines the `receivedThemeVersions` array.
+
+| 3. Shell injects CSS variables
+| `applyThemeV2Variables()` recursively walks the v2 theme object and sets CSS custom properties on `document.documentElement`. Every path becomes a variable: `primitives.font.family` → `--onecx-theme-primitives-font-family`. See xref:theme-v2.adoc#shell-css-variable-injection[CSS Variable Injection] for details.
+
+| 4. Shell publishes to topic
+| The parsed theme is published via `CurrentThemesTopic` (BroadcastChannel), making it available to all MFEs and remote components on the page. The legacy `currentTheme$` observable is also emitted for backwards compatibility.
+
+| 5. MFE subscribes
+| `ThemeConfigService` in each MFE subscribes to `themeService.currentThemes$`.
+
+| 6. MFE maps and applies
+| For v2: `mapThemeToPreset()` transforms the theme into a PrimeNG preset. For v1: `ThemeConfig` constructs a preset from flat variables. Overrides are merged, then `PrimeNG.setThemeConfig()` applies the result.
+|===
+
+[#dark-mode]
+== Dark Mode
+
+v2 themes support light/dark mode through dual-mode color values:
+
+[source,typescript]
 ----
-button {
-    background-color: var(--primary-color);
+// In a theme definition
+{
+  primitives: {
+    variant: {
+      primary: {
+        bg: { light: "#3B82F6", dark: "#60A5FA" }
+      }
+    }
+  }
 }
 ----
 
-[#technical-details]
-== Technical Details
+The Shell injects three CSS custom properties for each dual-mode value:
 
-This section explains how theming is technically implemented in OneCX.
+[source,css]
+----
+--onecx-theme-primitives-variant-primary-bg-color-light: #3B82F6;
+--onecx-theme-primitives-variant-primary-bg-color-dark: #60A5FA;
+--onecx-theme-primitives-variant-primary-bg-color: light-dark(
+  var(--onecx-theme-primitives-variant-primary-bg-color-light),
+  var(--onecx-theme-primitives-variant-primary-bg-color-dark)
+);
+----
 
-[#where-are-theme-variables-defined]
-=== Where Are Theme Variables Defined
+The `color-scheme: light dark` property is set on `<html>`, enabling the CSS `light-dark()` function which automatically resolves based on the user's OS preference.
 
-On each page, the `<html>` element should contain all currently active theme variables and their values.
+PrimeNG is configured with `darkModeSelector: 'system'`, so PrimeNG components follow the system preference automatically.
 
-[#how-are-theme-variables-defined]
-=== How Are Theme Variables Defined
+[#using-theme-variables]
+== Using Theme Variables in Styles
 
-The **Shell** is responsible for managing theme variables. When a Workspace loads, the Shell reads its configuration and applies the selected theme by updating the styles on the `<html>` element.
+When creating styles for UI components, use theme variables rather than hardcoded values:
 
-[#default-theme-variables]
-=== Default Theme Variables
+[source,css]
+----
+// v1: direct CSS custom property
+button {
+  background-color: var(--primary-color);
+}
 
-Before a Workspace is loaded, the Shell ensures that theme variables are available with default values. These default values are defined in the link:../../libs/portal-layout-styles/src/styles/shell/theme_defaults.scss[theme defaults stylesheet], which is imported by the Shell’s global stylesheet.
+// v2: CSS variable generated from theme path
+button {
+  background-color: var(--onecx-theme-primitives-variant-primary-bg-color);
+}
+
+// v2: via PrimeNG design token
+button {
+  background-color: var(--p-content-background);
+}
+----
+
+A complete list of v1 theme variables is available in the ONECX documentation. For v2, every token in the `ThemePropertiesV2` schema has a corresponding CSS variable on `<html>`.
+
+[#theme-overrides-at-a-glance]
+== Theme Overrides (Overview)
+
+Workspace administrators can define per-application theme overrides that merge on top of the base theme. These are published as part of the `overrides` array in the theme object. Each override has a `type` (`CSS` or `PRIMENG`) and a `value` (JSON string).
+
+xref:theme-overrides.adoc[See Theme Overrides] for technical details.
+
+[#where-are-defaults-defined]
+== Default Theme Variables
+
+Before a workspace theme loads, default values are available:
+
+* **v1 defaults**: Defined in link:../../libs/portal-layout-styles/src/styles/shell/theme_defaults.scss[theme defaults stylesheet], imported by the Shell's global stylesheet.
+* **v2 defaults**: Defined in usage schemas as theme references (e.g. `{{primitives.font.family}}`), resolved through the mapping pipeline.
+
+This ensures the UI is never unstyled during workspace loading.
+
+[#cross-references]
+== Related Documentation
+
+* xref:theme-v2.adoc[Theme V2 Architecture] -- v2 schema, mapping pipeline, Shell/MFE runtime, extension guide
+* xref:primeng.adoc[PrimeNG Theming Integration] -- how ONECX theming integrates with PrimeNG design tokens
+* xref:theme-overrides.adoc[Theme Overrides] -- per-application PrimeNG token overrides
+* xref:../styles/primeng-integration.adoc[PrimeNG Integration] -- style scoping, token prefixing, dynamic content

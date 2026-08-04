@@ -1,0 +1,271 @@
+= Permissions
+
+== Overview
+
+The permissions system controls what actions a user can perform. Permissions flow from the shell to micro-frontends via topics, and the Angular integration layer provides services, directives, and a pluggable checker interface for consuming them in templates and code.
+
+=== Why the Architecture Was Created
+
+In a module federation environment, permissions come from the shell, not from individual micro-frontends. The system needed to:
+
+. Provide a consistent permission source regardless of shell version.
+. Avoid duplicate permission checks when the same permission is checked multiple times.
+. Allow applications to override the permission checker (e.g., for testing or custom resolution logic).
+. Support both programmatic checks (`PermissionService`) and template-based checks (`*ocxIfPermission`).
+. Handle permissions delivered via different topic patterns (simple `string[]` or structured RPC model).
+
+== Permissions Topics
+
+=== PermissionsTopic
+
+*File:* `libs/integration-interface/src/lib/topics/permissions/v1/permissions.topic.ts`
+
+[source,typescript]
+----
+export class PermissionsTopic extends Topic<string[]> {
+  constructor() {
+    super('permissions', 1);
+  }
+}
+----
+
+A bidirectional topic that publishes an array of permission strings. The shell emits the full list of permissions for the current user, and micro-frontends subscribe to receive updates.
+
+=== PermissionsRpcTopic
+
+*File:* `libs/integration-interface/src/lib/topics/permissions-rpc/v1/permissions-rpc.topic.ts`
+
+[source,typescript]
+----
+export class PermissionsRpcTopic extends Topic<PermissionsRpc> {
+  constructor() {
+    super('permissionsRpc', 1, false);
+  }
+}
+----
+
+An not bidirectional topic that publishes structured permission data:
+
+[source,typescript]
+----
+interface PermissionsRpc {
+  appId: string;
+  productName: string;
+  permissions?: string[];
+}
+----
+
+Used for remote permission resolution where the shell mediates permission checks for specific applications and products.
+
+== Permission Service
+
+*File:* `libs/angular-utils/src/lib/services/permission.service.ts`
+
+The primary service for permission checks. It wraps either a `UserService` (default) or a custom `HasPermissionChecker`, with caching to prevent infinite re-render loops.
+
+=== Checker Resolution
+
+The service resolves the permission checker in this priority order:
+
+. `HAS_PERMISSION_CHECKER` injection token (custom checker) — if provided.
+. `UserService` — if available.
+
+If neither is provided, the service throws an error in the constructor.
+
+=== Caching
+
+All permission checks are cached in a `Map<string, Observable<boolean>>` keyed by `JSON.stringify(permissionKey)`. This means:
+
+* The first call to `hasPermission('admin')` creates an observable and caches it.
+* Subsequent calls to `hasPermission('admin')` return the same observable instance.
+* Using `hasPermission()` in templates does not trigger infinite digest cycles because the observable reference is stable.
+
+=== hasPermission
+
+[source,typescript]
+----
+hasPermission(permissionKey: string | string[]): Observable<boolean>
+----
+
+Accepts a single permission key or an array. When an array is provided, all permissions must be present (AND logic). The service:
+
+. Generates a cache key from the permission key(s).
+. If the key exists in the cache, returns the cached observable.
+. If not cached:
+  * With a `HasPermissionChecker` that has `getPermissions()` — maps over the checker's permissions and checks with `every()`.
+  * Otherwise — calls `permissionChecker.hasPermission(key)` directly (synchronous, wrapped in `from()`).
+. Stores the result in the cache.
+
+=== getPermissions
+
+[source,typescript]
+----
+getPermissions(): Observable<string[] | undefined>
+----
+
+Returns the cached permissions observable from `UserService`. If no `UserService` is available, returns `of(undefined)`.
+
+== HasPermissionChecker
+
+=== Interface
+
+*File:* `libs/angular-utils/src/lib/utils/has-permission-checker.ts`
+
+[source,typescript]
+----
+export interface HasPermissionChecker {
+  hasPermission(permission: string | string[]): Promise<boolean> | boolean;
+  getPermissions?(): Observable<string[]>;
+}
+----
+
+A pluggable interface that allows applications to override the permission check logic. Two methods:
+
+* `hasPermission()` — required. Synchronous or async check for one or more permissions.
+* `getPermissions()` — optional. Returns all permissions as an observable, used by `PermissionService` for efficient batch checks.
+
+=== Injection Token
+
+*File:* `libs/angular-accelerator/src/lib/injection-tokens/has-permission-checker.ts`
+
+[source,typescript]
+----
+export const HAS_PERMISSION_CHECKER = new InjectionToken<HasPermissionChecker>('HAS_PERMISSION_CHECKER');
+----
+
+Register a custom checker:
+
+[source,typescript]
+----
+provideValue(HAS_PERMISSION_CHECKER, myCustomChecker)
+----
+
+=== Factory
+
+*File:* `libs/angular-utils/src/lib/utils/has-permission-checker-factory.ts`
+
+A convenience factory for creating a checker from a function:
+
+[source,typescript]
+----
+export function hasPermissionCheckerFactory(
+  hasPermission: (permission: string | string[]) => Promise<boolean> | boolean
+): HasPermissionChecker {
+  return { hasPermission };
+}
+----
+
+=== Provider
+
+*File:* `libs/angular-utils/src/lib/providers/permission-service.providers.ts`
+
+[source,typescript]
+----
+export function providePermissionService(checker?: HasPermissionChecker): Provider[]
+----
+
+Provides `PermissionService` and optionally the `HAS_PERMISSION_CHECKER` token. If no checker is provided, the service falls back to `UserService`.
+
+== IfPermission Directive
+
+*File:* `libs/angular-accelerator/src/lib/directives/if-permission.directive.ts`
+
+A structural directive for template-based permission checks. Supports both positive and negative checks with configurable behavior on missing permissions.
+
+=== Inputs
+
+[cols="1,2,3"]
+|===
+| Input | Type | Description
+
+| `ocxIfPermission` | `string \| string[]` | Show when user **has** all listed permissions
+| `ocxIfNotPermission` | `string \| string[]` | Show when user **does not have** any of the listed permissions
+| `*onMissingPermission` | `'hide' \| 'disable'` | Default: `'hide'`. Show but disable when permission is missing
+| `*Permissions` | `string[] \| undefined` | Override permissions array (useful for testing)
+| `*ElseTemplate` | `TemplateRef<any>` | Alternate template to show when permission check fails
+|===
+
+NOTE: The `*` in the input names above is shorthand — the actual input names are prefixed (e.g., `ocxIfPermissionOnMissingPermission`, `ocxIfPermissionPermissions`, `ocxIfPermissionElseTemplate`). The negative variant uses `ocxIfNotPermissionOnMissingPermission`, etc.
+
+=== Checker Resolution
+
+Same as `PermissionService` — checks for `HAS_PERMISSION_CHECKER` first, then falls back to `UserService`. Throws if neither is available.
+
+=== Usage Examples
+
+[source,html]
+----
+<!-- Show when user has 'admin' permission -->
+<button *ocxIfPermission="'admin'">Delete All</button>
+
+<!-- Show when user does NOT have 'admin' permission -->
+<p *ocxIfNotPermission="'admin'">You are not an administrator.</p>
+
+<!-- Show when user has both 'admin' AND 'delete' permissions -->
+<button *ocxIfPermission="['admin', 'delete']">Delete All</button>
+
+<!-- Disable instead of hide when permission is missing -->
+<button *ocxIfPermission="'admin'; onMissingPermission: 'disable'">Delete All</button>
+
+<!-- Show alternate template when permission is missing -->
+<ng-template #adminOnly>
+  <button>Delete All</button>
+</ng-template>
+<ng-template #notAdmin>
+  <p>Permission denied</p>
+</ng-template>
+<button *ocxIfPermission="'admin'; elseTemplate: notAdmin">Delete All</button>
+----
+
+=== Override Permissions
+
+The `*Permissions` input allows overriding the permission check entirely — useful for testing or dynamic scenarios:
+
+[source,html]
+----
+<button *ocxIfPermission="'admin'; permissions: currentUserPermissions">Delete All</button>
+----
+
+When `overridePermissions` is provided, the directive checks against that array instead of the `UserService` or `HAS_PERMISSION_CHECKER`.
+
+== Permission Model
+
+*File:* `libs/angular-accelerator/src/lib/model/permission.model.ts`
+
+[source,typescript]
+----
+export type OnMissingPermission = 'hide' | 'disable';
+export type PermissionInput = string | string[];
+----
+
+== Remote Components Permission Service
+
+*File:* `libs/angular-remote-components/src/lib/services/permission.service.ts`
+
+Remote components have their own `PermissionService` implementation, isolated from the host application's permission system. This allows remote components to define and check permissions independently.
+
+== Permissions Store Connector
+
+*File:* `libs/ngrx-integration-interface/src/lib/store-connector/store-connectors/permissions-store-connector-service.ts`
+
+Subscribes to `UserService.getPermissions()` and dispatches `OneCxActions.permissionsChanged()` with the result. Register via `providePermissionsStoreConnector()`.
+
+== Summary of Key Files
+
+[cols="1,2"]
+|===
+| File | Description
+
+| `integration-interface/.../permissions.topic.ts` | PermissionsTopic for string[] permission delivery
+| `integration-interface/.../permissions-rpc.topic.ts` | PermissionsRpcTopic for structured RPC data
+| `integration-interface/.../permissions-rpc.model.ts` | PermissionsRpc interface (appId, productName, permissions)
+| `angular-utils/.../permission.service.ts` | PermissionService with caching and checker resolution
+| `angular-utils/.../has-permission-checker.ts` | HasPermissionChecker interface
+| `angular-utils/.../has-permission-checker-factory.ts` | Factory function for custom checkers
+| `angular-utils/.../permission-service.providers.ts` | Provider for PermissionService with optional checker
+| `angular-accelerator/.../has-permission-checker.ts` | HAS_PERMISSION_CHECKER injection token
+| `angular-accelerator/.../if-permission.directive.ts` | Structural directive for template permission checks
+| `angular-accelerator/.../permission.model.ts` | PermissionInput and OnMissingPermission types
+| `ngrx-integration-interface/.../permissions-store-connector-service.ts` | Store connector for permissions
+| `angular-remote-components/.../permission.service.ts` | Permission service for remote components
+|===

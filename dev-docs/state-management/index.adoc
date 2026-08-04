@@ -1,0 +1,389 @@
+= State Management
+
+== Overview
+
+The ONECX Portal UI Libraries use https://ngrx.io/[NgRx] for state management in Angular applications. Two libraries provide the infrastructure:
+
+* **`@onecx/ngrx-integration-interface`** — the OneCX state slice (reducer, actions, selectors) and store connectors that bridge integration interface topics and services into NgRx state
+* **`@onecx/ngrx-accelerator`** — effect helpers for navigation state, selector utilities, and local storage utilities
+
+== OneCX State Slice
+
+The OneCX state is stored under the `onecx` feature key in the root store. It holds global data provided by the shell or framework services.
+
+=== State Shape
+
+*File:* `libs/ngrx-integration-interface/src/lib/store-connector/onecx-state.ts`
+
+[source,typescript]
+----
+interface OneCxState {
+  location?: LocationState | undefined
+  permissions?: string[] | undefined
+  config?: { [key: string]: string } | undefined
+  currentMfe?: MfeInfo
+  currentPage?: PageInfo | undefined
+  currentTheme?: Theme
+  currentWorkspace?: Workspace
+  appConfig?: { [key: string]: string }
+  userProfile?: UserProfile
+}
+----
+
+Each slice corresponds to data from a specific source:
+
+[cols="1,2,2"]
+|===
+| State Slice | Source | Connector
+
+| `location` | Navigation events via `AppStateService` or `EventsTopic` | `NavigatedEventStoreConnectorService`
+| `permissions` | `UserService.getPermissions()` | `PermissionsStoreConnectorService`
+| `config` | `ConfigurationService.getConfig()` | `ConfigurationStoreConnectorService`
+| `currentMfe` | `AppStateService.currentMfe$` | `CurrentMfeStoreConnectorService`
+| `currentPage` | `AppStateService.currentPage$` | `CurrentPageStoreConnectorService`
+| `currentTheme` | `CurrentThemeTopic` | `CurrentThemeStoreConnectorService`
+| `currentWorkspace` | `AppStateService.currentWorkspace$` | `CurrentWorkspaceStoreConnectorService`
+| `appConfig` | `AppConfigService.config$` | `AppConfigStoreConnectorService`
+| `userProfile` | Not connected automatically | --
+|===
+
+`userProfile` has an action (`userProfileChanged`) and reducer case, but no store connector. Applications that need the user profile in state dispatch the action manually.
+
+=== Actions
+
+*File:* `libs/ngrx-integration-interface/src/lib/store-connector/onecx-actions.ts`
+
+All OneCX actions are defined via `createActionGroup`:
+
+[source,typescript]
+----
+export const OneCxActions = createActionGroup({
+  source: 'OneCX',
+  events: {
+    navigated: props<{ event: undefined | unknown }>(),
+    permissionsChanged: props<{ permissions: string[] }>(),
+    configChanged: props<{ config: { [key: string]: string } }>(),
+    currentMfeChanged: props<{ currentMfe: MfeInfo }>(),
+    currentPageChanged: props<{ currentPage: PageInfo | undefined }>(),
+    currentThemeChanged: props<{ currentTheme: Theme }>(),
+    currentWorkspaceChanged: props<{ currentWorkspace: Workspace }>(),
+    appConfigChanged: props<{ appConfig: { [key: string]: string } }>(),
+    userProfileChanged: props<{ userProfile: UserProfile }>(),
+  },
+})
+----
+
+Each action is a pure replace — it overwrites the entire slice with the new value. There is no partial update or incremental merge.
+
+=== Reducer
+
+*File:* `libs/ngrx-integration-interface/src/lib/store-connector/onecx-reducer.ts`
+
+A straightforward `createReducer` with `on` handlers for each action, spreading existing state and replacing only the relevant slice:
+
+[source,typescript]
+----
+export const oneCxReducer = createReducer<OneCxState>(
+  {},
+  on(OneCxActions.permissionsChanged, (state, action) => ({
+    ...state,
+    permissions: action.permissions,
+  })),
+  // ... other handlers
+)
+----
+
+The initial state is an empty object `{}`, meaning all slices start as `undefined` until their connector dispatches the first action.
+
+=== Selectors
+
+*File:* `libs/ngrx-integration-interface/src/lib/store-connector/onecx-selectors.ts`
+
+`getOneCxSelectors()` returns an object of memoized selectors for every state slice:
+
+[source,typescript]
+----
+const selectors = getOneCxSelectors<V>();
+
+selectors.selectPermissions;     // MemoizedSelector<V, string[] | undefined>
+selectors.selectCurrentMfe;     // MemoizedSelector<V, MfeInfo | undefined>
+selectors.selectCurrentTheme;   // MemoizedSelector<V, Theme | undefined>
+// ...
+----
+
+The function accepts an optional `selectState` parameter (default: `createFeatureSelector('onecx')`), which allows applications to nest the OneCX state under a different path.
+
+`selectBackNavigationPossible` is derived from `selectLocation` — returns `true` when location is defined and `!location.isFirst`:
+
+[source,typescript]
+----
+const selectBackNavigationPossible = createSelector(
+  selectLocation,
+  (location) => !!location && !location?.isFirst
+);
+----
+
+=== Providing the State Slice
+
+Applications register the reducer in their `StoreModule` or `provideStore`:
+
+[source,typescript]
+----
+import { oneCxReducer } from '@onecx/ngrx-integration-interface';
+
+StoreModule.forRoot({
+  onecx: oneCxReducer,
+  // ... other reducers
+})
+----
+
+== Store Connectors
+
+Store connectors are services that subscribe to external data sources (topics, services) and dispatch NgRx actions. They convert reactive streams into store updates.
+
+=== Pattern
+
+Every store connector follows the same structure:
+
+. Injects `Store` and the relevant service or creates a `Topic`.
+. Subscribes to the data source.
+. Dispatches the corresponding `OneCxActions` action on each emission.
+. Uses `untilDestroyed(this)` to clean up subscriptions (where applicable).
+. Destroys topic instances on `ngOnDestroy` (where applicable).
+
+Each connector is provided via a `provide*StoreConnector()` function that returns both the service and an `provideEnvironmentInitializer` to ensure it runs at application bootstrap:
+
+[source,typescript]
+----
+export function providePermissionsStoreConnector() {
+  return [
+    provideEnvironmentInitializer(() => inject(PermissionsStoreConnectorService)),
+    PermissionsStoreConnectorService,
+  ]
+}
+----
+
+The `provideEnvironmentInitializer` ensures the service (and its constructor-side subscription) is instantiated early, before the application renders.
+
+=== Available Connectors
+
+==== NavigatedEventStoreConnectorService
+
+Subscribes to navigation events. Checks for `Capability.CURRENT_LOCATION_TOPIC`:
+
+* If available, uses `AppStateService.currentLocation$` (returns `CurrentLocationTopicPayload` directly).
+* If not available, falls back to `EventsTopic` filtered for `EventType.NAVIGATED` (extracts `payload`).
+
+Dispatches `OneCxActions.navigated()` with the parsed event.
+
+Creates its own `EventsTopic` instance and destroys it in `ngOnDestroy`.
+
+==== PermissionsStoreConnectorService
+
+Subscribes to `UserService.getPermissions()` and dispatches `OneCxActions.permissionsChanged()`.
+
+==== ConfigurationStoreConnectorService
+
+Calls `ConfigurationService.getConfig()` once (asynchronous, via `.then()`) and dispatches `OneCxActions.configChanged()` with the result. Unlike other connectors, this is a one-time fetch, not a continuous subscription.
+
+==== CurrentMfeStoreConnectorService
+
+Subscribes to `AppStateService.currentMfe$` and dispatches `OneCxActions.currentMfeChanged()`.
+
+==== CurrentPageStoreConnectorService
+
+Subscribes to `AppStateService.currentPage$` and dispatches `OneCxActions.currentPageChanged()`.
+
+==== CurrentThemeStoreConnectorService
+
+Creates a `CurrentThemeTopic` instance, subscribes to it, and dispatches `OneCxActions.currentThemeChanged()`. Destroys the topic in `ngOnDestroy`.
+
+==== CurrentWorkspaceStoreConnectorService
+
+Subscribes to `AppStateService.currentWorkspace$` and dispatches `OneCxActions.currentWorkspaceChanged()`.
+
+==== AppConfigStoreConnectorService
+
+Subscribes to `AppConfigService.config$` and dispatches `OneCxActions.appConfigChanged()`.
+
+=== Wiring Connectors
+
+Applications register the connectors they need:
+
+[source,typescript]
+----
+import {
+  providePermissionsStoreConnector,
+  provideCurrentMfeStoreConnector,
+  provideCurrentThemeStoreConnector,
+} from '@onecx/ngrx-integration-interface';
+
+bootstrapApplication(AppComponent, {
+  providers: [
+    providePermissionsStoreConnector(),
+    provideCurrentMfeStoreConnector(),
+    provideCurrentThemeStoreConnector(),
+    // ... other connectors
+  ]
+});
+----
+
+== NgRx Accelerator Utilities
+
+*Package:* `@onecx/ngrx-accelerator`
+
+Provides reusable utilities for common NgRx patterns: navigation effects, selector generation, and local storage rehydration.
+
+=== Effect Helpers
+
+==== filterForNavigatedTo
+
+*File:* `libs/ngrx-accelerator/src/lib/utils/effects/filter-for-navigated-to.ts`
+
+An RxJS operator that filters `RouterNavigatedAction` streams to only emit when the application has navigated to (or into) a specific component. Recursively checks child routes:
+
+[source,typescript]
+----
+actions$.pipe(
+  ofType(routerNavigated),
+  filterForNavigatedTo(router, MyComponent)
+)
+----
+
+Only emits the action when `MyComponent` is the active component or a descendant in the route tree.
+
+==== createFragmentParamsEffect
+
+*File:* `libs/ngrx-accelerator/src/lib/utils/effects/create-fragmentParams-effect.ts`
+
+Creates an NgRx effect that writes state changes to the URL fragment. The fragment supports key-value pairs in the format `fragment?sort=asc&filter=active`.
+
+When the specified action is dispatched, the effect:
+
+. Reads the current URL fragment.
+. Parses fragment params using `URLSearchParams`.
+. Applies the reducer function to produce new params.
+. Writes the updated params back to the URL fragment via `router.navigate()` with `replaceUrl: true`.
+
+[source,typescript]
+----
+createFragmentParamsEffect(
+  actions$,
+  MyActions.updateSort,
+  router,
+  activatedRoute,
+  (params, action) => ({ ...params, sort: action.sort })
+)
+----
+
+==== createQueryParamsEffect (Deprecated)
+
+*File:* `libs/ngrx-accelerator/src/lib/utils/effects/create-query-params-effect.ts`
+
+Legacy version that writes to `queryParams` instead of the URL fragment. Functionally identical but operates on the `activatedRoute.queryParams` observable. Replaced by `createFragmentParamsEffect` — fragment params are the recommended approach because they do not trigger server-side requests on page reload.
+
+=== Filter Helpers
+
+Four filter operators for `RouterNavigatedAction` streams, all using `router.events` with `RoutesRecognized` to compare the previous and current router state:
+
+==== filterOutOnlyFragmentParamsChanged
+
+*Deprecated.* Filters out navigation actions where only the URL fragment changed (compares everything before the `#`).
+
+==== filterOutFragmentParamsHaveNotChanged
+
+Keeps only navigation actions where the fragment params actually changed. Uses a Zod schema for validation and `fast-deep-equal` for comparison:
+
+[source,typescript]
+----
+actions$.pipe(
+  ofType(routerNavigated),
+  filterOutFragmentParamsHaveNotChanged(router, myFragmentParamsSchema, allowEmptyFragmentParamsList)
+)
+----
+
+The `allowEmptyFragmentParamsList` flag (default `false`) controls whether to emit when fragment params are empty.
+
+==== filterOutOnlyQueryParamsChanged and filterOutQueryParamsHaveNotChanged
+
+Both deprecated. Identical logic to the fragment param versions but operate on query params. Migrate to fragment param variants.
+
+=== Selector Utilities
+
+==== createChildSelectors
+
+*File:* `libs/ngrx-accelerator/src/lib/utils/selectors/create-child-selectors.ts`
+
+Generates memoized selectors for each key in a child state object, with type-safe naming via mapped types:
+
+[source,typescript]
+----
+const nestedSelectors = createChildSelectors<State, MyFeatureState>(
+  selectMyFeature,
+  initialMyFeatureState
+);
+
+// Generates:
+// nestedSelectors.selectSubState1  -> MemoizedSelector<State, MyFeatureState['subState1']>
+// nestedSelectors.selectSubState2  -> MemoizedSelector<State, MyFeatureState['subState2']>
+----
+
+Primitive and array child states skip selector generation (since they don't have nested keys). The function returns an empty object in those cases.
+
+=== Local Storage Utilities
+
+==== lazyLoadingMergeReducer
+
+*File:* `libs/ngrx-accelerator/src/lib/utils/local-storage/lazy-loading-merge-reducer.ts`
+
+A reducer signature function `(state, rehydratedState, action)` for use with store-freezing and local storage rehydration. Handles the case where some feature states load lazily (e.g., after lazy module load) while others are already active:
+
+. Identifies keys that exist in both `state` (current store) and `rehydratedState` (from localStorage).
+. Deep-merges only those keys, overwriting arrays with the source array.
+. Leaves all other keys as-is — rehydrated data for already-loaded slices is merged into the current state.
+
+==== createNestedKeyConfiguration
+
+*File:* `libs/ngrx-accelerator/src/lib/utils/local-storage/create-nested-key-configuration.ts`
+
+A type-casting utility that converts flat configuration arrays into a `KeyConfiguration[]` format for localStorage serialization options. Supports `string[]`, `number[]`, and nested `NestedKeyConfiguration`.
+
+== Cross-MFE State Boundaries
+
+Each micro-frontend has its own NgRx store. The OneCX state slice is shared conceptually via the shell (through topics and services), not via a shared store instance. Store connectors in each MFE independently subscribe to the same shell-mediated data sources, so all MFEs see consistent OneCX state without needing to share state directly.
+
+This means:
+
+* An MFE should not depend on another MFE's store state.
+* If the shell updates permissions, all MFEs with `PermissionsStoreConnectorService` will receive the update independently.
+* Application-specific state must remain within the MFE that owns it.
+
+== Summary of Key Files
+
+[cols="1,2"]
+|===
+| File | Description
+
+| `ngrx-integration-interface/.../onecx-state.ts` | OneCX state shape definition
+| `ngrx-integration-interface/.../onecx-actions.ts` | Action group with 9 events
+| `ngrx-integration-interface/.../onecx-reducer.ts` | Reducer handling all OneCX actions
+| `ngrx-integration-interface/.../onecx-selectors.ts` | Selector factory with 10 selectors
+| `ngrx-integration-interface/.../permissions-store-connector-service.ts` | Permissions connector via UserService
+| `ngrx-integration-interface/.../navigated-event-store-connector-service.ts` | Navigation connector with capability fallback
+| `ngrx-integration-interface/.../configuration-store-connector-service.ts` | One-time config connector
+| `ngrx-integration-interface/.../current-mfe-store-connector-service.ts` | Current MFE connector via AppStateService
+| `ngrx-integration-interface/.../current-page-store-connector-service.ts` | Current page connector via AppStateService
+| `ngrx-integration-interface/.../current-theme-store-connector-service.ts` | Current theme connector via CurrentThemeTopic
+| `ngrx-integration-interface/.../current-workspace-store-connector-service.ts` | Current workspace connector via AppStateService
+| `ngrx-integration-interface/.../app-config-store-connector-service.ts` | App config connector via AppConfigService
+| `ngrx-accelerator/.../filter-for-navigated-to.ts` | Filter for component navigation
+| `ngrx-accelerator/.../create-fragment-params-effect.ts` | Fragment params effect factory
+| `ngrx-accelerator/.../create-query-params-effect.ts` | Query params effect factory (deprecated)
+| `ngrx-accelerator/.../filter-for-only-fragment-params-changed.ts` | Filter only path changes (deprecated)
+| `ngrx-accelerator/.../filter-for-fragment-params-changed.ts` | Filter fragment param changes
+| `ngrx-accelerator/.../filter-for-only-query-params-changed.ts` | Filter only path changes (deprecated)
+| `ngrx-accelerator/.../filter-for-query-params-changed.ts` | Filter query param changes (deprecated)
+| `ngrx-accelerator/.../create-child-selectors.ts` | Selector generator for nested state
+| `ngrx-accelerator/.../lazy-loading-merge-reducer.ts` | LocalStorage rehydration reducer
+| `ngrx-accelerator/.../create-nested-key-configuration.ts` | Key configuration utility
+|===

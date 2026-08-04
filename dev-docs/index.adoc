@@ -1,0 +1,29 @@
+= Knowledge Topics
+
+This directory contains system-level knowledge documentation for the ONECX Portal UI Libraries and Shell. Each topic covers a distinct area of the platform, cross-cutting library boundaries where relevant.
+
+== Topics
+
+=== Platform Core
+
+* xref:topics/overview.adoc[Integration Contract] — Topics system, versioned APIs, events, messaging, notifications
+* xref:styles/concept.adoc[Style Isolation] — CSS @scope rule, scope polyfill, style lifecycle, independent microfrontend styling
+* xref:theming/concept.adoc[Theming System] — Theme topics, token reference, PrimeNG theming, theme v1/v2 migration
+* xref:authentication/index.adoc[Authentication Flow] — Token interceptors, auth proxies, is-authenticated, Angular/React adapters, shell-auth
+* xref:permissions/index.adoc[Permissions System] — Permissions topics, RPC, capability checks, cache, shell-to-MFE flow
+
+=== Architecture
+
+* xref:remote-components/index.adoc[Remote Components] — Portal viewport, slot groups, web-component-loader, component injection from MFEs
+* xref:module-federation/index.adoc[Module Federation Architecture] — Shared config, version conflicts, preloaders, MFE loading lifecycle
+* xref:state-management/index.adoc[State Management] — ngrx store connectors, ngrx-accelerator, cross-MFE state boundaries
+
+=== Navigation & Content
+
+* xref:navigation-routing/index.adoc[Navigation & Routing] — Current-location, current-page, current-workspace, guards, shell routing
+* xref:dynamic-translations-assets/index.adoc[Dynamic Translations & Assets] — Runtime translations, icons, image repository
+
+=== Developer Practices
+
+* xref:testing-strategy/index.adoc[Testing Strategy] — Harnesses, mocks, angular-testing utilities, verify-test-agent pattern
+* xref:build-release/index.adoc[Build & Release] — NX config, CI, changelog, versioning, Docker, Helm, Sonar

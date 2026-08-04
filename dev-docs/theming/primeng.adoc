@@ -1,71 +1,204 @@
-
-= Theming with PrimeNG
+= PrimeNG Theming Integration
 
 :idprefix:
-:idseparator: -
-:primeng_theming: https://primeng.org/theming
-:theme_overrides: https://onecx.github.io/docs/guides/current/angular/theming.html#theme-overrides
-:custom_use_style: ../../libs/angular-utils/src/lib/services/custom-use-style.service.ts
-:style_isolation: ../styles/concept.adoc#style-isolation-idea
-:provide_theme_config: ../../libs/angular-utils/src/lib/theme/application-config.ts
-:theme_config: ../../libs/angular-utils/src/lib/theme/theme-config.ts
-:theme_config_service: ../../libs/angular-utils/src/lib/services/theme-config.service.ts
+:idseparator:
 
-[#primeng-theming]
-== PrimeNG Theming
-In version 19, PrimeNG introduced {primeng_theming}[theming mechanism based on design tokens]. All PrimeNG components are going to adapt to the appearance specified in the configuration for design tokens.
+This document explains how ONECX theming integrates with PrimeNG's design token system, how to configure an MFE for theme support, and how to choose between v1 and v2 theming.
 
-[#onecx-theming-with-primeng-theming]
-=== OneCX Theming With PrimeNG Theming
-With OneCX theming, a suite of CSS variables is always available to ensure that UIs have a common look and feel in a certain workspace. On theme change, those variables are used to update the preset of design tokens used by all PrimeNG components to reflect the theme changes in them as well.
+[#primeng-design-tokens]
+== PrimeNG Design Tokens
 
-[#theme-overrides]
-=== Theme Overrides
-OneCX theming integration with PrimeNG theming is based on some assumptions related to OneCX theme variable association to PrimeNG design tokens. Because of that, some tokens are affected by the theme variables and some are not. Because of this and the fact that each UI can have its own requirements related to PrimeNG component styles, theme overrides were introduced.
+Since version 19, PrimeNG uses a design token theming model. Components reference design tokens (e.g. `{semantic.colorScheme.light.content.background}`) rather than hardcoded CSS values. A **preset** is a JavaScript object that defines all token values; `PrimeNG.setThemeConfig()` applies it at runtime.
 
-Explanation of the theme overrides mechanism and an example can be found {theme_overrides}[here].
+ONECX bridges its theme system to this model: theme variables → PrimeNG preset → rendered components.
 
-[#technical-details]
-== Technical Details
-In this section, the technical details on how OneCX theming integrates with PrimeNG theming are explained.
+[#onecx-and-primeng-theming]
+== ONECX Theming With PrimeNG
 
-[#onecx-default-preset]
-=== OneCX Default Preset
-Important files:
+ONECX provides two integration paths depending on the theme version:
 
-* link:../../libs/angular-utils/src/lib/theme/preset/custom-preset.ts[The custom OneCX preset]
-* link:../../libs/angular-utils/src/lib/theme/preset/preset-variables.ts[Token values for custom OneCX preset]
-** Contains default tokens values
-** Contains OneCX extended section
-* link:../../libs/angular-utils/src/lib/theme/preset/default-theme-variables.ts[Default theme variables values]
-** Contains default theme variables values
+[cols="1,3"]
+|===
+| Path | How it works
 
-The custom OneCX preset is the base for OneCX that does not take the theme set for the accessed workspace into consideration.
+| v1 (legacy)
+| Theme variables are read into a `ThemeConfig` object which updates an extended `onecx` section of the PrimeNG preset. Primary palette is regenerated. Applied via `PrimeNG.setThemeConfig()`.
 
-[#onecx-extend-section]
-=== OneCX Extend Section
-The OneCX custom preset contains the theme variables values as design tokens in the extended `onecx` object. This section also contains all custom design tokens defined by OneCX like the `errorColor` token. Those tokens can be utilized as any other tokens:
+| v2 (structured)
+| `ThemePropertiesV2` is resolved (theme references expanded), mapped through `MAPPING_RULES` into a PrimeNG preset shape, merged with overrides, and applied via `PrimeNG.setThemeConfig()`. Custom CSS rules complement preset tokens where PrimeNG has no equivalent.
+|===
 
-* errorColor
-** Design token usage - `{onecx.error.color}`
-** CSS variable usage - `--p-onecx-error-color`
-* contentBgColor
-** Design token usage - `{onecx.content.bg.color}`
-** CSS variable usage - `--p-onecx-content-bg-color`
+xref:concept.adoc#theme-versions[See Theme Versions] for a comparison of v1 and v2 theme structures.
 
-[#theme-appliance]
-=== Theme Appliance
-In order to apply theme variables to the PrimeNG design tokens:
+[#providing-theme-config]
+== Configuring an MFE for Theming
 
-* The theme has to be activated on the page.
-* link:{provide_theme_config}[provideThemeConfig] has to be provided in the Microfrontend or Remote Component providers.
+Every MFE or remote component must provide theme configuration via `provideThemeConfig()`:
 
-The `provideThemeConfig` provider is essential to set up PrimeNG and other functionalities that are required to integrate OneCX theming with PrimeNG theming.
+[source,ts]
+----
+// app.module.ts or app.config.ts
+import { provideThemeConfig } from '@onecx/angular-utils/theme/primeng'
+
+provideThemeConfig({
+  maxVersion: 2,              // Use v2 mapping pipeline (default: 1)
+  isAdvancedTheming: true,    // Enable workspace-level PrimeNG overrides (default: false)
+  overrides: myOverrides,     // Application-level PrimeNG token overrides
+  cssOverrides: myCss,        // Application-level CSS string overrides
+})
+----
+
+[cols="1,2"]
+|===
+| Option | Description
+
+| `maxVersion`
+| Maximum theme version to use. If the theme provides v2 data and `maxVersion >= 2`, v2 mapping is used. Falls back to v1 if `maxVersion` is 1. Default: 1.
+
+| `isAdvancedTheming`
+| When `true`, workspace-level PrimeNG overrides (`OverrideType.PRIMENG`) are parsed and merged into the preset. When `false`, they are ignored. Default: `false`.
+
+| `overrides`
+| Application-level PrimeNG token overrides. Can be a static object, a Promise, or a function returning either. Merged on top of the mapped preset.
+
+| `cssOverrides`
+| Application-level CSS string overrides. Can be a string, a Promise\<string\>, or a function returning either. Appended to the theme CSS.
+|===
+
+`provideThemeConfig()` registers the following internally:
+
+* `provideAnimationsAsync()` -- Angular async animations
+* `providePrimeNG({})` -- PrimeNG configuration
+* `ThemeConfigService` -- subscribes to theme changes and applies them
+* `CustomUseStyle` -- replaces PrimeNG's default `UseStyle` for per-MFE style scoping
+* `AppStylesInitializer` -- initializes application styles
 
 [#theme-config-service]
-==== Theme Config Service
-One of the essential services is link:{theme_config_service}[ThemeConfigService]. In the theming context, every time the theme changes, it is responsible for updating the OneCX custom preset with the theme variables and applying it.
+== ThemeConfigService
 
-ThemeConfigService utilizes link:{theme_config}[ThemeConfig] object to update the extended `onecx` section of design tokens and recreates the primary palette.
+`ThemeConfigService` is the core runtime service. It subscribes to `CurrentThemesTopic` and applies themes on every change.
 
-Apart from this, it is also responsible for providing the link:{custom_use_style}[CustomUseStyle] which is used for link:{style_isolation}[style isolation] purposes.
+.Theme application flow for v2
+[.ascii-diagram]
+....
+  CurrentThemesTopic emits
+         │
+         ▼
+  Check themeVersionAvailable(2)
+         │
+    ┌────┴────┐
+    │   v2?   │
+    └────┬────┘
+         │ Yes
+         ▼
+  getThemeProperties()
+  ─ Resolve region overrides
+    (for remote components: merge region primitives/usages)
+         │
+         ▼
+  mapThemeToPreset(properties)
+  ─ Resolve theme refs
+  ─ Apply mapping rules → preset variables
+  ─ Generate CSS rules → css string
+         │
+         ▼
+  generateThemeOverrides(overrides)
+  ─ Parse PrimeNG overrides (if advanced theming)
+  ─ Fold into single object
+         │
+         ▼
+  mergeDeep(preset, overrides)
+         │
+         ▼
+  PrimeNG.setThemeConfig({
+    theme: {
+      preset: { ...merged, css: cssFromTheme + cssOverrides },
+      options: { darkModeSelector: 'system' },
+    },
+  })
+         │
+         ▼
+  ensureStyles() → inject scoped CSS into <head>
+....
+
+.For v1, the flow is simpler: load `CustomPreset`, construct `ThemeConfig` from flat variables, merge with overrides, apply.
+
+[#version-selection]
+== Version Selection
+
+The system determines which theme version to use through a negotiation:
+
+. The Shell publishes `versions` array (e.g. `[1, 2]`) with the theme data.
+. The MFE has a `maxVersion` preference (from `provideThemeConfig` options or `THEME_MAX_VERSION` token).
+. `themeVersionAvailable(version, injector)` checks if the requested version is in the published `versions` array.
+. If v2 is available and requested, v2 mapping is used. Otherwise, v1 is used.
+. If neither is available, an error is thrown.
+
+This means an MFE can declare `maxVersion: 2` and safely fall back to v1 if the backend only provides v1 data.
+
+[#custom-preset-v1]
+== OneCX Custom Preset (v1)
+
+The v1 preset is defined in link:../../libs/angular-utils/theme/primeng/src/preset/custom-preset.ts[custom-preset.ts] and consists of:
+
+* **Preset variables** -- Default token values for all PrimeNG components.
+* **OneCX extend section** -- Theme variables exposed as design tokens in the `onecx` namespace.
+* **Default theme variables** -- Fallback values used when no workspace theme is loaded.
+
+Custom OneCX tokens in the extend section:
+
+[cols="1,1,1"]
+|===
+| Token | Design Token | CSS Variable
+
+| `errorColor`
+| `{onecx.error.color}`
+| `--p-onecx-error-color`
+
+| `contentBgColor`
+| `{onecx.content.bg.color}`
+| `--p-onecx-content-bg-color`
+|===
+
+[#advanced-theming]
+== Advanced Theming
+
+When `isAdvancedTheming` is enabled, workspace administrators can define PrimeNG-level overrides that target specific design tokens. These overrides are published as `ThemeOverride` objects with `type: OverrideType.PRIMENG` and a JSON `value`.
+
+The service:
+
+. Filters overrides by `PRIMENG` type.
+. Parses the `value` JSON string.
+. Deep-merges all overrides into a single object.
+. Merges the result on top of the mapped preset.
+
+xref:theme-overrides.adoc[See Theme Overrides] for details on how overrides are scoped and applied.
+
+[#style-scoping]
+== Style Scoping (CustomUseStyle)
+
+`CustomUseStyle` replaces PrimeNG's default `UseStyle` service to ensure per-MFE style isolation:
+
+. All PrimeNG style sheets are scoped using `@scope` rules and prefixed CSS variable names.
+. Theme override styles are appended as the last style sheet in `<head>`, ensuring they take precedence via CSS specificity.
+. For remote components, styles are scoped by slot name.
+. For MFEs, styles are scoped by product/app identity.
+
+xref:../styles/primeng-integration.adoc[See PrimeNG Integration] for technical details.
+
+[#webpack-modifications]
+== Shell Webpack Modifications
+
+The Shell's webpack configuration applies source modifications at build time:
+
+. `document.createElement(` in PrimeNG → replaced with `document.createElementFromPrimeNg(...)` to inject scope data into dynamically created elements.
+. `Theme.setLoadedStyleName` → replaced with a no-op to prevent unwanted theme recomputations.
+. `document.createElement('style'` in `@angular/platform-browser` → replaced with `document.createElementFromSharedStylesHost(...)` for Angular component style scoping.
+
+[#cross-references]
+== Related Documentation
+
+* xref:concept.adoc[Theming Concept] -- what themes are, v1 vs v2, lifecycle
+* xref:theme-v2.adoc[Theme V2 Architecture] -- v2 schema, mapping pipeline, extension guide
+* xref:theme-overrides.adoc[Theme Overrides] -- per-application PrimeNG token overrides
+* xref:../styles/primeng-integration.adoc[PrimeNG Integration] -- style scoping, token prefixing, dynamic content

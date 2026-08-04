@@ -1,0 +1,195 @@
+= Build & Release
+
+:idprefix:
+:idseparator: -
+
+This document describes the build, test, and release process for the ONECX Portal UI Libraries monorepo.
+
+[#workspace-structure]
+== Workspace Structure
+
+The project is an NX monorepo with 18 libraries under `libs/`. Each library has its own `project.json`, `package.json`, and source tree. The root `package.json` defines workspace-level scripts and shared dependencies.
+
+[#build-commands]
+== Build Commands
+
+```bash
+# Build all libraries
+npm run build
+
+# Build a single library
+npx nx run <library-name>:build
+
+# Build and copy to local node_modules (for linked development)
+npm run build-copy
+```
+
+The `build` target is cacheable and depends on upstream library builds (`^build`) — changing library A automatically triggers a rebuild of any library that depends on it.
+
+The `build-copy` script reads paths from `.copy-build-to` and copies `dist/libs/*` to each destination, used for local development against consumer projects.
+
+[#nx-configuration]
+== NX Configuration
+
+`nx.json` defines:
+
+* **Cached operations:** `build`, `lint`, `test`, `e2e`, `build-storybook`
+* **Build dependencies:** `build` depends on `^build` (upstream library builds)
+* **Production inputs:** Excludes test files, stories, and lint configs from the build input set
+* **Generator defaults:** SCSS styling, ESLint linting, Jest for unit tests
+* **ESLint plugin:** Configured as an NX plugin for automatic lint target creation
+
+[#testing]
+== Testing
+
+Tests run with Jest. Each library has its own `jest.config.ts` that extends the workspace preset.
+
+```bash
+# Run affected tests
+npm run test
+
+# Run tests for a single library
+npx nx run <library-name>:test
+
+# Run all tests
+npx nx run-many -t test
+```
+
+Coverage reports are written to `coverage/<projectRoot>/` and consolidated under `reports/<library-name>/coverage/lcov.info`.
+
+[#sonarqube-integration]
+== SonarQube Integration
+
+Quality gates are checked through SonarQube using `sonarqube-scanner`.
+
+**Single library scan:**
+
+```bash
+npm run sonar -- <library-name>
+```
+
+Runs tests, normalizes coverage paths, then executes the scanner from the library directory.
+
+**All libraries scan:**
+
+```bash
+npm run sonar:all
+```
+
+Runs all tests, normalizes coverage, then scans each library that has a report in the `reports/` directory.
+
+**Coverage path normalization:** The `normalize-lcov.sh` script prepends `/` to `SF:` lines in `lcov.info` files so SonarCloud receives absolute paths.
+
+**Default Sonar properties** (`default.sonar-project.properties`):
+
+* Coverage plugin: `lcov`
+* Coverage exclusions: `*.spec.ts`, `*.test.ts`, `*.stories.ts`, `*.harness.ts`, logger utils, environments, assets, generated files, modules, main files
+* Test inclusions: `*.spec.ts`, `*.test.ts`
+* Issue exceptions: Allows async actions in constructors (rule `typescript:S7059`)
+
+[#versioning-and-release]
+== Versioning and Release
+
+Releases use **semantic-release** with the **conventionalcommits** preset.
+
+[#branches]
+### Branch Strategy
+
+|===
+| Branch | Channel | Prerelease
+
+| `main`
+| `rc`
+| Yes (`rc.N`)
+
+| `v5`
+| `v5-lts`
+| No (GA `5.x.x`)
+
+| `v6`
+| `v6-lts`
+| No (GA `6.x.x`)
+
+| `v7`
+| `v7-lts`
+| No (GA `7.x.x`)
+
+| `v8`
+| `v8-lts`
+| No (GA `8.x.x`)
+|===
+
+`main` pushes release-candidate versions. LTS branches (`v5`, `v6`, `v7`, `v8`) push stable patch versions within their range.
+
+[#commit-types]
+### Commit Types
+
+The conventionalcommits preset maps commit types to changelog sections:
+
+|===
+| Type | Changelog Section | Bump Level
+
+| `feat`
+| Features
+| Minor
+
+| `fix`
+| Bug Fixes
+| Patch
+
+| `chore`
+| Chores
+| Patch (default)
+
+| `refactor`
+| Refactoring
+| Patch (via release rule)
+
+| `docs`
+| Hidden
+| None
+
+| `style`
+| Hidden
+| None
+
+| `perf`
+| Hidden
+| None
+
+| `test`
+| Hidden
+| None
+|===
+
+[#release-script]
+### Release Script
+
+On each release, `release-script.sh` is invoked with the new version and channel. It:
+
+. Updates the root `package.json` version if it differs from the release version.
+. Iterates over all directories in `libs/`:
+.. Updates all `@onecx/*` dependency versions in each library's `package.json` to `^<version>`.
+.. Writes `src/version.ts` with the library name and version if the file exists.
+.. Updates the library's `package.json` version.
+.. If the version doesn't already exist on npm, runs `npx nx run <library>:release`.
+
+[#semantic-release-plugins]
+### Semantic Release Plugins
+
+The `release.config.js` configures:
+
+1. `@semantic-release/commit-analyzer` — Determines the next version from commit messages.
+2. `@semantic-release/release-notes-generator` — Generates release notes for the changelog.
+3. `@semantic-release/changelog` — Writes release notes to `CHANGELOG.md`.
+4. `@semantic-release/exec` — Runs `release-script.sh` during the `prepare` step.
+5. `@semantic-release/git` — Commits updated `package.json` files and `CHANGELOG.md` with a `[skip ci]` message.
+
+[#clean]
+== Clean
+
+```bash
+npm run clean
+```
+
+Removes npm cache, `dist/`, `reports/`, `.angular/`, `.eslintcache`, Prettier cache, and NX cache. Run this before a fresh build if outputs look stale.

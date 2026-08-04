@@ -1,0 +1,327 @@
+= Remote Components
+
+== Overview
+
+Remote components allow micro-frontends (MFEs) to expose UI components that are rendered in designated slots by other MFEs. The shell orchestrates which components fill which slots, and the `@onecx/angular-remote-components` library provides the runtime infrastructure to load, render, and communicate with these components.
+
+The system works in two directions:
+
+* **Shell → MFE**: The shell publishes remote component metadata and slot assignments via the `RemoteComponentsTopic`.
+* **MFE → Shell**: The MFE loads components dynamically and renders them in `<ocx-slot>` elements, passing inputs and outputs to bridge the host and remote component boundaries.
+
+== Remote Components Topic
+
+*File:* `libs/integration-interface/src/lib/topics/remote-components/v1/remote-components.topic.ts`
+
+[source,typescript]
+----
+export class RemoteComponentsTopic extends Topic<RemoteComponentsInfo> {
+  constructor() {
+    super('remoteComponentsInfo', 1);
+  }
+}
+----
+
+A bidirectional topic that publishes the complete remote component configuration from the shell. The payload is:
+
+[source,typescript]
+----
+type RemoteComponentsInfo = {
+  components: RemoteComponent[];
+  slots: Slot[];
+}
+----
+
+=== RemoteComponent Model
+
+[source,typescript]
+----
+type RemoteComponent = {
+  name: string;
+  baseUrl: string;
+  remoteEntryUrl: string;
+  appId: string;
+  productName: string;
+  exposedModule: string;
+  remoteName: string;
+  technology: Technologies;
+  shareScope?: string;
+}
+
+enum Technologies {
+  Angular = 'Angular',
+  WebComponentScript = 'WebComponentScript',
+  WebComponentModule = 'WebComponentModule',
+}
+----
+
+Each remote component defines:
+
+* Its identity (`name`, `appId`, `productName`).
+* How to load it (`baseUrl`, `remoteEntryUrl`, `exposedModule`, `remoteName`, `shareScope`).
+* Its technology (`Angular` for Module Federation Angular components, `WebComponentScript` or `WebComponentModule` for web components).
+
+=== Slot Model
+
+[source,typescript]
+----
+type Slot = {
+  name: string;
+  components: string[];
+}
+----
+
+Maps a slot name to an array of remote component names. Multiple components can be assigned to the same slot.
+
+== SlotService
+
+*File:* `libs/angular-remote-components/src/lib/services/slot.service.ts`
+
+Resolves which components should be rendered in a given slot. Subscribes to `RemoteComponentsTopic` and maps the slot name to component configurations.
+
+=== getComponentsForSlot
+
+[source,typescript]
+----
+getComponentsForSlot(slotName: string): Observable<SlotComponentConfiguration[]>
+----
+
+For each remote component assigned to the slot:
+
+. Finds the matching `RemoteComponent` by name.
+. Calls `loadComponent()` to dynamically load the component type.
+. Calls `PermissionService.getPermissions()` to fetch permissions for the component.
+. Returns a `SlotComponentConfiguration` object:
+
+[source,typescript]
+----
+type SlotComponentConfiguration = {
+  componentType: Promise<Type<unknown> | undefined> | Type<unknown> | undefined;
+  remoteComponent: RemoteComponentInfo;
+  permissions: Promise<string[]> | string[];
+}
+----
+
+=== Component Loading
+
+For Angular components, the service:
+
+. Converts the component info to Module Federation load options via `toLoadRemoteEntryOptions()`.
+. Gets the shell Module Federation instance via `getShellMfInstance()`.
+. Calls `registerAndLoadRemote()` to load the remote module.
+. Extracts the component type using the `exposedModule` name as the property key (stripping the `./` prefix).
+
+For web components (`WebComponentScript` or `WebComponentModule`), the service returns `undefined` for `componentType` — the `SlotComponent` handles web component creation directly from the `elementName`.
+
+=== isSomeComponentDefinedForSlot
+
+[source,typescript]
+----
+isSomeComponentDefinedForSlot(slotName: string): Observable<boolean>
+----
+
+Returns `true` if any component is assigned to the slot. Useful for conditional rendering — host components can check if a slot has content before rendering it.
+
+== Slot Component
+
+*File:* `libs/angular-remote-components/src/lib/components/slot/slot.component.ts`
+
+The `<ocx-slot>` component is the runtime host for remote components. It renders components into a slot based on the configuration provided by `SlotService`.
+
+=== Inputs
+
+[cols="1,2,3"]
+|===
+| Input | Type | Description
+
+| `name` | `string` | Required. The slot name to resolve components for.
+| `inputs` | `Record<string, unknown>` | Data to pass to components inside the slot. Uses `setInput()` for Angular components and direct property assignment for web components.
+| `outputs` | `Record<string, RemoteComponentOutput>` | Event emitters to pass to components. Supports both `OutputEmitterRef` and `EventEmitter`.
+|===
+
+=== Component Creation
+
+On `ngOnInit`, the component:
+
+. Calls `slotService.getComponentsForSlot(name)` to get the component configurations.
+. Creates `<span>` placeholder elements (one per component) to maintain ordering.
+. For each component:
+  * Waits for both `componentType` and `permissions` promises to resolve.
+  * Creates the component via `createAngularComponent()` or `createWebComponent()`.
+  * Replaces the `<span>` placeholder with the actual element.
+
+==== Angular Components
+
+The component is created via `viewContainerRef.createComponent()`. If the instance has an `ocxInitRemoteComponent()` method, it is called with the `RemoteComponentConfig`:
+
+[source,typescript]
+----
+interface ocxRemoteComponent {
+  ocxInitRemoteComponent(config: RemoteComponentConfig): void;
+}
+----
+
+The config includes `appId`, `productName`, `baseUrl`, and `permissions`.
+
+==== Web Components
+
+A new DOM element is created via `document.createElement(elementName)`. Two properties are set:
+
+* `ocxRemoteComponentConfig` — the same config object as Angular components.
+* `ocxRemoteComponentContext` — additional context with `slotName` and `slotGroupName` (from `inputs['slotGroupName']`).
+
+=== Style Isolation
+
+Each remote component element receives:
+
+* `data-style-id` — set to `{productName}|{appId}`, used to scope styles to the component's product.
+* `data-style-isolation` — an empty attribute that marks the element for CSS scoping.
+
+Additionally, `updateStylesForRcCreation()` loads any styles exposed by the remote component's application. On `ngOnDestroy`, `removeAllRcUsagesFromStyles()` cleans up to avoid ghost styles.
+
+=== Inputs and Outputs
+
+The component watches `inputs` and `outputs` with `combineLatest`. When either changes, it updates all assigned components:
+
+* For Angular `ComponentRef`: uses `setInput(name, value)`.
+* For web `HTMLElement`: sets the property directly.
+
+=== Resize Events
+
+The component observes its size with a `ResizeObserver` and publishes `SlotResizedEvent` messages to the `ResizedEventsTopic`:
+
+[source,typescript]
+----
+type SlotResizedEvent = {
+  type: ResizedEventType.SLOT_RESIZED;
+  payload: {
+    slotName: string;
+    slotDetails: { width: number; height: number };
+  };
+}
+----
+
+Resize events are debounced by 100ms. The component also listens for `REQUESTED_EVENTS_CHANGED` messages — if a subscriber requests `SLOT_RESIZED` events for this slot, the component republishes the current dimensions.
+
+=== Resized Events Topic
+
+*File:* `libs/integration-interface/src/lib/topics/resized-events/v1/resized-events.topic.ts`
+
+Supports three event types:
+
+[cols="1,2"]
+|===
+| Event Type | Description
+
+| `SLOT_RESIZED` | A slot's dimensions changed.
+| `SLOT_GROUP_RESIZED` | A group of slots' dimensions changed.
+| `REQUESTED_EVENTS_CHANGED` | A subscriber requested or stopped requesting resize events.
+|===
+
+== Module Setup
+
+*File:* `libs/angular-remote-components/src/lib/angular-remote-components.module.ts`
+
+Import `AngularRemoteComponentsModule` to use `<ocx-slot>`:
+
+[source,typescript]
+----
+@NgModule({
+  imports: [AngularRemoteComponentsModule],
+  // ...
+})
+export class MyModule {}
+----
+
+The module:
+
+* Declares and exports `SlotComponent`.
+* Provides `SLOT_SERVICE` token pointing to `SlotService`.
+
+== Remote Component Initialization
+
+Remote components can receive configuration from the host. The mechanism differs by technology:
+
+=== Angular Components
+
+Implement `ocxInitRemoteComponent(config)`:
+
+[source,typescript]
+----
+@Component({ ... })
+export class MyRemoteComponent {
+  ocxInitRemoteComponent(config: RemoteComponentConfig) {
+    console.log('App ID:', config.appId);
+    console.log('Permissions:', config.permissions);
+  }
+}
+----
+
+=== Web Components
+
+Read from the `ocxRemoteComponentConfig` and `ocxRemoteComponentContext` properties:
+
+[source,typescript]
+----
+class MyWebComponent extends HTMLElement {
+  connectedCallback() {
+    const config = this.ocxRemoteComponentConfig;
+    const context = this.ocxRemoteComponentContext;
+  }
+}
+----
+
+== Permission Service for Remote Components
+
+*File:* `libs/angular-remote-components/src/lib/services/permission.service.ts`
+
+Remote components need their own permission context, separate from the host application. This service uses `PermissionsRpcTopic` to request permissions from the shell for a specific `appId` and `productName`:
+
+. Checks a local cache keyed by `{appId}:{productName}`.
+. If not cached, publishes a `PermissionsRpc` message to request permissions.
+. Subscribes to `PermissionsRpcTopic`, filtering for matching `appId` and `productName`.
+. Returns the first match as a `Promise<string[]>`.
+
+The `SlotService` calls this service for each remote component, so permissions are fetched lazily and cached per component.
+
+== Translation for Remote Components
+
+*File:* `libs/angular-remote-components/src/lib/utils/provide-translate-service-for-root.utils.ts`
+
+Provides a root-level translation service for remote components. Deprecated — use `provideTranslateService` from ngx-translate v17 instead.
+
+== Testing
+
+*File:* `libs/angular-remote-components/testing/slot.harness.ts`
+
+`SlotHarness` provides CDK component harness support for `<ocx-slot>`:
+
+* `static with({ name })` — filter by slot name.
+* `getElement(tagName)` — get a child element by tag name.
+* `getName()` — get the slot name from `name` or `ng-reflect-name` attribute.
+* `getComponentCssProperty(tagName, property)` — get a CSS property from a child element.
+* `getComponentClasses(tagName)` — get CSS classes from a child element.
+
+A mock `SlotServiceMock` is also available in the `mocks/` entry point.
+
+== Summary of Key Files
+
+[cols="1,2"]
+|===
+| File | Description
+
+| `integration-interface/.../remote-components.topic.ts` | RemoteComponentsTopic for component and slot metadata
+| `integration-interface/.../remote-components-info.model.ts` | RemoteComponentsInfo type (components + slots)
+| `integration-interface/.../remote-component.model.ts` | RemoteComponent model and Technologies enum
+| `integration-interface/.../slot.model.ts` | Slot model (name + component names)
+| `integration-interface/.../resized-events.topic.ts` | ResizedEventsTopic for slot size events
+| `integration-interface/.../resized-event-type.ts` | ResizedEventType enum
+| `angular-remote-components/.../slot.service.ts` | SlotService — resolves components for slots
+| `angular-remote-components/.../slot.component.ts` | SlotComponent — renders remote components in slots
+| `angular-remote-components/.../remote-component.ts` | ocxRemoteComponent interface for Angular RCs
+| `angular-remote-components/.../remote-webcomponent.ts` | ocxRemoteWebcomponent interface for web components
+| `angular-remote-components/.../permission.service.ts` | PermissionService for remote component permissions
+| `angular-remote-components/.../angular-remote-components.module.ts` | Module with SlotComponent and SLOT_SERVICE
+| `angular-remote-components/.../provide-translate-service-for-root.utils.ts` | Translation setup for remote components
+| `angular-remote-components/testing/.../slot.harness.ts` | SlotHarness for component testing
+|===

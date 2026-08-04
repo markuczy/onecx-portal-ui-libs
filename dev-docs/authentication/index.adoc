@@ -1,0 +1,210 @@
+= Authentication Flow
+
+:idprefix:
+:idseparator: -
+:auth_service: ../../libs/shell-auth/src/lib/auth.service.ts
+:auth_wrapper: ../../libs/shell-auth/src/lib/auth-service-wrapper.ts
+:keycloak_service: ../../libs/shell-auth/src/lib/auth_services/keycloak-auth.service.ts
+:angular_proxy: ../../libs/angular-auth/src/lib/auth-proxy.service.ts
+:angular_interceptor: ../../libs/angular-auth/src/lib/token.interceptor.ts
+:react_proxy: ../../libs/react-auth/src/lib/auth-proxy-service.ts
+:react_axios: ../../libs/react-auth/src/lib/axios.ts
+
+This document describes how authentication works across the ONECX platform. The shell owns authentication, and microfrontends access it through a versioned proxy on the global `window` object.
+
+[#shell-owns-auth]
+== Shell Owns Authentication
+
+Authentication is centralized in the shell (`shell-auth` library). The shell initializes the auth provider, manages tokens, and exposes a proxy that MFEs call when they need to authenticate HTTP requests.
+
+[#auth-service-contract]
+== Auth Service Contract
+
+All auth implementations conform to the link:{auth_service}[`AuthService`] interface:
+
+[source,typescript]
+----
+export interface AuthService {
+  init(config?: Record<string, unknown>): Promise<boolean>
+  getHeaderValues(): Record<string, string>
+  logout(): void
+  updateTokenIfNeeded(): Promise<boolean>
+}
+----
+
+- `init` — Initializes the auth provider. Called once when the shell starts.
+- `getHeaderValues` — Returns HTTP headers with auth tokens for outgoing requests.
+- `logout` — Triggers logout and redirects to the auth provider.
+- `updateTokenIfNeeded` — Refreshes the token if it is about to expire.
+
+[#auth-service-wrapper]
+== Auth Service Wrapper
+
+The link:{auth_wrapper}[`AuthServiceWrapper`] is the entry point in the shell. It reads the `AUTH_SERVICE` configuration property and creates the appropriate implementation:
+
+|===
+| Config Value | Service | Behavior
+
+| `keycloak`
+| KeycloakAuthService
+| Default. Uses Keycloak for authentication with configurable client, realm, and server URL.
+
+| `custom`
+| Remote Module
+| Loads a custom auth service via Module Federation from a configurable URL. The remote exposes an `AuthServiceFactory` as default export.
+
+| `disabled`
+| DisabledAuthService
+| No-op. Returns empty tokens and resolves init immediately. Used for development or environments without auth.
+|===
+
+The wrapper publishes the MFEs' auth state by calling `appStateService.isAuthenticated$.publish()` when `init()` succeeds.
+
+[#keycloak-implementation]
+== Keycloak Implementation
+
+The link:{keycloak_service}[`KeycloakAuthService`] wraps `keycloak-js` and handles:
+
+**Initialization flow:**
+
+. Loads tokens from `localStorage` if available (persisted as `onecx_kc_token`, `onecx_kc_idToken`, `onecx_kc_refreshToken`).
+. Checks refresh token expiry — clears stored tokens if the refresh token is expired.
+. Reads Keycloak config from `ConfigurationService` using `CONFIG_KEY` values (`KEYCLOAK_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`). Falls back to `./assets/keycloak.json` if the server config is incomplete.
+. Calls `keycloak.init()` with `onLoad: 'check-sso'` and `checkLoginIframe: false`. Silent SSO check is optional, enabled via `KEYCLOAK_ENABLE_SILENT_SSO` config flag.
+. On init failure, falls back to `keycloak.login()` to force a redirect to the auth server.
+
+**Event handling:**
+
+- `onAuthError` — Updates `localStorage`.
+- `onAuthLogout` — Clears `localStorage`, triggers re-login for SSO logout.
+- `onAuthRefreshSuccess` / `onAuthSuccess` / `onActionUpdate` / `onReady` — Persists tokens to `localStorage`.
+- `onAuthRefreshError` — Optionally triggers re-login if `KEYCLOAK_ON_AUTH_REFRESH_ERROR_ENABLED` is set to `true`.
+- `onTokenExpired` — Optionally proactively refreshes the token if `KEYCLOAK_ON_TOKEN_EXPIRED_ENABLED` is set to `true`.
+
+**Token refresh:**
+
+- Uses a `Semaphore(1)` to ensure only one token refresh happens at a time, preventing race conditions when multiple requests trigger `updateTokenIfNeeded()` concurrently.
+- `updateTokenIfNeeded()` checks if the user is authenticated, then calls `keycloak.updateToken(minValidity)` with the configured minimum validity from `KEYCLOAK_UPDATE_TOKEN_MIN_VALIDITY`.
+
+[#mfe-proxy]
+== MFE Auth Proxy
+
+MFEs could access shell auth through a versioned proxy exposed on `window.onecxAuth`, although the recommended approach is to use the Angular or React proxy services.:
+
+[source,typescript]
+----
+window.onecxAuth.authServiceProxy.v1 = {
+  getHeaderValues: () => Record<string, string>,
+  updateTokenIfNeeded: () => Promise<boolean>
+}
+----
+
+The wrapper also exposes a legacy alias on `window.onecxAngularAuth.authServiceProxy.v1` for backward compatibility with older library versions.
+
+[#angular-proxy]
+=== Angular
+
+The link:{angular_proxy}[`AuthProxyService`] is an injectable service that calls the global proxy:
+
+- `getHeaderValues()` — Returns auth headers from `window.onecxAuth.authServiceProxy.v1`.
+- `updateTokenIfNeeded()` — Calls the shell to refresh the token if needed. Rejects if the proxy is not available, indicating the MFE is running against an older shell.
+
+[#react-proxy]
+=== React
+
+The link:{react_proxy}[`AuthServiceProxy`] is a class with the same contract as the Angular proxy, plus a singleton instance exported as `authServiceProxy`. React MFEs use it directly rather than through dependency injection.
+
+[#http-interceptors]
+== HTTP Interceptors
+
+Auth headers are attached to outgoing HTTP requests automatically via interceptors.
+
+[#angular-interceptor]
+=== Angular
+
+The link:{angular_interceptor}[`TokenInterceptor`] implements `HttpInterceptor`:
+
+. Waits for `appStateService.isAuthenticated$.isInitialized` to resolve.
+. Calls `authService.updateTokenIfNeeded()` to ensure the token is fresh.
+. Calls `authService.getHeaderValues()` and attaches each header to the request.
+. Skips requests that include `assets` in the URL (whitelist).
+
+The interceptor returns two headers from Keycloak:
+- `Authorization: Bearer <access-token>`
+- `apm-principal-token: <id-token>`
+
+[#react-interceptor]
+=== React (Axios)
+
+The link:{react_axios}[`axiosFactory`] creates an axios instance with a request interceptor:
+
+. Skips requests containing `/assets/` in the URL.
+. Calls `authServiceProxy.updateTokenIfNeeded()`. Catches the missing proxy error silently (graceful degradation).
+. Calls `authServiceProxy.getHeaderValues()` and attaches each header to the request config.
+
+The factory returns an `AuthenticatedAxiosInstance` with a `tokens` property that includes `sessionExpired: false`, used by the MFE to track token state.
+
+[#configuration-keys]
+== Configuration Keys
+List of configuration keys used by the shell auth service. All keys are optional, and the shell provides defaults for missing values. All keys are read from the `ConfigurationService` at runtime, and can be overridden by environment variables or server config.
+
+|===
+| Key | Service | Description
+
+| `AUTH_SERVICE`
+| Keycloak / Custom / Disabled
+| The auth service type. Default is `keycloak`.
+
+| `AUTH_SERVICE_CUSTOM_URL`
+| Custom auth
+| URL of the remote entry for the custom auth service.
+
+| `AUTH_SERVICE_CUSTOM_MODULE_NAME`
+| Custom auth
+| Exposed module name in the remote. Default is `./CustomAuth`.
+
+| `CUSTOM_AUTH_SHARE_SCOPE`
+| Custom auth
+| Module Federation share scope for the custom auth remote.
+
+| `KEYCLOAK_URL`
+| Keycloak
+| Keycloak server URL.
+
+| `KEYCLOAK_REALM`
+| Keycloak
+| Keycloak realm name.
+
+| `KEYCLOAK_CLIENT_ID`
+| Keycloak
+| Keycloak client ID.
+
+| `KEYCLOAK_ENABLE_SILENT_SSO`
+| Keycloak
+| Enable silent SSO check. Value is `'true'` to enable.
+
+| `KEYCLOAK_TIME_SKEW`
+| Keycloak
+| Time skew in seconds for token validation.
+
+| `KEYCLOAK_ON_TOKEN_EXPIRED_ENABLED`
+| Keycloak
+| Enable proactive token refresh on expiry. Value is `'true'` to enable.
+
+| `KEYCLOAK_ON_AUTH_REFRESH_ERROR_ENABLED`
+| Keycloak
+| Trigger re-login on auth refresh error. Value is `'true'` to enable.
+
+| `KEYCLOAK_UPDATE_TOKEN_MIN_VALIDITY`
+| Keycloak
+| Minimum token validity in seconds before refresh.
+|===
+
+[#architectural-notes]
+== Architectural Notes
+
+* **Shell owns auth, MFEs are consumers.** MFEs never initialize auth themselves. They call the proxy for headers and token refresh.
+* **The proxy is versioned.** The `v1` namespace on `authServiceProxy` allows future API changes without breaking MFEs.
+* **Custom auth is a remote module.** The shell loads a custom auth service dynamically via Module Federation, giving the flexibility to swap providers without modifying the shell code.
+* **Token state is persisted in localStorage.** Keycloak tokens survive page reloads, but are cleared if the refresh token is expired.
+* **A semaphore prevents race conditions.** `updateTokenIfNeeded()` is serialized so concurrent requests don't trigger parallel token refreshes.

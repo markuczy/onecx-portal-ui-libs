@@ -1,0 +1,196 @@
+= PrimeNG Integration
+
+:idprefix:
+:idseparator:
+:scoping: ./scoping.adoc
+:theme_overrides: ../theming/theme-overrides.adoc
+
+
+This document describes how PrimeNG styles are handled in OneCX. It covers style scoping, CSS token variable prefixing, dynamic content support, and the integration with theme overrides.
+
+[#overview]
+== Overview
+
+PrimeNG v19+ injects its own stylesheets containing component styles and CSS design token variables. However, PrimeNG is designed for single-application pages and does not account for multiple applications coexisting. Without intervention, PrimeNG styles from one application would override another.
+
+OneCX addresses this through two mechanisms:
+
+1. **Style scoping** — All PrimeNG stylesheets are wrapped in `@scope` rules, restricting them to a single application's DOM region
+2. **Token variable prefixing** — The `--p-*` CSS variables are renamed to scope-unique names (e.g., `--onecx-workspace-onecx-workspace-ui-surface-500`), so each application gets its own set of variables
+
+[#custom-use-style]
+== CustomUseStyle
+
+The central component of PrimeNG integration is link:../../libs/angular-utils/theme/primeng/src/services/custom-use-style.service.ts[CustomUseStyle], a replacement for PrimeNG's default `UseStyle` service.
+
+Every application using PrimeNG v19+ must register link:../../libs/angular-utils/theme/primeng/src/utils/application-config.ts[`provideThemeConfig`] in its providers. This wires up CustomUseStyle to intercept all PrimeNG stylesheet operations.
+
+[#primeng-style-sheets]
+== PrimeNG Style Sheets
+
+PrimeNG v19 injects two types of stylesheets:
+
+[#variables-sheet]
+=== Variables Sheet
+
+Contains CSS custom properties (design tokens) like `--p-surface-500`, `--p-primary-color`, etc. CustomUseStyle scopes these by:
+
+1. Wrapping in `@scope([data-style-id="scopeId"]) to ([data-style-isolation]) { ... }`
+2. Wrapping variables under `:scope { ... }` so they are restricted to the application region
+3. Replacing the `--p-` prefix with a scope-specific prefix (see <<token-variable-prefixing>>)
+
+[#rules-sheet]
+=== Rules Sheet
+
+Contains component-level CSS rules (`.p-button { }`, `.p-card { }`, etc). CustomUseStyle scopes these by:
+
+1. Wrapping in `@scope([data-style-id="scopeId"]) to ([data-style-isolation]) { ... }`
+2. No `:scope` wrapper needed — these are regular rules that fall naturally within the scope
+
+.Resulting PrimeNG stylesheets on the page
+[source,html]
+----
+<style data-primeng-style-id="...">
+  @scope([data-style-id="app-a|app-a-ui"] to ([data-style-isolation])) {
+    :scope {
+      --app-a-app-a-ui-surface-500: #1976d2;
+      --app-a-app-a-ui-primary-color: #1976d2;
+    }
+  }
+</style>
+<style data-primeng-style-id="...">
+  @scope([data-style-id="app-a|app-a-ui"] to ([data-style-isolation])) {
+    .p-button {
+      background-color: var(--app-a-app-a-ui-primary-color);
+    }
+  }
+</style>
+----
+
+[#token-variable-prefixing]
+== Token Variable Prefixing
+
+PrimeNG's `--p-*` CSS variables would collide if every application used the same variable names. To prevent this, OneCX rewrites all `--p-` references to use scope-specific prefixes.
+
+[#how-it-works]
+=== How It Works
+
+Given a scope ID like `onecx-workspace|onecx-workspace-ui`, the prefix is calculated as:
+
+[source,text]
+----
+--p-surface-500
+  → --onecx-workspace-onecx-workspace-ui-surface-500
+----
+
+The pipe `|` and any other non-alphanumeric characters are replaced with `-`.
+
+[#where-replacement-happens]
+=== Where Replacement Happens
+
+Token variable replacement occurs at three layers:
+
+[cols="1,3"]
+|===
+|Layer |Description
+
+|CustomUseStyle
+|When PrimeNG injects or updates its stylesheets, `--p-` is replaced with the scope-specific prefix
+
+|provideAppStylesInitializer
+|When an application uses `provideThemeConfig`, the initializer scans the application's `styles.css` and replaces all `--p-` references with the scoped prefix
+
+|styleChangesListenerInitializer
+|In Shell UI, watches for stylesheet additions/removals/changes and replaces `--p-` in Angular component styles dynamically
+|===
+
+[#usage-in-applications]
+=== Usage in Applications
+
+Developers use PrimeNG variables as-is in their code. The replacement happens automatically:
+
+.Application source (styles.css or component.css)
+[source,css]
+----
+.my-button {
+    background-color: var(--p-surface-500);
+}
+----
+
+.Transformed on the page
+[source,css]
+----
+@scope([data-style-id="onecx-workspace|onecx-workspace-ui"]) to ([data-style-isolation]) {
+    .my-button {
+        background-color: var(--onecx-workspace-onecx-workspace-ui-surface-500);
+    }
+}
+----
+
+No manual renaming is required. Each application references `--p-*` normally; OneCX handles the rewrite.
+
+[#theme-overrides]
+== Theme Overrides
+
+OneCX supports overriding PrimeNG design tokens at runtime through theme overrides. When a theme override targets a PrimeNG token, CustomUseStyle generates a scoped override stylesheet that applies the override for the relevant scope.
+
+For details on the override mechanism, see xref:../theming/theme-overrides.adoc[Theme Overrides].
+
+.Override stylesheet identification
+[cols="1,3"]
+|===
+|Attribute |Purpose
+
+|`data-variable-override-id="scopeId"`
+|Identifies a stylesheet as containing PrimeNG variable overrides for a specific scope
+|===
+
+[#dynamic-content]
+== Dynamic Content Support
+
+Some PrimeNG components (Dropdown, OverlayPanel, etc.) create DOM elements dynamically. When these elements are appended outside the application's scope, they would not be styled correctly.
+
+[#webpack-replacements]
+=== Webpack Replacements
+
+To handle this, applications should configure webpack replacements:
+
+[cols="1,3"]
+|===
+|Original |Replacement
+
+|`document.createElement`
+|`document.createElementFromPrimeNg`
+
+|`Theme.setLoadedStyleName`
+|No-op function `(_) => {}`
+|===
+
+* **`document.createElementFromPrimeNg`** — Adds intermediate scope attributes to newly created elements, ensuring the Shell's `bodyChildListenerInitializer` can apply the correct `data-style-id` when the element is appended to the DOM
+* **Theme.setLoadedStyleName** — Prevents PrimeNG's unwanted theme recomputation when stylesheets change
+
+The Shell UI's webpack configuration (https://github.com/onecx/onecx-shell-ui/blob/develop/webpack.config.js#L39[reference implementation]) is a good example.
+
+[#intermediate-attributes]
+=== Intermediate Attributes
+
+When PrimeNG creates dynamic content, the following intermediate attributes are used as temporary metadata:
+
+[cols="1,3"]
+|===
+|Attribute |Purpose
+
+|`data-intermediate-style-id`
+|The scope ID to apply when the element is appended to the DOM
+
+|`data-intermediate-mfe-element`
+|Marks the element as MFE content for scoping purposes
+
+|`data-intermediate-style-isolation`
+|Marks the boundary end for scoping
+
+|`data-intermediate-no-portal-layout-styles`
+|Indicates v6+ content that should not receive legacy portal layout styles
+|===
+
+These attributes are converted to their non-intermediate counterparts by `bodyChildListenerInitializer` when the element is appended to the DOM. They exist only briefly between element creation and DOM insertion.

@@ -173,18 +173,90 @@ Each area is a `variantWithStates` block (colors + states).
 [#usages]
 == Usages
 
-Usages (link:{schema_root}/current-themes.schema.ts[current-themes.schema.ts]) define **component-specific** token groups that default back to primitives via theme references.
+Usages (link:{schema_root}/current-themes.schema.ts[current-themes.schema.ts]) define **component-specific** token groups that default back to primitives via theme references. Every usage is optional — omitting one means the component inherits defaults entirely from primitives.
 
-[source,typescript]
-----
-usages = {
-  region?: region    // typography defaults for a page region
-  table?: table      // comprehensive datatable theming
-}
-----
+[#usage-catalog]
+=== Component Catalog
+
+The table below lists all 14 usage schemas available in the v2 theme. Each schema provides a `settings` block (component behavior, not theming), theming properties with primitive defaults, and (where applicable) state variants and severity variants.
+
+[cols="1,2,3"]
+|===
+| Schema | File | Key Properties
+
+| `region`
+| link:{schema_root}/schema/region.ts[region.ts]
+| `font` — family, size, weight, lineHeight, letterSpacing, style (all default to primitive font tokens)
+
+| `table`
+| link:{schema_root}/schema/table.ts[table.ts]
+| `settings` — checkbox/action column position + sticky flag. `base` — container bg, contrast, border, padding, shadow. `header`/`footer`/`row` — row styles with states. `row` supports alternating `odd`/`even` styles.
+
+| `dialog`
+| link:{schema_root}/schema/dialog.ts[dialog.ts]
+| `settings` — closable, closeOnEscape, autoZIndex, blockScroll, draggable, modal, resizable, etc. `root` — bg (overlay area), contrast, border, radius, shadow. `header`/`content`/`footer` — padding, gap, justifyContent. `title` — fontSize, fontWeight.
+
+| `badge`
+| link:{schema_root}/schema/badge.ts[badge.ts]
+| `settings` — badgeSize, size. `dot.size`. `defaultVariant` — bg, color, border, font, padding, size variants (default/sm/lg/xl). `variant` — severity variants (primary, secondary, success, info, warning, danger, contrast) each inheriting from primitive severity colors.
+
+| `tooltip`
+| link:{schema_root}/schema/tooltip.ts[tooltip.ts]
+| `settings` — position, showDelay, hideDelay. `maxWidth`, `gutter`, `shadow`, `padding`, `border`, `background` (overlay area), `color`.
+
+| `fieldset`
+| link:{schema_root}/schema/fieldset.ts[fieldset.ts]
+| `settings` — toggleable, collapsed. `container` — bg, contrast, border, padding, transition. `legend` — bg, contrast, border, padding, layout, font. `legendHover`, `legendFocusRing`, `content`, `toggleIcon`, `toggleIconHover`, `contentContainer`.
+
+| `tabs`
+| link:{schema_root}/schema/tabs.ts[tabs.ts]
+| `settings` — unstyled, lazy, selectOnFocus, showNavigators, scrollStrategy. `transition` — duration. `tablist` — border, contentFlexGrow, background. `viewport` — scroll/overscroll behavior. `tab` — defaultState, state (hover/active/focus/disabled), border, padding, font, gap, cursor. `tabpanel` — bg, color, padding, focusRing. `navButton` — bg, color, hoverColor, dimensions, shadow. `activeBar` — size, bottom, borderRadius, transition, background.
+
+| `toggleswitch`
+| link:{schema_root}/schema/toggleswitch.ts[toggleswitch.ts]
+| `border` — radius, width, style. `width`, `height`, `gap`, `shadow`. `transition`/`slide` — duration. `focusRing`. `defaultState`/`state` (hover/disabled/invalid) — bg, borderColor. `variant.checked` — checked state styling. `handle` — borderRadius, size, defaultState, state, variant.checked.
+
+| `calendar`
+| link:{schema_root}/schema/calendar.ts[calendar.ts]
+| Comprehensive calendar theming with sub-modules: `base` (container), `header` (month/year navigation), `calendar` (date grid), `navigation` (prev/next buttons), `controls`, and calendar-specific state styling.
+
+| `carousel`
+| link:{schema_root}/schema/carousel.ts[carousel.ts]
+| Carousel container, item, and navigation styling with options for indicators, previous/next buttons, and transition effects.
+
+| `dropdown`
+| link:{schema_root}/schema/dropdown.ts[dropdown.ts]
+| Dropdown container, trigger, overlay panel, option, and option group styling with state variants.
+
+| `textarea`
+| link:{schema_root}/schema/textarea.ts[textarea.ts]
+| Textarea container, input, and focus ring styling with state variants.
+
+| `picklist`
+| link:{schema_root}/schema/picklist.ts[picklist.ts]
+| Picklist containers, option groups, options, and transfer buttons with state variants.
+
+| `menubar`
+| link:{schema_root}/schema/menubar.ts[menubar.ts]
+| Menu bar root, submenu, rootmenu, item, and separator styling with state variants.
+
+| `diagram`
+| link:{schema_root}/schema/diagram.ts[diagram.ts]
+| Diagram node, edge, vertex, and label styling with state variants.
+|===
+
+[#usage-patterns]
+=== Common Patterns Across Usages
+
+All usage schemas follow consistent patterns:
+
+. **Primitive defaults** — every token defaults to a `{{primitives...}}` reference, so defining primitives alone is sufficient for a consistent theme.
+. **Settings block** — every component exposes a `settings` object for behavioral configuration (zIndex, delays, toggles) alongside theming tokens.
+. **State variants** — components that support interaction expose `state` objects with `hover`, `active`, `selected`, `focus`, and `disabled` variants.
+. **Theme references** — values can be plain CSS strings, `{{primitives...}}` references, or `{ light, dark }` dual-mode objects.
 
 [#usage-region]
-=== Region
+=== Region (Detail)
 
 The `region` usage (link:{schema_root}/schema/region.ts[region.ts]) provides typography defaults for a layout region. All properties default to primitive references:
 
@@ -203,7 +275,7 @@ region = {
 ----
 
 [#usage-table]
-=== Table
+=== Table (Detail)
 
 The `table` usage (link:{schema_root}/schema/table.ts[table.ts]) provides full datatable theming:
 
@@ -473,15 +545,42 @@ mapper/
 │   │   └── radius.rules.ts
 │   ├── usage-mapping-rules.ts
 │   └── usages/
-│       └── datatable.rules.ts    ← imports datatable/{base,header,row,footer}.rules.ts
+│       ├── badge.rules.ts
+│       ├── calendar/             ← base, calendar, controls, header, navigation
+│       ├── calendar.rules.ts
+│       ├── carousel.rules.ts
+│       ├── datatable.rules.ts
+│       ├── datatable/            ← base, header, row, footer
+│       ├── diagram.rules.ts
+│       ├── dialog.rules.ts
+│       ├── dropdown.rules.ts
+│       ├── fieldset.rules.ts
+│       ├── menubar.rules.ts
+│       ├── picklist.rules.ts
+│       ├── tabs.rules.ts
+│       ├── textarea.rules.ts
+│       └── toggleswitch.rules.ts
 ├── css-rules.ts                  ← aggregated CSS_RULES array
 └── css-rules/
     ├── usage-css-rules.ts
     └── usages/
-        └── datatable.rules.ts    ← imports datatable/{base,header,footer}.rules.ts
+        ├── badge.rules.ts
+        ├── calendar.rules.ts
+        ├── carousel.rules.ts
+        ├── datatable.rules.ts
+        ├── datatable/            ← base, header, footer
+        ├── diagram.rules.ts
+        ├── dialog.rules.ts
+        ├── dropdown.rules.ts
+        ├── fieldset.rules.ts
+        ├── menubar.rules.ts
+        ├── picklist.rules.ts
+        ├── tabs.rules.ts
+        ├── textarea.rules.ts
+        └── toggleswitch.rules.ts
 ----
 
-Rules are evaluated in order. The mapper skips a rule when the source path yields `undefined`.
+Rules are evaluated in order. The mapper skips a rule when the source path yields `undefined`. Each component's rules are grouped together so that related properties are mapped adjacently.
 
 [#shell-runtime]
 == Shell-side Runtime
@@ -575,7 +674,7 @@ this.primeNG.setThemeConfig({
 * All PrimeNG style sheets are scoped per-MFE using `@scope` rules and prefixed CSS variable names.
 * Theme overrides (if provided) are appended as the last style sheet in the document head.
 
-This ensures that multiple MFEs on the same page each receive correctly scoped PrimeNG styles. Details are covered in link:../styles/primeng-scoping.adoc[PrimeNG Styles Scoping].
+This ensures that multiple MFEs on the same page each receive correctly scoped PrimeNG styles. Details are covered in link:../styles/primeng-integration.adoc[PrimeNG Integration].
 
 [#webpack-modifications]
 === Webpack Modifications (Shell)
@@ -672,5 +771,5 @@ If you add a new schema property and reference it in a mapping rule, the type sy
 * link:concept.adoc[Theming Concept] — what themes are in OneCX, how variables work
 * link:primeng.adoc[PrimeNG Theming Integration] — v1 preset, OneCX extend section, appliance
 * link:theme-overrides.adoc[Theme Overrides] — per-application PrimeNG token overrides
-* link:../styles/primeng-scoping.adoc[PrimeNG Styles Scoping] — how PrimeNG CSS is scoped per-MFE
-* link:../styles/primeng-token-variables.adoc[PrimeNG Token Variables] — CSS variable prefixing
+* link:../styles/primeng-integration.adoc[PrimeNG Integration] — how PrimeNG CSS is scoped per-MFE
+* link:../styles/primeng-integration.adoc#token-variable-prefixing[PrimeNG Token Variable Prefixing] — CSS variable prefixing
