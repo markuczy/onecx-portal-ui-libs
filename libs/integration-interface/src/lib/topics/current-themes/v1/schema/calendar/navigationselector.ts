@@ -1,64 +1,86 @@
-import z from 'zod'
-import { bg, withRef, color, border, font, borderWithShadow } from '../primitives'
+import * as z from 'zod'
+import { bg, border, borderWithShadow, color, font, withRef } from '../primitives'
 import { themeSchemaRegistry } from '../registry'
 
-// TODO: Refactor to relevant tokens from button usage tokens
+const optionalDefault = <T extends z.ZodTypeAny>(schema: T, withDefaults: boolean, defaultValue: z.infer<T>) =>
+  withDefaults ? schema.default(defaultValue as never) : schema.optional()
+
+type CalendarNavigationSelectorStateMode = 'defaultState' | 'hover' | 'none'
+
 /**
  * Navigation selector buttons in the calendar header panel (e.g. selectMonth, selectYear) schema.
  */
 export class CalendarNavigationSelectorSchema {
-  private static readonly commonTokens = {
-    padding: withRef(z.string()).default('{{primitives.space.sm}}'),
-    font: font.pick({ weight: true, size: true }).default({
-      weight: '{{primitives.font.weight}}',
-      size: '{{primitives.font.size}}',
-    }),
-    border: border.default({
-      color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
-      style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
-      width: '{{primitives.border.width.none}}',
-      offset: '{{primitives.border.offset.none}}',
-      radius: '{{primitives.border.radius.md}}',
-    }),
-  }
+  private static createStateContent(mode: CalendarNavigationSelectorStateMode, statePath: string) {
+    const withFullDefaults = mode === 'defaultState'
+    const withHoverDefaults = mode === 'hover'
+    const withColorDefaults = withFullDefaults || withHoverDefaults
 
-  private static readonly defaultStateTokens = {
-    ...this.commonTokens,
-    background: z
-      .union([bg, withRef(z.string())])
-      .default('{{primitives.area.overlay.defaultState.defaultSeverity.bg}}'),
-    color: color.default('{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}'),
-  }
-
-  static readonly hoverTokens = z.object({
-    ...this.commonTokens,
-    background: z.union([bg, withRef(z.string())]).default('{{primitives.area.overlay.state.hover.defaultSeverity.bg}}'),
-    color: color.default('{{primitives.area.overlay.state.hover.defaultSeverity.contrast}}'),
-  })
-
-  static readonly focusTokens = z.object({
-    ...this.commonTokens,
-    background: z.union([bg, withRef(z.string())]).default('{{primitives.area.overlay.state.focus.defaultSeverity.bg}}'),
-    color: color.default('{{primitives.area.overlay.state.focus.defaultSeverity.contrast}}'),
-  })
-
-  private static readonly focusRingTokens = {
-    focusRing: borderWithShadow.default({
-      color: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.color}}',
-      style: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.style}}',
-      width: '{{primitives.border.width.md}}',
-      offset: '{{primitives.border.offset.none}}',
-      shadow: '{{primitives.shadow.none}}',
-      radius: '{{primitives.radius.md}}',
-    }),
-  }
-
-  static readonly schema = z
-    .object({
-      ...this.defaultStateTokens,
-      ...this.focusRingTokens,
-      hover: this.hoverTokens.prefault({}),
-      focus: this.focusTokens.prefault({}),
+    return z.object({
+      padding: optionalDefault(withRef(z.string()), withFullDefaults, '{{primitives.space.sm}}'),
+      font: optionalDefault(font.pick({ weight: true, size: true }), withFullDefaults, {
+        weight: '{{primitives.font.weight}}',
+        size: '{{primitives.font.size}}',
+      }),
+      border: withFullDefaults
+        ? border.default({
+            color: `{{${statePath}.defaultSeverity.border.color}}`,
+            style: `{{${statePath}.defaultSeverity.border.style}}`,
+            width: '{{primitives.border.width.none}}',
+            offset: '{{primitives.border.offset.none}}',
+            radius: '{{primitives.border.radius.md}}',
+          })
+        : border.optional(),
+      background: optionalDefault(
+        z.union([bg, withRef(z.string())]),
+        withColorDefaults,
+        `{{${statePath}.defaultSeverity.bg}}`
+      ),
+      color: optionalDefault(color, withColorDefaults, `{{${statePath}.defaultSeverity.contrast}}`),
     })
-    .register(themeSchemaRegistry, { id: 'calendarNavigationSelector' })
+  }
+
+  static readonly defaultedDefaultStateContentSchema = this.createStateContent(
+    'defaultState',
+    'primitives.area.overlay.defaultState'
+  ).register(themeSchemaRegistry, { id: 'calendarNavigationSelectorStateContentDefaulted' })
+
+  static readonly defaultedHoverStateContentSchema = this.createStateContent(
+    'hover',
+    'primitives.area.overlay.state.hover'
+  ).register(themeSchemaRegistry, { id: 'calendarNavigationSelectorStateContentHoverDefaulted' })
+
+  static readonly undefaultedStateContentSchema = this.createStateContent(
+    'none',
+    'primitives.area.overlay.defaultState'
+  ).register(themeSchemaRegistry, { id: 'calendarNavigationSelectorStateContentUndefaulted' })
+
+  private static createSchema(withDefaults: boolean) {
+    const defaultStateSchema = withDefaults
+      ? this.defaultedDefaultStateContentSchema
+      : this.undefaultedStateContentSchema
+    const hoverSchema = withDefaults ? this.defaultedHoverStateContentSchema : this.undefaultedStateContentSchema
+
+    return z.object({
+      focusRing: optionalDefault(borderWithShadow, withDefaults, {
+        color: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.color}}',
+        style: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.style}}',
+        width: '{{primitives.border.width.md}}',
+        offset: '{{primitives.border.offset.none}}',
+        shadow: '{{primitives.shadow.none}}',
+        radius: '{{primitives.radius.md}}',
+      }),
+      defaultState: (defaultStateSchema as typeof defaultStateSchema).prefault({}),
+      hover: (hoverSchema as typeof hoverSchema).prefault({}),
+      focus: (this.undefaultedStateContentSchema as typeof this.undefaultedStateContentSchema).prefault({}),
+    })
+  }
+
+  static readonly schemaNoDefaults = this.createSchema(false).register(themeSchemaRegistry, {
+    id: 'calendarNavigationSelectorUndefaulted',
+  })
+
+  static readonly schema = this.createSchema(true).register(themeSchemaRegistry, {
+    id: 'calendarNavigationSelectorDefaulted',
+  })
 }

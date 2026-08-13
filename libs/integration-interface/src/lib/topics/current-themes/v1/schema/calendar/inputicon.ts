@@ -1,67 +1,64 @@
-import z from 'zod'
+import * as z from 'zod'
 import { bg, borderWithShadow, color, withRef } from '../primitives'
 import { themeSchemaRegistry } from '../registry'
+
+const optionalDefault = <T extends z.ZodTypeAny>(schema: T, withDefaults: boolean, defaultValue: z.infer<T>) =>
+  withDefaults ? schema.default(defaultValue as never) : schema.optional()
 
 /**
  * Schema for icon styles used in the calendar input field.
  */
-export class CalendarInputIconSchema {
-  private static readonly commonTokens = {
-    padding: withRef(z.string()).default('{{primitives.space.md}}'),
-    width: withRef(z.string()).default('2.5rem'),
-    height: withRef(z.string()).default('2.5rem'),
-  }
-
-  private static readonly defaultStateTokens = {
-    ...this.commonTokens,
-    color: color.default('{{primitives.defaultVariant.defaultState.defaultSeverity.contrast}}'),
-    background: z
-      .union([bg, withRef(z.string())])
-      .default('{{primitives.defaultVariant.defaultState.defaultSeverity.bg}}'),
-  }
-
-  static readonly hoverTokens = z.object({
-    ...this.commonTokens,
-    color: color.default('{{primitives.defaultVariant.state.hover.defaultSeverity.contrast}}'),
-    background: z
-      .union([bg, withRef(z.string())])
-      .default('{{primitives.defaultVariant.state.hover.defaultSeverity.bg}}'),
-  })
-
-  static readonly activeTokens = z.object({
-    ...this.commonTokens,
-    color: color.default('{{primitives.defaultVariant.state.active.defaultSeverity.contrast}}'),
-    background: z
-      .union([bg, withRef(z.string())])
-      .default('{{primitives.defaultVariant.state.active.defaultSeverity.bg}}'),
-  })
-
-  static readonly focusTokens = z.object({
-    ...this.commonTokens,
-    color: color.default('{{primitives.defaultVariant.state.focus.defaultSeverity.contrast}}'),
-    background: z
-      .union([bg, withRef(z.string())])
-      .default('{{primitives.defaultVariant.state.focus.defaultSeverity.bg}}'),
-  })
-
-  private static readonly focusRingTokens = {
-    focusRing: borderWithShadow.default({
-      color: '{{primitives.defaultVariant.defaultState.defaultSeverity.focusRing.color}}',
-      style: '{{primitives.defaultVariant.defaultState.defaultSeverity.focusRing.style}}',
-      width: '{{primitives.border.width.md}}',
-      offset: '{{primitives.border.offset.none}}',
-      shadow: '{{primitives.shadow.none}}',
-      radius: '{{primitives.radius.md}}',
-    }),
-  }
-
-  static readonly schema = z
-    .object({
-      ...this.defaultStateTokens,
-      ...this.focusRingTokens,
-      hover: this.hoverTokens.prefault({}),
-      active: this.activeTokens.prefault({}),
-      focus: this.focusTokens.prefault({}),
+export class CalendarIconSchema {
+  private static createStateContent(withDefaults: boolean, statePath: string) {
+    return z.object({
+      padding: optionalDefault(withRef(z.string()), withDefaults, '{{primitives.space.md}}'),
+      width: optionalDefault(withRef(z.string()), withDefaults, '2.5rem'),
+      height: optionalDefault(withRef(z.string()), withDefaults, '2.5rem'),
+      color: optionalDefault(color, withDefaults, `{{${statePath}.defaultSeverity.contrast}}`),
+      background: optionalDefault(
+        z.union([bg, withRef(z.string())]),
+        withDefaults,
+        `{{${statePath}.defaultSeverity.bg}}`
+      ),
     })
-    .register(themeSchemaRegistry, { id: 'calendarInputIcon' })
+  }
+
+  static readonly defaultedDefaultStateContentSchema = this.createStateContent(
+    true,
+    'primitives.defaultVariant.defaultState'
+  ).register(themeSchemaRegistry, { id: 'calendarIconStateContentDefaulted' })
+
+  static readonly undefaultedStateContentSchema = this.createStateContent(
+    false,
+    'primitives.defaultVariant.defaultState'
+  ).register(themeSchemaRegistry, { id: 'calendarIconStateContentUndefaulted' })
+
+  private static createSchema(withDefaults: boolean) {
+    const defaultStateSchema = withDefaults
+      ? this.defaultedDefaultStateContentSchema
+      : this.undefaultedStateContentSchema
+
+    return z.object({
+      focusRing: optionalDefault(borderWithShadow, withDefaults, {
+        color: '{{primitives.defaultVariant.defaultState.defaultSeverity.focusRing.color}}',
+        style: '{{primitives.defaultVariant.defaultState.defaultSeverity.focusRing.style}}',
+        width: '{{primitives.border.width.md}}',
+        offset: '{{primitives.border.offset.none}}',
+        shadow: '{{primitives.shadow.none}}',
+        radius: '{{primitives.radius.md}}',
+      }),
+      defaultState: (defaultStateSchema as typeof defaultStateSchema).prefault({}),
+      hover: (this.undefaultedStateContentSchema as typeof this.undefaultedStateContentSchema).prefault({}),
+      focus: (this.undefaultedStateContentSchema as typeof this.undefaultedStateContentSchema).prefault({}),
+      disabled: (this.undefaultedStateContentSchema as typeof this.undefaultedStateContentSchema).prefault({}),
+      invalid: (this.undefaultedStateContentSchema as typeof this.undefaultedStateContentSchema).prefault({}),
+      active: (this.undefaultedStateContentSchema as typeof this.undefaultedStateContentSchema).prefault({}),
+    })
+  }
+
+  static readonly schemaNoDefaults = this.createSchema(false).register(themeSchemaRegistry, {
+    id: 'calendarIconUndefaulted',
+  })
+
+  static readonly schema = this.createSchema(true).register(themeSchemaRegistry, { id: 'calendarIconDefaulted' })
 }

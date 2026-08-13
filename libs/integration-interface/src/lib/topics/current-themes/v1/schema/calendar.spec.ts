@@ -1,20 +1,153 @@
-import { expectExactTokens, expectExactUndefinedTokens } from './test-utils'
 import { calendar } from './calendar'
-import { CalendarInputSchema } from './calendar/input'
-import { CalendarInputIconSchema } from './calendar/inputicon'
-import { CalendarPanelSchema } from './calendar/panel'
-import { CalendarPanelHeaderSchema } from './calendar/panelheader'
-import { CalendarDatePanelSchema } from './calendar/datepanel'
-import { CalendarPanelButtonSchema } from './calendar/panelbutton'
-import { CalendarNavigationSelectorSchema } from './calendar/navigationselector'
-import { CalendarPickerCellSchema } from './calendar/pickercell'
-import { CalendarTimeInputSchema } from './calendar/timeinput'
-import { CalendarTodaySchema } from './calendar/today'
-import { CalendarWeekDayLabelSchema } from './calendar/weekdaylabel'
-import { CalendarViewSchema } from './calendar/view'
-import { CalendarTimeSeperatorSchema } from './calendar/timeseperator'
-import { CalendarMultiMonthDividerSchema } from './calendar/multimonthdivider'
-import { CalendarFooterButtonBarSchema } from './calendar/footerbuttonbar'
+import { expectExactTokens, expectExactUndefinedTokens, expectUndefinedTokens } from './test-utils'
+
+const parseCalendar = () => {
+  const result = calendar.safeParse({})
+
+  expect(result.success).toBe(true)
+
+  return result.data
+}
+
+const expectPanelButtonDefaultState = (value: Record<string, unknown> | undefined, statePath: string) => {
+  expectExactTokens(value, {
+    width: '2.5rem',
+    height: '2.5rem',
+    color: `{{${statePath}.defaultSeverity.contrast}}`,
+    background: `{{${statePath}.defaultSeverity.bg}}`,
+    border: {
+      color: `{{${statePath}.defaultSeverity.border.color}}`,
+      style: `{{${statePath}.defaultSeverity.border.style}}`,
+      width: '{{primitives.border.width.none}}',
+      offset: '{{primitives.border.offset.none}}',
+      radius: '{{primitives.border.radius.md}}',
+    },
+  })
+}
+
+const expectPanelButtonHoverState = (value: Record<string, unknown> | undefined) => {
+  expectExactTokens(value, {
+    color: '{{primitives.area.overlay.state.hover.defaultSeverity.contrast}}',
+    background: '{{primitives.area.overlay.state.hover.defaultSeverity.bg}}',
+    border: {
+      color: '{{primitives.area.overlay.state.hover.defaultSeverity.border.color}}',
+    },
+  })
+}
+
+const expectIconDefaultState = (value: Record<string, unknown> | undefined) => {
+  expectExactTokens(value, {
+    padding: '{{primitives.space.md}}',
+    width: '2.5rem',
+    height: '2.5rem',
+    color: '{{primitives.defaultVariant.defaultState.defaultSeverity.contrast}}',
+    background: '{{primitives.defaultVariant.defaultState.defaultSeverity.bg}}',
+  })
+}
+
+const expectInputDefaultState = (value: Record<string, unknown> | undefined) => {
+  expectExactTokens(value, {
+    padding: '{{primitives.space.md}}',
+    shadow: '{{primitives.shadow.md}}',
+    font: {
+      family: '{{primitives.font.family}}',
+      size: '{{primitives.font.size}}',
+      weight: '{{primitives.font.weight}}',
+    },
+    background: '{{primitives.defaultVariant.defaultState.defaultSeverity.bg}}',
+    color: '{{primitives.defaultVariant.defaultState.defaultSeverity.contrast}}',
+    border: {
+      color: '{{primitives.defaultVariant.defaultState.defaultSeverity.border.color}}',
+      style: '{{primitives.defaultVariant.defaultState.defaultSeverity.border.style}}',
+      width: '{{primitives.border.width.md}}',
+      radius: '{{primitives.border.radius.md}}',
+      offset: '{{primitives.border.offset.none}}',
+    },
+    placeholderColor: '{{primitives.defaultVariant.defaultState.defaultSeverity.contrast}}',
+    icon: expect.any(Object),
+  })
+}
+
+const expectInputHoverState = (value: Record<string, unknown> | undefined) => {
+  expectExactTokens(value, {
+    background: '{{primitives.defaultVariant.state.hover.defaultSeverity.bg}}',
+    color: '{{primitives.defaultVariant.state.hover.defaultSeverity.contrast}}',
+    border: {
+      color: '{{primitives.defaultVariant.state.hover.defaultSeverity.border.color}}',
+    },
+    placeholderColor: '{{primitives.defaultVariant.state.hover.defaultSeverity.contrast}}',
+    icon: expect.any(Object),
+  })
+}
+
+const expectNavigationSelectorDefaultState = (value: Record<string, unknown> | undefined) => {
+  expectExactTokens(value, {
+    padding: '{{primitives.space.sm}}',
+    font: {
+      weight: '{{primitives.font.weight}}',
+      size: '{{primitives.font.size}}',
+    },
+    border: {
+      color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
+      style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
+      width: '{{primitives.border.width.none}}',
+      offset: '{{primitives.border.offset.none}}',
+      radius: '{{primitives.border.radius.md}}',
+    },
+    background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
+    color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
+  })
+}
+
+const expectNavigationSelectorHoverState = (value: Record<string, unknown> | undefined) => {
+  expectExactTokens(value, {
+    background: '{{primitives.area.overlay.state.hover.defaultSeverity.bg}}',
+    color: '{{primitives.area.overlay.state.hover.defaultSeverity.contrast}}',
+  })
+}
+
+const expectPickerCellDefaultState = (value: Record<string, unknown> | undefined) => {
+  expectExactTokens(value, {
+    width: '2.5rem',
+    height: '2.5rem',
+    padding: '{{primitives.space.xs}}',
+    font: {
+      weight: '{{primitives.font.weight}}',
+      size: '{{primitives.font.size}}',
+    },
+    color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
+    background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
+    border: {
+      color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
+      style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
+      width: '{{primitives.border.width.sm}}',
+      offset: '{{primitives.border.offset.none}}',
+      radius: '{{primitives.border.radius.md}}',
+    },
+  })
+}
+
+const expectPickerCellHoverState = (value: Record<string, unknown> | undefined) => {
+  expectExactTokens(value, {
+    color: '{{primitives.area.overlay.state.hover.defaultSeverity.contrast}}',
+    background: '{{primitives.area.overlay.state.hover.defaultSeverity.bg}}',
+    border: {
+      color: '{{primitives.area.overlay.state.hover.defaultSeverity.border.color}}',
+    },
+  })
+}
+
+const expectPickerCellSelectedState = (value: Record<string, unknown> | undefined) => {
+  expectExactTokens(value, {
+    color: '{{primitives.area.overlay.state.selected.defaultSeverity.contrast}}',
+    background: '{{primitives.area.overlay.state.selected.defaultSeverity.bg}}',
+    border: {
+      color: '{{primitives.area.overlay.state.selected.defaultSeverity.border.color}}',
+    },
+    inRangeBackground: '{{primitives.defaultVariant.defaultState.defaultSeverity.bg}}',
+    rangeSelectedBackground: '{{primitives.area.overlay.state.selected.defaultSeverity.bg}}',
+  })
+}
 
 describe('calendar schema', () => {
   it('parses an empty object', () => {
@@ -23,1014 +156,376 @@ describe('calendar schema', () => {
     expect(result.success).toBe(true)
   })
 
-  describe('calendar root tokens', () => {
-    it('should apply defaults', () => {
-      const result = calendar.safeParse({})
+  it('applies root defaults and flattens variant keys', () => {
+    const value = parseCalendar()
 
-      expect(result.success).toBe(true)
-
-      const value = result.data
-      expectExactUndefinedTokens(value, calendar.shape, ['settings', 'timePicker'])
-      expectExactTokens(value, {
-        transitionDuration: '{{primitives.transition.duration}}',
-        input: expect.any(Object),
-        panel: expect.any(Object),
-        calendarIconButton: expect.any(Object),
-        inputCalendarIcon: expect.any(Object),
-        timePickerButton: expect.any(Object),
-        timeInput: expect.any(Object),
-        timeSeparator: expect.any(Object),
-        multiMonthDivider: expect.any(Object),
-        footerButtonBar: expect.any(Object),
-      })
+    expectExactUndefinedTokens(value, calendar.shape, ['settings'])
+    expectExactTokens(value, {
+      defaultVariant: expect.any(Object),
+      primary: expect.any(Object),
+      secondary: expect.any(Object),
+      tertiary: expect.any(Object),
+      quaternary: expect.any(Object),
+      quinary: expect.any(Object),
+      multiMonthDivider: expect.any(Object),
+      transitionDuration: '{{primitives.transition.duration}}',
     })
   })
 
-  describe('calendar input', () => {
-    it('should apply defaults for default state', () => {
-      const result = calendar.safeParse({})
+  it('keeps defaultVariant input defaults on the default chain only', () => {
+    const value = parseCalendar()
+    const input = value?.defaultVariant?.input
 
-      expect(result.success).toBe(true)
-
-      const value = result.data
-      expectExactUndefinedTokens(value?.input, CalendarInputSchema.schema.shape, [])
-      expectExactTokens(value?.input, {
-        padding: '{{primitives.space.md}}',
-        shadow: '{{primitives.shadow.md}}',
-        font: {
-          family: '{{primitives.font.family}}',
-          size: '{{primitives.font.size}}',
-          weight: '{{primitives.font.weight}}',
-        },
-        background: '{{primitives.variant.primary.defaultState.defaultSeverity.bg}}',
-        color: '{{primitives.variant.primary.defaultState.defaultSeverity.contrast}}',
-        border: {
-          color: '{{primitives.variant.primary.defaultState.defaultSeverity.border.color}}',
-          style: '{{primitives.variant.primary.defaultState.defaultSeverity.border.style}}',
-          width: '{{primitives.border.width.md}}',
-          radius: '{{primitives.border.radius.md}}',
-          offset: '{{primitives.border.offset.none}}',
-        },
-        placeholderColor: '{{primitives.variant.primary.defaultState.defaultSeverity.contrast}}',
-        focusRing: {
-          color: '{{primitives.variant.primary.defaultState.defaultSeverity.focusRing.color}}',
-          style: '{{primitives.variant.primary.defaultState.defaultSeverity.focusRing.style}}',
-          width: '{{primitives.border.width.md}}',
-          offset: '{{primitives.border.offset.none}}',
-          shadow: '{{primitives.shadow.none}}',
-          radius: '{{primitives.radius.md}}',
-        },
-        hover: expect.any(Object),
-        focus: expect.any(Object),
-        disabled: expect.any(Object),
-        invalid: expect.any(Object),
-        sm: expect.any(Object),
-        lg: expect.any(Object),
-      })
-    })
-
-    describe('hover state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.input?.hover, CalendarInputSchema.hoverTokens.shape, [])
-        expectExactTokens(value?.input?.hover, {
-          padding: '{{primitives.space.md}}',
-          shadow: '{{primitives.shadow.md}}',
-          font: {
-            family: '{{primitives.font.family}}',
-            size: '{{primitives.font.size}}',
-            weight: '{{primitives.font.weight}}',
-          },
-          background: '{{primitives.variant.primary.state.hover.defaultSeverity.bg}}',
-          color: '{{primitives.variant.primary.state.hover.defaultSeverity.contrast}}',
-          border: {
-            color: '{{primitives.variant.primary.state.hover.defaultSeverity.border.color}}',
-            style: '{{primitives.variant.primary.state.hover.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.md}}',
-            radius: '{{primitives.border.radius.md}}',
-            offset: '{{primitives.border.offset.none}}',
-          },
-          placeholderColor: '{{primitives.variant.primary.state.hover.defaultSeverity.contrast}}',
-        })
-      })
-    })
-
-    describe('focus state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.input?.focus, CalendarInputSchema.focusTokens.shape, [])
-        expectExactTokens(value?.input?.focus, {
-          padding: '{{primitives.space.md}}',
-          shadow: '{{primitives.shadow.md}}',
-          font: {
-            family: '{{primitives.font.family}}',
-            size: '{{primitives.font.size}}',
-            weight: '{{primitives.font.weight}}',
-          },
-          background: '{{primitives.variant.primary.state.focus.defaultSeverity.bg}}',
-          color: '{{primitives.variant.primary.state.focus.defaultSeverity.contrast}}',
-          border: {
-            color: '{{primitives.variant.primary.state.focus.defaultSeverity.border.color}}',
-            style: '{{primitives.variant.primary.state.focus.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.md}}',
-            radius: '{{primitives.border.radius.md}}',
-            offset: '{{primitives.border.offset.none}}',
-          },
-          placeholderColor: '{{primitives.variant.primary.state.focus.defaultSeverity.contrast}}',
-        })
-      })
-    })
-
-    describe('disabled state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.input?.disabled, CalendarInputSchema.disabledTokens.shape, [])
-        expectExactTokens(value?.input?.disabled, {
-          padding: '{{primitives.space.md}}',
-          shadow: '{{primitives.shadow.md}}',
-          font: {
-            family: '{{primitives.font.family}}',
-            size: '{{primitives.font.size}}',
-            weight: '{{primitives.font.weight}}',
-          },
-          background: '{{primitives.variant.primary.state.disabled.defaultSeverity.bg}}',
-          color: '{{primitives.variant.primary.state.disabled.defaultSeverity.contrast}}',
-          border: {
-            color: '{{primitives.variant.primary.state.disabled.defaultSeverity.border.color}}',
-            style: '{{primitives.variant.primary.state.disabled.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.md}}',
-            radius: '{{primitives.border.radius.md}}',
-            offset: '{{primitives.border.offset.none}}',
-          },
-          placeholderColor: '{{primitives.variant.primary.state.disabled.defaultSeverity.contrast}}',
-        })
-      })
-    })
-
-    describe('invalid state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.input?.invalid, CalendarInputSchema.invalidTokens.shape, [])
-        expectExactTokens(value?.input?.invalid, {
-          padding: '{{primitives.space.md}}',
-          shadow: '{{primitives.shadow.md}}',
-          font: {
-            family: '{{primitives.font.family}}',
-            size: '{{primitives.font.size}}',
-            weight: '{{primitives.font.weight}}',
-          },
-          background: '{{primitives.variant.primary.state.invalid.defaultSeverity.bg}}',
-          color: '{{primitives.variant.primary.state.invalid.defaultSeverity.contrast}}',
-          border: {
-            color: '{{primitives.variant.primary.state.invalid.defaultSeverity.border.color}}',
-            style: '{{primitives.variant.primary.state.invalid.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.md}}',
-            radius: '{{primitives.border.radius.md}}',
-            offset: '{{primitives.border.offset.none}}',
-          },
-          placeholderColor: '{{primitives.variant.primary.state.invalid.defaultSeverity.contrast}}',
-        })
-      })
-    })
-  })
-
-  describe('calendar input icon', () => {
-    it('should apply defaults for default state', () => {
-      const result = calendar.safeParse({})
-      expect(result.success).toBe(true)
-
-      const value = result.data
-      expectExactUndefinedTokens(value?.inputCalendarIcon, CalendarInputIconSchema.schema.shape, [])
-      expectExactTokens(value?.inputCalendarIcon, {
-        color: '{{primitives.defaultVariant.defaultState.defaultSeverity.contrast}}',
-        background: '{{primitives.defaultVariant.defaultState.defaultSeverity.bg}}',
-        padding: '{{primitives.space.md}}',
-        width: '2.5rem',
-        height: '2.5rem',
-        focusRing: {
-          color: '{{primitives.defaultVariant.defaultState.defaultSeverity.focusRing.color}}',
-          style: '{{primitives.defaultVariant.defaultState.defaultSeverity.focusRing.style}}',
-          width: '{{primitives.border.width.md}}',
-          offset: '{{primitives.border.offset.none}}',
-          shadow: '{{primitives.shadow.none}}',
-          radius: '{{primitives.radius.md}}',
-        },
-        hover: expect.any(Object),
-        active: expect.any(Object),
-        focus: expect.any(Object),
-      })
-    })
-
-    describe('hover state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.inputCalendarIcon?.hover, CalendarInputIconSchema.hoverTokens.shape, [])
-        expectExactTokens(value?.inputCalendarIcon?.hover, {
-          padding: '{{primitives.space.md}}',
-          width: '2.5rem',
-          height: '2.5rem',
-          color: '{{primitives.defaultVariant.state.hover.defaultSeverity.contrast}}',
-          background: '{{primitives.defaultVariant.state.hover.defaultSeverity.bg}}',
-        })
-      })
-    })
-
-    describe('active state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.inputCalendarIcon?.active, CalendarInputIconSchema.activeTokens.shape, [])
-        expectExactTokens(value?.inputCalendarIcon?.active, {
-          padding: '{{primitives.space.md}}',
-          width: '2.5rem',
-          height: '2.5rem',
-          color: '{{primitives.defaultVariant.state.active.defaultSeverity.contrast}}',
-          background: '{{primitives.defaultVariant.state.active.defaultSeverity.bg}}',
-        })
-      })
-    })
-
-    describe('focus state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.inputCalendarIcon?.focus, CalendarInputIconSchema.focusTokens.shape, [])
-        expectExactTokens(value?.inputCalendarIcon?.focus, {
-          padding: '{{primitives.space.md}}',
-          width: '2.5rem',
-          height: '2.5rem',
-          color: '{{primitives.defaultVariant.state.focus.defaultSeverity.contrast}}',
-          background: '{{primitives.defaultVariant.state.focus.defaultSeverity.bg}}',
-        })
-      })
-    })
-  })
-
-  describe('calendar panel', () => {
-    it('should apply defaults', () => {
-      const result = calendar.safeParse({})
-      expect(result.success).toBe(true)
-
-      const value = result.data
-      expectExactUndefinedTokens(value?.panel, CalendarPanelSchema.schema.shape, [])
-      expectExactTokens(value?.panel, {
-        background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
-        color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
-        border: {
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
-          style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
-          width: '{{primitives.border.width.sm}}',
-          offset: '{{primitives.border.offset.none}}',
-          radius: '{{primitives.border.radius.sm}}',
-          shadow: '{{primitives.shadow.sm}}',
-        },
-        padding: '{{primitives.space.md}}',
-        headerGap: '{{primitives.space.sm}}',
-        header: expect.any(Object),
-        datePanel: expect.any(Object),
-      })
-    })
-
-    describe('panel header', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.panel?.header, CalendarPanelHeaderSchema.schema.shape, [])
-        expectExactTokens(value?.panel?.header, {
-          background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
-          padding: '{{primitives.space.md}}',
-          margin: '{{primitives.space.md}}',
-          gap: '{{primitives.space.sm}}',
-          selectMonth: expect.any(Object),
-          selectYear: expect.any(Object),
-          navButton: expect.any(Object),
-        })
-      })
-    })
-
-    describe('date panel', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.panel?.datePanel, CalendarDatePanelSchema.schema.shape, [])
-        expectExactTokens(value?.panel?.datePanel, {
-          background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
-          padding: '{{primitives.space.md}}',
-          margin: '{{primitives.space.md}}',
-          weekDayLabel: expect.any(Object),
-          dayView: expect.any(Object),
-          dateCell: expect.any(Object),
-          monthView: expect.any(Object),
-          monthCell: expect.any(Object),
-          yearView: expect.any(Object),
-          yearCell: expect.any(Object),
-          today: expect.any(Object),
-        })
-      })
-    })
-  })
-
-  describe('calendar panel button', () => {
-    it('should apply defaults', () => {
-      const result = calendar.safeParse({})
-      expect(result.success).toBe(true)
-
-      const value = result.data
-      expectExactUndefinedTokens(value?.calendarIconButton, CalendarPanelButtonSchema.schema.shape, [])
-      expectExactTokens(value?.calendarIconButton, {
-        width: '2.5rem',
-        height: '2.5rem',
-        color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
-        background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
-        border: {
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
-          style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
-          width: '{{primitives.border.width.none}}',
-          offset: '{{primitives.border.offset.none}}',
-          radius: '{{primitives.border.radius.md}}',
-        },
-        focusRing: {
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.color}}',
-          style: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.style}}',
-          width: '{{primitives.border.width.md}}',
-          offset: '{{primitives.border.offset.none}}',
-          shadow: '{{primitives.shadow.none}}',
-          radius: '{{primitives.radius.md}}',
-        },
-        hover: expect.any(Object),
-        focus: expect.any(Object),
-      })
-    })
-
-    describe('hover state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.calendarIconButton?.hover, CalendarPanelButtonSchema.hoverTokens.shape, [])
-        expectExactTokens(value?.calendarIconButton?.hover, {
-          width: '2.5rem',
-          height: '2.5rem',
-          color: '{{primitives.area.overlay.state.hover.defaultSeverity.contrast}}',
-          background: '{{primitives.area.overlay.state.hover.defaultSeverity.bg}}',
-          border: {
-            color: '{{primitives.area.overlay.state.hover.defaultSeverity.border.color}}',
-            style: '{{primitives.area.overlay.state.hover.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.none}}',
-            offset: '{{primitives.border.offset.none}}',
-            radius: '{{primitives.border.radius.md}}',
-          },
-        })
-      })
-    })
-
-    describe('focus state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.calendarIconButton?.focus, CalendarPanelButtonSchema.focusTokens.shape, [])
-        expectExactTokens(value?.calendarIconButton?.focus, {
-          width: '2.5rem',
-          height: '2.5rem',
-          color: '{{primitives.area.overlay.state.focus.defaultSeverity.contrast}}',
-          background: '{{primitives.area.overlay.state.focus.defaultSeverity.bg}}',
-          border: {
-            color: '{{primitives.area.overlay.state.focus.defaultSeverity.border.color}}',
-            style: '{{primitives.area.overlay.state.focus.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.none}}',
-            offset: '{{primitives.border.offset.none}}',
-            radius: '{{primitives.border.radius.md}}',
-          },
-        })
-      })
-    })
-  })
-
-  describe('calendar navigation selector', () => {
-    it('should apply defaults', () => {
-      const result = calendar.safeParse({})
-      expect(result.success).toBe(true)
-
-      const value = result.data
-      expectExactUndefinedTokens(value?.panel?.header?.selectMonth, CalendarNavigationSelectorSchema.schema.shape, [])
-      expectExactTokens(value?.panel?.header?.selectMonth, {
-        color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
-        background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
+    expectExactTokens(input, {
+      sm: {
         padding: '{{primitives.space.sm}}',
-        font: {
-          size: '{{primitives.font.size}}',
-          weight: '{{primitives.font.weight}}',
-        },
-        border: {
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
-          style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
-          width: '{{primitives.border.width.none}}',
-          offset: '{{primitives.border.offset.none}}',
-          radius: '{{primitives.border.radius.md}}',
-        },
-        focusRing: {
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.color}}',
-          style: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.style}}',
-          width: '{{primitives.border.width.md}}',
-          offset: '{{primitives.border.offset.none}}',
-          shadow: '{{primitives.shadow.none}}',
-          radius: '{{primitives.radius.md}}',
-        },
-        hover: expect.any(Object),
-        focus: expect.any(Object),
-      })
+        fontSize: '{{primitives.font.size}}',
+      },
+      lg: {
+        padding: '{{primitives.space.lg}}',
+        fontSize: '{{primitives.font.size}}',
+      },
+      focusRing: {
+        color: '{{primitives.defaultVariant.defaultState.defaultSeverity.focusRing.color}}',
+        style: '{{primitives.defaultVariant.defaultState.defaultSeverity.focusRing.style}}',
+        width: '{{primitives.border.width.md}}',
+        offset: '{{primitives.border.offset.none}}',
+        shadow: '{{primitives.shadow.none}}',
+        radius: '{{primitives.radius.md}}',
+      },
+      defaultState: expect.any(Object),
+      hover: expect.any(Object),
+      focus: expect.any(Object),
+      disabled: expect.any(Object),
+      invalid: expect.any(Object),
+      active: expect.any(Object),
     })
 
-    describe('hover state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(
-          value?.panel?.header?.selectMonth?.hover,
-          CalendarNavigationSelectorSchema.hoverTokens.shape,
-          []
-        )
-        expectExactTokens(value?.panel?.header?.selectMonth?.hover, {
-          background: '{{primitives.area.overlay.state.hover.defaultSeverity.bg}}',
-          color: '{{primitives.area.overlay.state.hover.defaultSeverity.contrast}}',
-          padding: '{{primitives.space.sm}}',
-          font: {
-            size: '{{primitives.font.size}}',
-            weight: '{{primitives.font.weight}}',
-          },
-          border: {
-            color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
-            style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.none}}',
-            offset: '{{primitives.border.offset.none}}',
-            radius: '{{primitives.border.radius.md}}',
-          },
-        })
-      })
-    })
-
-    describe('focus state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(
-          value?.panel?.header?.selectMonth?.focus,
-          CalendarNavigationSelectorSchema.focusTokens.shape,
-          []
-        )
-        expectExactTokens(value?.panel?.header?.selectMonth?.focus, {
-          color: '{{primitives.area.overlay.state.focus.defaultSeverity.contrast}}',
-          background: '{{primitives.area.overlay.state.focus.defaultSeverity.bg}}',
-          padding: '{{primitives.space.sm}}',
-          font: {
-            size: '{{primitives.font.size}}',
-            weight: '{{primitives.font.weight}}',
-          },
-          border: {
-            color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
-            style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.none}}',
-            offset: '{{primitives.border.offset.none}}',
-            radius: '{{primitives.border.radius.md}}',
-          },
-        })
-      })
-    })
+    expectInputDefaultState(input?.defaultState)
+    expectInputHoverState(input?.hover)
+    expectUndefinedTokens(input?.focus, [
+      'padding',
+      'shadow',
+      'font',
+      'background',
+      'color',
+      'border',
+      'placeholderColor',
+    ])
   })
 
-  describe('calendar picker cell', () => {
-    it('should apply defaults', () => {
-      const result = calendar.safeParse({})
-      expect(result.success).toBe(true)
+  it('keeps nested icon defaults only under input.defaultState', () => {
+    const value = parseCalendar()
+    const defaultStateIcon = value?.defaultVariant?.input?.defaultState?.icon
+    const hoverIcon = value?.defaultVariant?.input?.hover?.icon
 
-      const value = result.data
-      expectExactUndefinedTokens(value?.panel?.datePanel?.dateCell, CalendarPickerCellSchema.schema.shape, [])
-      expectExactTokens(value?.panel?.datePanel?.dateCell, {
-        color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
-        background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
-        width: '2.5rem',
-        height: '2.5rem',
-        padding: '{{primitives.space.xs}}',
-        font: {
-          size: '{{primitives.font.size}}',
-          weight: '{{primitives.font.weight}}',
-        },
-        border: {
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
-          style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
-          width: '{{primitives.border.width.sm}}',
-          offset: '{{primitives.border.offset.none}}',
-          radius: '{{primitives.border.radius.md}}',
-        },
-        hover: expect.any(Object),
-        selected: expect.any(Object),
-        focus: expect.any(Object),
-      })
+    expectExactTokens(defaultStateIcon, {
+      focusRing: {
+        color: '{{primitives.defaultVariant.defaultState.defaultSeverity.focusRing.color}}',
+        style: '{{primitives.defaultVariant.defaultState.defaultSeverity.focusRing.style}}',
+        width: '{{primitives.border.width.md}}',
+        offset: '{{primitives.border.offset.none}}',
+        shadow: '{{primitives.shadow.none}}',
+        radius: '{{primitives.radius.md}}',
+      },
+      defaultState: expect.any(Object),
+      hover: expect.any(Object),
+      focus: expect.any(Object),
+      disabled: expect.any(Object),
+      invalid: expect.any(Object),
+      active: expect.any(Object),
     })
+    expectIconDefaultState(defaultStateIcon?.defaultState)
 
-    describe('hover state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(
-          value?.panel?.datePanel?.dateCell?.hover,
-          CalendarPickerCellSchema.hoverTokens.shape,
-          []
-        )
-        expectExactTokens(value?.panel?.datePanel?.dateCell?.hover, {
-          background: '{{primitives.area.overlay.state.hover.defaultSeverity.bg}}',
-          color: '{{primitives.area.overlay.state.hover.defaultSeverity.contrast}}',
-          width: '2.5rem',
-          height: '2.5rem',
-          padding: '{{primitives.space.xs}}',
-          font: {
-            size: '{{primitives.font.size}}',
-            weight: '{{primitives.font.weight}}',
-          },
-          border: {
-            color: '{{primitives.area.overlay.state.hover.defaultSeverity.border.color}}',
-            style: '{{primitives.area.overlay.state.hover.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.sm}}',
-            offset: '{{primitives.border.offset.none}}',
-            radius: '{{primitives.border.radius.md}}',
-          },
-        })
-      })
+    expectExactTokens(hoverIcon, {
+      defaultState: expect.any(Object),
+      hover: expect.any(Object),
+      focus: expect.any(Object),
+      disabled: expect.any(Object),
+      invalid: expect.any(Object),
+      active: expect.any(Object),
     })
-
-    describe('selected state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(
-          value?.panel?.datePanel?.dateCell?.selected,
-          CalendarPickerCellSchema.selectedTokens.shape,
-          []
-        )
-        expectExactTokens(value?.panel?.datePanel?.dateCell?.selected, {
-          color: '{{primitives.area.overlay.state.selected.defaultSeverity.contrast}}',
-          background: '{{primitives.area.overlay.state.selected.defaultSeverity.bg}}',
-          width: '2.5rem',
-          height: '2.5rem',
-          padding: '{{primitives.space.xs}}',
-          font: {
-            size: '{{primitives.font.size}}',
-            weight: '{{primitives.font.weight}}',
-          },
-          border: {
-            color: '{{primitives.area.overlay.state.selected.defaultSeverity.border.color}}',
-            style: '{{primitives.area.overlay.state.selected.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.sm}}',
-            offset: '{{primitives.border.offset.none}}',
-            radius: '{{primitives.border.radius.md}}',
-          },
-          inRangeBackground: '{{primitives.variant.primary.defaultState.defaultSeverity.bg}}',
-          rangeSelectedBackground: '{{primitives.area.overlay.state.selected.defaultSeverity.bg}}',
-        })
-      })
-    })
-
-    describe('focus state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(
-          value?.panel?.datePanel?.dateCell?.focus,
-          CalendarPickerCellSchema.focusTokens.shape,
-          []
-        )
-        expectExactTokens(value?.panel?.datePanel?.dateCell?.focus, {
-          color: '{{primitives.area.overlay.state.focus.defaultSeverity.contrast}}',
-          background: '{{primitives.area.overlay.state.focus.defaultSeverity.bg}}',
-          width: '2.5rem',
-          height: '2.5rem',
-          padding: '{{primitives.space.xs}}',
-          font: {
-            size: '{{primitives.font.size}}',
-            weight: '{{primitives.font.weight}}',
-          },
-          border: {
-            color: '{{primitives.area.overlay.state.focus.defaultSeverity.border.color}}',
-            style: '{{primitives.area.overlay.state.focus.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.sm}}',
-            offset: '{{primitives.border.offset.none}}',
-            radius: '{{primitives.border.radius.md}}',
-          },
-        })
-      })
-    })
+    expectUndefinedTokens(hoverIcon?.defaultState, ['padding', 'width', 'height', 'color', 'background'])
+    expectUndefinedTokens(hoverIcon?.hover, ['padding', 'width', 'height', 'color', 'background'])
   })
 
-  describe('calendar today', () => {
-    it('should apply defaults', () => {
-      const result = calendar.safeParse({})
-      expect(result.success).toBe(true)
+  it('defaults panel descendants only through nested defaultState branches', () => {
+    const value = parseCalendar()
+    const panel = value?.defaultVariant?.panel
+    const header = panel?.defaultState?.header
+    const selector = header?.defaultState?.selectMonth
+    const datePanel = panel?.defaultState?.datePanel
+    const dayView = datePanel?.defaultState?.dayView
+    const dateCell = dayView?.defaultState?.['dateCell'] as Record<string, unknown> | undefined
+    const timePicker = panel?.defaultState?.timePicker
+    const footerButtonBar = panel?.defaultState?.footerButtonBar
 
-      const value = result.data
-      expectExactUndefinedTokens(value?.panel?.datePanel?.today, CalendarTodaySchema.schema.shape, [])
-      expectExactTokens(value?.panel?.datePanel?.today, {
-        background: '{{primitives.variant.primary.defaultState.defaultSeverity.bg}}',
-        color: '{{primitives.variant.primary.defaultState.defaultSeverity.contrast}}',
-      })
+    expectExactTokens(panel?.defaultState, {
+      background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
+      color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
+      border: {
+        color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
+        style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
+        width: '{{primitives.border.width.sm}}',
+        offset: '{{primitives.border.offset.none}}',
+        radius: '{{primitives.border.radius.sm}}',
+        shadow: '{{primitives.shadow.sm}}',
+      },
+      padding: '{{primitives.space.md}}',
+      headerGap: '{{primitives.space.sm}}',
+      header: expect.any(Object),
+      datePanel: expect.any(Object),
+      timePicker: expect.any(Object),
+      footerButtonBar: expect.any(Object),
     })
+    expectUndefinedTokens(panel?.hover, ['background', 'color', 'border', 'padding', 'headerGap'])
+
+    expectExactTokens(header?.defaultState, {
+      background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
+      color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
+      padding: '{{primitives.space.md}}',
+      margin: '{{primitives.space.md}}',
+      gap: '{{primitives.space.sm}}',
+      selectMonth: expect.any(Object),
+      selectYear: expect.any(Object),
+      navButton: expect.any(Object),
+    })
+    expectUndefinedTokens(header?.hover, ['background', 'color', 'padding', 'margin', 'gap'])
+
+    expectExactTokens(selector, {
+      focusRing: {
+        color: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.color}}',
+        style: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.style}}',
+        width: '{{primitives.border.width.md}}',
+        offset: '{{primitives.border.offset.none}}',
+        shadow: '{{primitives.shadow.none}}',
+        radius: '{{primitives.radius.md}}',
+      },
+      defaultState: expect.any(Object),
+      hover: expect.any(Object),
+      focus: expect.any(Object),
+    })
+    expectNavigationSelectorDefaultState(selector?.defaultState)
+    expectNavigationSelectorHoverState(selector?.hover)
+    expectUndefinedTokens(selector?.focus, ['padding', 'font', 'border', 'background', 'color'])
+
+    expectExactTokens(datePanel?.defaultState, {
+      background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
+      color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
+      padding: '{{primitives.space.md}}',
+      margin: '{{primitives.space.md}}',
+      weekDayLabel: expect.any(Object),
+      dayView: expect.any(Object),
+      monthView: expect.any(Object),
+      yearView: expect.any(Object),
+      today: expect.any(Object),
+    })
+    expectExactTokens(datePanel?.defaultState?.weekDayLabel, {
+      padding: '{{primitives.space.xs}}',
+      font: {
+        weight: '{{primitives.font.weight.bold}}',
+        size: '{{primitives.font.size}}',
+      },
+      color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
+    })
+    expectExactTokens(datePanel?.defaultState?.today, {
+      background: '{{primitives.defaultVariant.defaultState.defaultSeverity.bg}}',
+      color: '{{primitives.defaultVariant.defaultState.defaultSeverity.contrast}}',
+    })
+
+    expectExactTokens(dayView?.defaultState, {
+      margin: '{{primitives.space.md}}',
+      dateCell: expect.any(Object),
+    })
+    expectExactTokens(dayView?.hover, {
+      dateCell: expect.any(Object),
+    })
+    expectUndefinedTokens(dayView?.hover, ['margin'])
+
+    expectPickerCellDefaultState(dateCell?.['defaultState'] as Record<string, unknown> | undefined)
+    expectPickerCellHoverState(dateCell?.['hover'] as Record<string, unknown> | undefined)
+    expectPickerCellSelectedState(dateCell?.['selected'] as Record<string, unknown> | undefined)
+    expectUndefinedTokens(dateCell?.['focus'] as Record<string, unknown> | undefined, [
+      'width',
+      'height',
+      'padding',
+      'font',
+      'color',
+      'background',
+      'border',
+      'inRangeBackground',
+      'rangeSelectedBackground',
+    ])
+
+    expectExactTokens(timePicker?.defaultState, {
+      padding: '{{primitives.space.md}}',
+      border: {
+        color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
+        style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
+        width: '{{primitives.border.width.md}}',
+        radius: '{{primitives.border.radius.md}}',
+        offset: '{{primitives.border.offset.none}}',
+      },
+      gap: '{{primitives.space.md}}',
+      buttonGap: '{{primitives.space.xs}}',
+      margin: '{{primitives.space.md}}',
+      timePickerButton: expect.any(Object),
+    })
+    expectExactTokens(timePicker?.timeSeparator, {
+      color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
+      padding: '{{primitives.space.xs}}',
+      font: {
+        family: '{{primitives.font.family}}',
+        size: '{{primitives.font.size}}',
+        weight: '{{primitives.font.weight}}',
+      },
+    })
+    expectUndefinedTokens(timePicker?.hover, ['padding', 'border', 'gap', 'buttonGap', 'margin'])
+
+    expectExactTokens(footerButtonBar?.defaultState, {
+      padding: '{{primitives.space.md}}',
+      border: {
+        color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
+        style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
+        width: '{{primitives.border.width.md}}',
+        radius: '{{primitives.border.radius.md}}',
+        offset: '{{primitives.border.offset.none}}',
+      },
+      gap: '{{primitives.space.md}}',
+      todayButton: expect.any(Object),
+      clearButton: expect.any(Object),
+    })
+    expectUndefinedTokens(footerButtonBar?.hover, ['padding', 'border', 'gap'])
   })
 
-  describe('calendar week day label', () => {
-    it('should apply defaults', () => {
-      const result = calendar.safeParse({})
-      expect(result.success).toBe(true)
+  it('applies approved panel button defaults and removes the rest', () => {
+    const value = parseCalendar()
+    const rootButton = value?.defaultVariant?.calendarIconButton
+    const navButton = value?.defaultVariant?.panel?.defaultState?.header?.defaultState?.navButton
+    const timePickerButton = value?.defaultVariant?.panel?.defaultState?.timePicker?.defaultState?.timePickerButton
+    const todayButton = value?.defaultVariant?.panel?.defaultState?.footerButtonBar?.defaultState?.todayButton
+    const clearButton = value?.defaultVariant?.panel?.defaultState?.footerButtonBar?.defaultState?.clearButton
 
-      const value = result.data
-      expectExactUndefinedTokens(value?.panel?.datePanel?.weekDayLabel, CalendarWeekDayLabelSchema.schema.shape, [])
-      expectExactTokens(value?.panel?.datePanel?.weekDayLabel, {
-        padding: '{{primitives.space.xs}}',
-        font: {
-          weight: '{{primitives.font.weight.bold}}',
-          size: '{{primitives.font.size}}',
-        },
-        color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
-      })
+    expectExactTokens(rootButton, {
+      width: '2.5rem',
+      height: '2.5rem',
+      focusRing: {
+        color: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.color}}',
+        style: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.style}}',
+        width: '{{primitives.border.width.md}}',
+        offset: '{{primitives.border.offset.none}}',
+        shadow: '{{primitives.shadow.none}}',
+        radius: '{{primitives.radius.md}}',
+      },
+      defaultState: expect.any(Object),
+      hover: expect.any(Object),
+      focus: expect.any(Object),
+      active: expect.any(Object),
+      disabled: expect.any(Object),
     })
+    expectPanelButtonDefaultState(rootButton?.defaultState, 'primitives.area.overlay.defaultState')
+    expectPanelButtonHoverState(rootButton?.hover)
+    expectUndefinedTokens(rootButton?.focus, ['width', 'height', 'color', 'background', 'border'])
+
+    expectPanelButtonDefaultState(navButton?.defaultState, 'primitives.area.overlay.defaultState')
+    expectPanelButtonHoverState(navButton?.hover)
+    expectPanelButtonDefaultState(timePickerButton?.defaultState, 'primitives.area.overlay.defaultState')
+    expectPanelButtonHoverState(timePickerButton?.hover)
+    expectPanelButtonDefaultState(todayButton?.defaultState, 'primitives.area.overlay.defaultState')
+    expectPanelButtonHoverState(todayButton?.hover)
+    expectPanelButtonDefaultState(clearButton?.defaultState, 'primitives.area.overlay.defaultState')
+    expectPanelButtonHoverState(clearButton?.hover)
   })
 
-  describe('calendar view', () => {
-    it('should apply defaults', () => {
-      const result = calendar.safeParse({})
-      expect(result.success).toBe(true)
+  it('leaves named variants fully undefaulted', () => {
+    const value = parseCalendar()
+    const primaryInput = value?.primary?.input
+    const primaryPanel = value?.primary?.panel
+    const primaryButton = value?.primary?.calendarIconButton
+    const primarySelector = primaryPanel?.defaultState?.header?.defaultState?.selectMonth
+    const primaryDateCell = primaryPanel?.defaultState?.datePanel?.defaultState?.dayView?.defaultState?.[
+      'dateCell'
+    ] as Record<string, unknown> | undefined
+    const primaryToday = primaryPanel?.defaultState?.datePanel?.defaultState?.today
+    const primaryTimeSeparator = primaryPanel?.defaultState?.timePicker?.timeSeparator
 
-      const value = result.data
-      expectExactUndefinedTokens(value?.panel?.datePanel?.dayView, CalendarViewSchema.schema.shape, [])
-      expectExactTokens(value?.panel?.datePanel?.dayView, {
-        margin: '{{primitives.space.md}}',
-      })
+    expectExactTokens(primaryInput, {
+      sm: expect.any(Object),
+      lg: expect.any(Object),
+      defaultState: expect.any(Object),
+      hover: expect.any(Object),
+      focus: expect.any(Object),
+      disabled: expect.any(Object),
+      invalid: expect.any(Object),
+      active: expect.any(Object),
     })
+    expectUndefinedTokens(primaryInput?.sm, ['padding', 'fontSize'])
+    expectUndefinedTokens(primaryInput?.lg, ['padding', 'fontSize'])
+    expect(primaryInput?.focusRing).toBeUndefined()
+    expectUndefinedTokens(primaryInput?.defaultState, [
+      'padding',
+      'shadow',
+      'font',
+      'background',
+      'color',
+      'border',
+      'placeholderColor',
+    ])
+    expect(primaryInput?.defaultState?.icon?.focusRing).toBeUndefined()
+
+    expect(primaryPanel?.defaultState?.background).toBeUndefined()
+    expect(primaryPanel?.defaultState?.border).toBeUndefined()
+    expect(primaryButton?.focusRing).toBeUndefined()
+    expectUndefinedTokens(primaryButton?.defaultState, ['width', 'height', 'color', 'background', 'border'])
+
+    expect(primarySelector?.focusRing).toBeUndefined()
+    expectUndefinedTokens(primarySelector?.defaultState, ['padding', 'font', 'border', 'background', 'color'])
+
+    expectExactTokens(primaryPanel?.defaultState?.datePanel?.defaultState?.dayView?.defaultState, {
+      dateCell: expect.any(Object),
+    })
+    expect(primaryPanel?.defaultState?.datePanel?.defaultState?.dayView?.defaultState?.['margin']).toBeUndefined()
+    expectUndefinedTokens(primaryDateCell?.['defaultState'] as Record<string, unknown> | undefined, [
+      'width',
+      'height',
+      'padding',
+      'font',
+      'color',
+      'background',
+      'border',
+      'inRangeBackground',
+      'rangeSelectedBackground',
+    ])
+    expectUndefinedTokens(primaryDateCell?.['selected'] as Record<string, unknown> | undefined, [
+      'width',
+      'height',
+      'padding',
+      'font',
+      'color',
+      'background',
+      'border',
+      'inRangeBackground',
+      'rangeSelectedBackground',
+    ])
+
+    expect(primaryToday?.background).toBeUndefined()
+    expect(primaryToday?.color).toBeUndefined()
+    expect(primaryTimeSeparator?.color).toBeUndefined()
+    expect(primaryTimeSeparator?.padding).toBeUndefined()
   })
 
-  describe('calendar time input', () => {
-    it('should apply defaults', () => {
-      const result = calendar.safeParse({})
-      expect(result.success).toBe(true)
+  it('keeps root-level non-variant defaults unchanged', () => {
+    const value = parseCalendar()
 
-      const value = result.data
-      expectExactUndefinedTokens(value?.timeInput, CalendarTimeInputSchema.schema.shape, [])
-      expectExactTokens(value?.timeInput, {
-        width: '3rem',
-        color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
-        background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
-        padding: '{{primitives.space.xs}}',
-        font: {
-          family: '{{primitives.font.family}}',
-          size: '{{primitives.font.size}}',
-          weight: '{{primitives.font.weight}}',
-        },
-        border: {
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
-          style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
-          width: '{{primitives.border.width.none}}',
-          offset: '{{primitives.border.offset.none}}',
-          radius: '{{primitives.border.radius.md}}',
-        },
-        focusRing: {
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.color}}',
-          style: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.style}}',
-          width: '{{primitives.border.width.md}}',
-          offset: '{{primitives.border.offset.none}}',
-          shadow: '{{primitives.shadow.none}}',
-          radius: '{{primitives.radius.md}}',
-        },
-        hover: expect.any(Object),
-        focus: expect.any(Object),
-      })
-    })
-
-    describe('hover state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.timeInput?.hover, CalendarTimeInputSchema.hoverTokens.shape, [])
-        expectExactTokens(value?.timeInput?.hover, {
-          width: '3rem',
-          padding: '{{primitives.space.xs}}',
-          font: {
-            family: '{{primitives.font.family}}',
-            size: '{{primitives.font.size}}',
-            weight: '{{primitives.font.weight}}',
-          },
-          color: '{{primitives.area.overlay.state.hover.defaultSeverity.contrast}}',
-          background: '{{primitives.area.overlay.state.hover.defaultSeverity.bg}}',
-          border: {
-            color: '{{primitives.area.overlay.state.hover.defaultSeverity.border.color}}',
-            style: '{{primitives.area.overlay.state.hover.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.none}}',
-            offset: '{{primitives.border.offset.none}}',
-            radius: '{{primitives.border.radius.md}}',
-          },
-        })
-      })
-    })
-
-    describe('focus state', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.timeInput?.focus, CalendarTimeInputSchema.focusTokens.shape, [])
-        expectExactTokens(value?.timeInput?.focus, {
-          width: '3rem',
-          padding: '{{primitives.space.xs}}',
-          font: {
-            family: '{{primitives.font.family}}',
-            size: '{{primitives.font.size}}',
-            weight: '{{primitives.font.weight}}',
-          },
-          color: '{{primitives.area.overlay.state.focus.defaultSeverity.contrast}}',
-          background: '{{primitives.area.overlay.state.focus.defaultSeverity.bg}}',
-          border: {
-            color: '{{primitives.area.overlay.state.focus.defaultSeverity.border.color}}',
-            style: '{{primitives.area.overlay.state.focus.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.none}}',
-            offset: '{{primitives.border.offset.none}}',
-            radius: '{{primitives.border.radius.md}}',
-          },
-        })
-      })
-    })
-  })
-
-  describe('calendar time separator', () => {
-    it('should apply defaults', () => {
-      const result = calendar.safeParse({})
-      expect(result.success).toBe(true)
-
-      const value = result.data
-      expectExactUndefinedTokens(value?.timeSeparator, CalendarTimeSeperatorSchema.schema.shape, [])
-      expectExactTokens(value?.timeSeparator, {
-        color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
-        padding: '{{primitives.space.xs}}',
-        font: {
-          family: '{{primitives.font.family}}',
-          size: '{{primitives.font.size}}',
-          weight: '{{primitives.font.weight}}',
-        },
-      })
-    })
-  })
-
-  describe('calendar multi-month divider', () => {
-    it('should apply defaults', () => {
-      const result = calendar.safeParse({})
-      expect(result.success).toBe(true)
-
-      const value = result.data
-      expectExactUndefinedTokens(value?.multiMonthDivider, CalendarMultiMonthDividerSchema.schema.shape, [])
-      expectExactTokens(value?.multiMonthDivider, {
-        border: {
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
-          style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
-          width: '{{primitives.border.width.none}}',
-          offset: '{{primitives.border.offset.none}}',
-          radius: '{{primitives.border.radius.md}}',
-        },
-        gap: '{{primitives.space.md}}',
-      })
-    })
-  })
-
-  describe('calendar footer button bar', () => {
-    it('should apply defaults', () => {
-      const result = calendar.safeParse({})
-      expect(result.success).toBe(true)
-
-      const value = result.data
-      expectExactUndefinedTokens(value?.footerButtonBar, CalendarFooterButtonBarSchema.schema.shape, [])
-      expectExactTokens(value?.footerButtonBar, {
-        padding: '{{primitives.space.md}}',
-        border: {
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
-          style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
-          width: '{{primitives.border.width.md}}',
-          radius: '{{primitives.border.radius.md}}',
-          offset: '{{primitives.border.offset.none}}',
-        },
-        gap: '{{primitives.space.md}}',
-        todayButton: expect.any(Object),
-        clearButton: expect.any(Object),
-      })
-    })
-
-    describe('todayButton', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.footerButtonBar?.todayButton, CalendarPanelButtonSchema.schema.shape, [])
-        expectExactTokens(value?.footerButtonBar?.todayButton, {
-          width: '2.5rem',
-          height: '2.5rem',
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
-          background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
-          border: {
-            color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
-            style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.none}}',
-            offset: '{{primitives.border.offset.none}}',
-            radius: '{{primitives.border.radius.md}}',
-          },
-          focusRing: {
-            color: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.color}}',
-            style: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.style}}',
-            width: '{{primitives.border.width.md}}',
-            offset: '{{primitives.border.offset.none}}',
-            shadow: '{{primitives.shadow.none}}',
-            radius: '{{primitives.radius.md}}',
-          },
-          hover: expect.any(Object),
-          focus: expect.any(Object),
-        })
-      })
-
-      describe('hover state', () => {
-        it('should apply defaults', () => {
-          const result = calendar.safeParse({})
-          expect(result.success).toBe(true)
-
-          const value = result.data
-          expectExactUndefinedTokens(
-            value?.footerButtonBar?.todayButton?.hover,
-            CalendarPanelButtonSchema.hoverTokens.shape,
-            []
-          )
-          expectExactTokens(value?.footerButtonBar?.todayButton?.hover, {
-            width: '2.5rem',
-            height: '2.5rem',
-            color: '{{primitives.area.overlay.state.hover.defaultSeverity.contrast}}',
-            background: '{{primitives.area.overlay.state.hover.defaultSeverity.bg}}',
-            border: {
-              color: '{{primitives.area.overlay.state.hover.defaultSeverity.border.color}}',
-              style: '{{primitives.area.overlay.state.hover.defaultSeverity.border.style}}',
-              width: '{{primitives.border.width.none}}',
-              offset: '{{primitives.border.offset.none}}',
-              radius: '{{primitives.border.radius.md}}',
-            },
-          })
-        })
-      })
-
-      describe('focus state', () => {
-        it('should apply defaults', () => {
-          const result = calendar.safeParse({})
-          expect(result.success).toBe(true)
-
-          const value = result.data
-          expectExactUndefinedTokens(
-            value?.footerButtonBar?.todayButton?.focus,
-            CalendarPanelButtonSchema.focusTokens.shape,
-            []
-          )
-          expectExactTokens(value?.footerButtonBar?.todayButton?.focus, {
-            width: '2.5rem',
-            height: '2.5rem',
-            color: '{{primitives.area.overlay.state.focus.defaultSeverity.contrast}}',
-            background: '{{primitives.area.overlay.state.focus.defaultSeverity.bg}}',
-            border: {
-              color: '{{primitives.area.overlay.state.focus.defaultSeverity.border.color}}',
-              style: '{{primitives.area.overlay.state.focus.defaultSeverity.border.style}}',
-              width: '{{primitives.border.width.none}}',
-              offset: '{{primitives.border.offset.none}}',
-              radius: '{{primitives.border.radius.md}}',
-            },
-          })
-        })
-      })
-    })
-
-    describe('clearButton', () => {
-      it('should apply defaults', () => {
-        const result = calendar.safeParse({})
-        expect(result.success).toBe(true)
-
-        const value = result.data
-        expectExactUndefinedTokens(value?.footerButtonBar?.clearButton, CalendarPanelButtonSchema.schema.shape, [])
-        expectExactTokens(value?.footerButtonBar?.clearButton, {
-          width: '2.5rem',
-          height: '2.5rem',
-          color: '{{primitives.area.overlay.defaultState.defaultSeverity.contrast}}',
-          background: '{{primitives.area.overlay.defaultState.defaultSeverity.bg}}',
-          border: {
-            color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
-            style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
-            width: '{{primitives.border.width.none}}',
-            offset: '{{primitives.border.offset.none}}',
-            radius: '{{primitives.border.radius.md}}',
-          },
-          focusRing: {
-            color: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.color}}',
-            style: '{{primitives.area.overlay.defaultState.defaultSeverity.focusRing.style}}',
-            width: '{{primitives.border.width.md}}',
-            offset: '{{primitives.border.offset.none}}',
-            shadow: '{{primitives.shadow.none}}',
-            radius: '{{primitives.radius.md}}',
-          },
-          hover: expect.any(Object),
-          focus: expect.any(Object),
-        })
-      })
-
-      describe('hover state', () => {
-        it('should apply defaults', () => {
-          const result = calendar.safeParse({})
-          expect(result.success).toBe(true)
-
-          const value = result.data
-          expectExactUndefinedTokens(
-            value?.footerButtonBar?.clearButton?.hover,
-            CalendarPanelButtonSchema.hoverTokens.shape,
-            []
-          )
-          expectExactTokens(value?.footerButtonBar?.clearButton?.hover, {
-            width: '2.5rem',
-            height: '2.5rem',
-            color: '{{primitives.area.overlay.state.hover.defaultSeverity.contrast}}',
-            background: '{{primitives.area.overlay.state.hover.defaultSeverity.bg}}',
-            border: {
-              color: '{{primitives.area.overlay.state.hover.defaultSeverity.border.color}}',
-              style: '{{primitives.area.overlay.state.hover.defaultSeverity.border.style}}',
-              width: '{{primitives.border.width.none}}',
-              offset: '{{primitives.border.offset.none}}',
-              radius: '{{primitives.border.radius.md}}',
-            },
-          })
-        })
-      })
-
-      describe('focus state', () => {
-        it('should apply defaults', () => {
-          const result = calendar.safeParse({})
-          expect(result.success).toBe(true)
-
-          const value = result.data
-          expectExactUndefinedTokens(
-            value?.footerButtonBar?.clearButton?.focus,
-            CalendarPanelButtonSchema.focusTokens.shape,
-            []
-          )
-          expectExactTokens(value?.footerButtonBar?.clearButton?.focus, {
-            width: '2.5rem',
-            height: '2.5rem',
-            color: '{{primitives.area.overlay.state.focus.defaultSeverity.contrast}}',
-            background: '{{primitives.area.overlay.state.focus.defaultSeverity.bg}}',
-            border: {
-              color: '{{primitives.area.overlay.state.focus.defaultSeverity.border.color}}',
-              style: '{{primitives.area.overlay.state.focus.defaultSeverity.border.style}}',
-              width: '{{primitives.border.width.none}}',
-              offset: '{{primitives.border.offset.none}}',
-              radius: '{{primitives.border.radius.md}}',
-            },
-          })
-        })
-      })
+    expectExactTokens(value?.multiMonthDivider, {
+      border: {
+        color: '{{primitives.area.overlay.defaultState.defaultSeverity.border.color}}',
+        style: '{{primitives.area.overlay.defaultState.defaultSeverity.border.style}}',
+        width: '{{primitives.border.width.none}}',
+        offset: '{{primitives.border.offset.none}}',
+        radius: '{{primitives.border.radius.md}}',
+      },
+      gap: '{{primitives.space.md}}',
     })
   })
 })
