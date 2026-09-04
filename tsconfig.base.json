@@ -50,7 +50,12 @@
       "@onecx/react-utils/utils": ["libs/react-utils/src/lib/utils/index.ts"],
       "@onecx/build-utils": ["libs/build-utils/src/index.ts"]
     },
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
+    "noUncheckedSideEffectImports": false,
+    "types": ["*"],
+    "esModuleInterop": false,
+    "ignoreDeprecations": "6.0"
   },
   "exclude": ["node_modules", "tmp"]
 }

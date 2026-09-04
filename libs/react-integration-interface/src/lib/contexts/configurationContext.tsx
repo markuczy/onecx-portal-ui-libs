@@ -176,7 +176,6 @@ const ConfigurationProvider = ({
 
   useEffect(() => {
     init()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const contextValue = useMemo(

@@ -36,7 +36,8 @@ export class IntersectionObserverMock {
 }
 
 export function ensureIntersectionObserverMockExists() {
-  if (!global.IntersectionObserver || global.IntersectionObserver !== IntersectionObserverMock) {
-    global.IntersectionObserver = IntersectionObserverMock
+  const mock = IntersectionObserverMock as unknown as typeof IntersectionObserver
+  if (!global.IntersectionObserver || global.IntersectionObserver !== mock) {
+    global.IntersectionObserver = mock
   }
 }

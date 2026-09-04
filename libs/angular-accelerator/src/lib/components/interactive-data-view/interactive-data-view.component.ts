@@ -15,10 +15,11 @@ import {
   effect,
   inject,
   input,
-  model,
   output,
   untracked,
   viewChild,
+  ChangeDetectionStrategy,
+  linkedSignal
 } from '@angular/core'
 import { SlotService } from '@onecx/angular-remote-components'
 import { PrimeTemplate } from 'primeng/api'
@@ -65,6 +66,7 @@ export interface ColumnGroupData {
   selector: 'ocx-interactive-data-view',
   templateUrl: './interactive-data-view.component.html',
   styleUrls: ['./interactive-data-view.component.css'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   providers: [
     {
       provide: DataViewStateService,
@@ -187,7 +189,8 @@ export class InteractiveDataViewComponent implements OnInit {
     this.stateService.selectedRows.set(value)
   }
 
-  displayedColumnKeys = model<string[]>([])
+  displayedColumnKeysInput = input<string[]>([], {alias: 'displayedColumnKeys'});
+  displayedColumnKeys = linkedSignal(this.displayedColumnKeysInput);
   displayedColumns = computed(() => {
     const columnKeys = this.displayedColumnKeys()
     return (

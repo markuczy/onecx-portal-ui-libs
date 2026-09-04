@@ -8,7 +8,8 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
-    "types": ["jest", "node"]
+    "types": ["jest", "node"],
+    "ignoreDeprecations": "6.0"
   },
   "files": [],
   "include": [],
