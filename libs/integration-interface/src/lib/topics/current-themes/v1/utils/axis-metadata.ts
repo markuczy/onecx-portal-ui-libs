@@ -50,6 +50,9 @@ export const DEFAULT_SEGMENTS: Record<RelaxedAxisKind, string[]> = {
  */
 export const AXES_OUTER_TO_INNER: RelaxedAxisKind[] = ['variant', 'state', 'severity']
 
+/** The default order in which non-default relaxed axes are relaxed. */
+export const FALLBACK_ORDER_DEFAULT: RelaxedAxisKind[] = ['state', 'variant', 'severity']
+
 /** A relaxed-axis member a leaf crosses within one scope. */
 export interface Entry {
   kind: RelaxedAxisKind
