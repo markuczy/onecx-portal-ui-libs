@@ -42,7 +42,7 @@ The Shell reads permissions from its own Backend-for-Frontend (BFF). The generat
 
 `link:{shell}/src/app/shell/services/permission-proxy.service.ts[`PermissionProxyService`]` is the answerer on `PermissionsRpcTopic`, started by the `permissionProxyInitializer` in `link:{shell}/src/app/app.module.ts[`app.module.ts`]`. Its `init()` subscribes to its own `PermissionsRpcTopic` and, for every message whose `permissions` is `undefined` (i.e. a request), loads the list through the same cache and publishes the filled-in answer back to the RPC Topic.
 
-The deny-all fallback lives here. `retry({ delay: 500, count: 3 })` re-attempts the BFF call three times, half a second apart. If every attempt fails, `catchError` returns `of({ permissions: [] })` — an empty list. An empty list means "the user has no permissions", which is the safe default: rather than hang a Remote Component on a request that can never be answered, the Shell answers with *deny everything*. The answer is published on the RPC Topic and the requesting component's `firstValueFrom` (filtered to the matching `appId`/`productName`) resolves.
+The deny-all fallback lives here. `retry({ delay: 500, count: 3 })` re-attempts the BFF call three times, half a second apart. If every attempt fails, `catchError` logs `Unable to load permissions for ` with the failed `appId` and `productName` via `console.error`, then returns `of({ permissions: [] })` — an empty list. An empty list means "the user has no permissions", which is the safe default: rather than hang a Remote Component on a request that can never be answered, the Shell answers with *deny everything*. The answer is published on the RPC Topic and the requesting component's `firstValueFrom` (filtered to the matching `appId`/`productName`) resolves.
 
 === Where each path lives
 
@@ -101,7 +101,7 @@ All of the loading, caching and failure handling is in the Shell:
 [#known-issues]
 == Known issues
 
-* The push path (`RoutesService.updatePermissions`) has no retry and no deny-all fallback, while the RPC path (`PermissionProxyService`) does. The consequence is asymmetric: a BFF outage blocks the affected route (the `canActivateChild` guard rejects and navigation fails) but a Remote Component that asks the same question gets a silent deny-all answer. This is the *actual* behaviour of the code in `link:{shell}/src/app/shell/services/routes.service.ts[`routes.service.ts`]` versus `link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`]`. It is unclear whether the missing resilience on the push path is intentional, so it is recorded as a follow-up to confirm with the Shell team rather than a documentation change.
+* The push path (`RoutesService.updatePermissions`) has no retry and no deny-all fallback, while the RPC path (`PermissionProxyService`) does. The consequence is asymmetric: a BFF outage blocks the affected route (the `canActivateChild` guard rejects and navigation fails) but a Remote Component that asks the same question gets a logged deny-all answer. This is the *actual* behaviour of the code in `link:{shell}/src/app/shell/services/routes.service.ts[`routes.service.ts`]` versus `link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`]`. It is unclear whether the missing resilience on the push path is intentional, so it is recorded as a follow-up to confirm with the Shell team rather than a documentation change.
 
 == Related Units
 
