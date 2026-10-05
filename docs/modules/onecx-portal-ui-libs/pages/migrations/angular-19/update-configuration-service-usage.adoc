@@ -44,4 +44,6 @@ const theme = await this.configService.getProperty(CONFIG_KEY.TKIT_PORTAL_DEFAUL
 const config = await this.configService.getConfig();
 
 await this.configService.setProperty(CONFIG_KEY.APP_VERSION, '6.0.0');
+
 ----
+
