@@ -85,13 +85,13 @@ The data the Shell provides to Apps, and where that data comes from.
 ====
 
 [#styling]
-.4. Styling & Style Isolation — `styling/`
+.4. link:./styling/README.adoc[Styling & Style Isolation] — `styling/`
 [%collapsible]
 ====
 Where CSS comes from and how the styles of different Apps are kept apart.
 
-. Why isolation & style kinds — `why-style-isolation.adoc`
-. App/Remote Component stylesheet load & removal (usage counting) — `stylesheet-loading.adoc`
+. link:./styling/why-style-isolation.adoc[Why isolation & style kinds] — `why-style-isolation.adoc`
+. link:./styling/stylesheet-loading.adoc[App/Remote Component stylesheet load & removal (usage counting)] — `stylesheet-loading.adoc`
 . `@scope` scoping model — `scope-model.adoc`
 . Shell's own stylesheets & legacy portal layout — `shell-stylesheets.adoc`
 . Angular component styles — `angular-component-styles.adoc`
