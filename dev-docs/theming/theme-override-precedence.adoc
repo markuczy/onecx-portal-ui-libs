@@ -45,7 +45,7 @@ The shared contract (link:{libs}/integration-interface/src/lib/topics/current-th
 |PrimeNG / token override
 |Workspace theme (`Theme.overrides`, entries with `type === PRIMENG`)
 |No cascade: the value is `mergeDeep`-ed into the preset *before* PrimeNG derives the CSS variables, so it wins over the theme value for the same token key.
-|link:{libs}/angular-utils/theme/primeng/src/services/theme-config.service.ts[`IS_ADVANCED_THEMING`] (opt-in) + `Theme.overrides`
+|link:{libs}/angular-utils/theme/primeng/src/utils/application-config.ts[`provideThemeConfig({ isAdvancedTheming: true })`] (opt-in) + `Theme.overrides`
 |===
 
 The two channels take different inputs and rejoin at the rendered values, but by different routes:
