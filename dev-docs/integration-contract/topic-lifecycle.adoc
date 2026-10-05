@@ -39,15 +39,15 @@ RPC Topics and `Gatherer` build the request/response side on top of the same `pu
 
 === Destroy and cleanup
 
-`Topic.destroy()` releases exactly these resources (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], `destroy`):
+`Topic.destroy()` performs this cleanup (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], `destroy`):
 
-* Removes the `window` `message` listener.
+* Attempts to remove the `window` `message` listener; the current capture-flag mismatch leaves it attached (see Known issues).
 * Closes the v1 and v2 *read* `BroadcastChannel` handles.
 * Closes the v1 and v2 *publish* `BroadcastChannel` handles.
 
 `Gatherer.destroy()` adds its own bookkeeping: it unsubscribes its internal topic subscription, calls `topic.destroy()`, and deletes its pending request ids from the shared `acceleratorState.gatherer.promises` map (link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]).
 
-What `destroy` does **not** do: it does not clear `publishPromiseResolver`, does not complete the internal `data` `BehaviorSubject`, does not unsubscribe external subscribers, and does not reset `isInit`. A destroyed topic is therefore *quiesced* (no new traffic should flow after its channels are closed), not torn down from the inside.
+What `destroy` does **not** do: it does not clear `publishPromiseResolver`, complete the internal `data` `BehaviorSubject`, unsubscribe external subscribers, or reset `isInit`. The channels close, but the leaked `window` listener can still deliver messages to the Topic (see Known issues); `destroy` does not tear down its internal state.
 
 === Where destroy is called
 
@@ -83,7 +83,7 @@ The underlying `Topic.destroy` it triggers is the same in both cases.
 * *Calling `destroy` twice is safe.* `destroy` calls `removeEventListener` and `close` on the channels; the `BroadcastChannel` handles are optional-chained and closing an already-closed channel is a no-op, so double-destroy does not throw.
 * *External React topics are not cleaned up by the hook.* If you pass an existing `Topic` into `useTopic`, the hook will never destroy it — the caller keeps that responsibility. Forgetting to destroy such a topic on route change leaks it.
 * *Destroy does not stop in-flight `publish` promises.* `publishPromiseResolver` is not cleared by `destroy`; a publish in flight when the topic is destroyed still resolves when its `TopicResolve` message is processed.
-* *A destroyed topic's channels are closed, but subscribers on it are not completed.* Any `asObservable()` subscription a consumer holds keeps existing; it simply stops receiving new values once the channels are closed. Consumers should unsubscribe themselves as usual.
+* *Destroy does not complete external subscriptions.* Any `asObservable()` subscription a consumer holds remains active; the leaked `window` listener may still deliver messages to the Topic (see Known issues). Consumers should unsubscribe themselves as usual.
 * *Leak watch-point.* The one real leak in the current code is the `window` message listener (see Known issues): everything else — the four `BroadcastChannel` handles — is released by `destroy`.
 
 == Debugging
@@ -93,7 +93,7 @@ The underlying `Topic.destroy` it triggers is the same in both cases.
 
 == Known issues
 
-* *The `window` message listener is not actually removed on `destroy`.* A `Topic` registers its `window` listener in the constructor with the default options (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], constructor), but `destroy` removes it with the *capture* flag set: `removeEventListener('message', this.windowEventListener, true)`. Per the DOM spec, a listener registered in the bubble phase (capture `false`) is only removed by a `removeEventListener` call with matching capture (`false`); a call with `true` does not remove it. The result is that a destroyed `Topic` keeps a live `window` `message` listener, and that listener can still call `handleTopicNextMessage` and apply values to the (now quiesced) topic. The repository's own spec (link:{libs}/accelerator/src/lib/topic/topic.spec.ts[`topic.spec.ts`]) pins the `true` argument in the `destroy` removal call, so it records the current behaviour rather than flagging it as a bug. _Follow-up for the PR:_ `removeEventListener` should be called with the same capture value the constructor used (i.e. no capture argument), so that `destroy` truly detaches the listener.
+* *The `window` message listener is not actually removed on `destroy`.* A `Topic` registers its `window` listener in the constructor with the default options (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], constructor), but `destroy` removes it with the *capture* flag set: `removeEventListener('message', this.windowEventListener, true)`. Per the DOM spec, a listener registered in the bubble phase (capture `false`) is only removed by a `removeEventListener` call with matching capture (`false`); a call with `true` does not remove it. The result is that a destroyed `Topic` keeps a live `window` `message` listener, and that listener can still call `handleTopicNextMessage` and apply values to the Topic after `destroy`. The repository's own spec (link:{libs}/accelerator/src/lib/topic/topic.spec.ts[`topic.spec.ts`]) pins the `true` argument in the `destroy` removal call, so it records the current behaviour rather than flagging it as a bug. _Follow-up for the PR:_ `removeEventListener` should be called with the same capture value the constructor used (i.e. no capture argument), so that `destroy` truly detaches the listener.
 
 == Related Units
 
