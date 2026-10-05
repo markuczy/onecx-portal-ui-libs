@@ -8,7 +8,7 @@ This Area answers how Apps, Remote Components and the Shell actually talk to eac
 
 == Problem
 
-A OneCX page hosts several independent units of code at once: one Shell, one or more Apps and an arbitrary number of Remote Components. They are built separately, released separately, may run in the same tab or in different tabs, and are written in different frameworks (Angular and React). There is no shared object graph, no common DI container and no guarantee that two of them load at the same time or in the same browsing context.
+A OneCX page hosts several independent units of code at once: one Shell, the currently routed App and any Remote Components it hosts. They are built separately, released separately and written in different frameworks (Angular and React). There is no shared object graph, no common DI container and no guarantee that two of them load at the same time.
 
 Despite that, they must stay in sync: the Shell owns the workspace, the theme, the route and the user profile, and Apps and Remote Components all need to read and react to those values. The contract this Area describes is the only channel between them. Understanding *why* the contract is message-based, and *how* a single message reaches every subscriber in order, is the prerequisite for understanding every other mechanism the Dev Docs cover.
 
