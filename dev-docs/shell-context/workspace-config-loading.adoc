@@ -55,9 +55,9 @@ The libs define the three Topics and the pure helpers that turn a `Workspace` in
 
 The Shell is the single producer of all three Topics.
 
-* *Workspace config:* `workspaceConfigInitializer` in link:{shell}/src/app/app.module.ts[`app.module.ts`] calls `WorkspaceConfigBffService.loadWorkspaceConfig({ path: getLocation().applicationPath })` (the BFF client is OpenAPI-generated in link:{shell}/src/app/shared/generated[`src/app/shared/generated`]) with `retry({ delay: 500, count: 3 })` and `initializationErrorHandler`. It then publishes `currentWorkspace$` with `baseUrl`, `portalName`, `workspaceName`, `routes`, `homePage`, `microfrontendRegistrations`, `displayName` and `i18n`, calls `routesService.init(routes)`, applies the theme, publishes `remoteComponents$` (via `mapSlots`), and finally runs `parametersService.initialize()`.
+* *Workspace config:* `workspaceConfigInitializer` in link:{shell}/src/app/app.module.ts[`app.module.ts`] calls `WorkspaceConfigBffService.loadWorkspaceConfig({ path: getLocation().applicationPath })` (the BFF client is OpenAPI-generated in link:{shell}/src/app/shared/generated/api/workspaceConfig.service.ts[`src/app/shared/generated/api/workspaceConfig.service.ts`]) with `retry({ delay: 500, count: 3 })` and `initializationErrorHandler`. It then publishes `currentWorkspace$` with `baseUrl`, `portalName`, `workspaceName`, `routes`, `homePage`, `microfrontendRegistrations`, `displayName` and `i18n`, calls `routesService.init(routes)`, applies the theme, publishes `remoteComponents$` (via `mapSlots`), and finally runs `parametersService.initialize()`.
 * *Parameters:* link:{shell}/src/app/shell/services/parameters.service.ts[`ParametersService`] (Shell) reads a `localStorage` cache, builds a request from `currentWorkspace$` + `remoteComponents$`, fetches missing values, updates the cache and `publish()`es them onto the `parameters` Topic.
-* *Runtime configuration:* `configurationServiceInitializer` in link:{shell}/src/app/app.module.ts[`app.module.ts`] calls `configurationService.init()`, which resolves `env.json` (link:{shell}/src/assets/env.json[`src/assets/env.json`]) — or the inlined `APP_CONFIG` / injected defaults — and publishes the `configuration` Topic. The Keycloak and other `TKIT_*` keys are seeded from `src/environments/environment.ts`.
+* *Runtime configuration:* `configurationServiceInitializer` in link:{shell}/src/app/app.module.ts[`app.module.ts`] calls `configurationService.init()`, which resolves `env.json` (link:{shell}/src/assets/env.json[`src/assets/env.json`]) — or the inlined `APP_CONFIG` / injected defaults — and publishes the `configuration` Topic. The Keycloak and other `TKIT_*` keys are seeded from link:{shell}/src/environments/environment.ts[`src/environments/environment.ts`].
 
 == Angular / React
 
@@ -117,8 +117,10 @@ Code::
 * link:{libs}/react-integration-interface/src/lib/utils/use-topic.utils.ts[`useTopic`]
 * link:{libs}/angular-utils/src/lib/utils/portal-api-configuration.utils.ts[`PortalApiConfiguration`]
 * link:{shell}/src/app/app.module.ts[`app.module.ts`] (`workspaceConfigInitializer`, `configurationServiceInitializer`) (Shell)
+* link:{shell}/src/app/shared/generated/api/workspaceConfig.service.ts[`WorkspaceConfigBffService`] (Shell)
 * link:{shell}/src/app/shell/services/parameters.service.ts[`ParametersService`] (Shell)
 * link:{shell}/src/assets/env.json[`env.json`] (Shell)
+* link:{shell}/src/environments/environment.ts[`environment.ts`] (Shell)
 
 Verification Sources checked::
 * Unit template (`unit-template.adoc`) — sections, size limit, Known-issues rule.
