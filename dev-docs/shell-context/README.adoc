@@ -16,7 +16,7 @@ toc::[]
 
 An App does not know which Workspace (portal) it is running in, which routes and endpoints exist, which configuration keys apply, or which parameters the Shell wants it to honour. None of this is compiled into the App. The Shell owns the answer to all of it and has to hand it over at runtime, through the Topic contract of Area 1 (Integration Contract & Topics). This Area covers two things that every other Area builds on:
 
-* *readiness* — which Topics hold the Shell's context, and how an App can tell when a given piece of context has actually arrived; and
+* *readiness* — which Topics hold the Shell's context, and how an App can tell when a given piece of context has actually arrived
 * *distribution* — how the Workspace configuration is loaded on the Shell side and fanned out to the `current-workspace`, `configuration` and `parameters` Topics and the services that read them.
 
 The libraries only *carry* this data; they do not produce it. The Shell is the single producer.
