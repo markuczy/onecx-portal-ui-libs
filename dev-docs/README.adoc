@@ -25,12 +25,7 @@ The Dev Docs explain how things work and why. Other documentation covers the fol
 Area:: A large subject, for example Styling & Style Isolation. Each Area has its own folder. The folder's `README.adoc` is the Area overview page. It describes the problem, gives the big picture across libs and Shell, and lists the Units in reading order.
 Unit:: One small page that answers one question. A Unit takes about 10 minutes to read and follows the link:{unit-template}[Unit template].
 
-Rules that apply to every page:
-
-* Content is written from the current `main` branch of this repository and of the Shell. Where code and other documentation disagree, the code wins.
-* Each concept is explained once, in its owning Area. Other Areas link to it.
-* Mechanisms are described framework-agnostic first. Angular and React subsections are added only where the implementations differ.
-* Deprecated APIs get a short note and a pointer to their replacement.
+All pages are written from the current `main` branch of this repository and of the Shell. The rules for writing them are defined once, in the link:{unit-template}[Unit template].
 
 == Areas and Units
 
@@ -50,7 +45,7 @@ How Apps and the Shell communicate through Topics. This Area covers the messagin
 
 . Why a message-based contract — `why-message-based.adoc`
 . Topic message delivery (types, ordering, replay, init/resolve) — `message-delivery.adoc`
-. Transports & tab scope (postMessage, BroadcastChannel v1/V2, tab id, fallback) — `transports-and-tab-scope.adoc`
+. Transports & tab scope (postMessage, BroadcastChannel v1/V2, tab id, fallback, who selects) — `transports-and-tab-scope.adoc`
 . Topic lifecycle (publisher, destroy, deprecated syncable Topic) — `topic-lifecycle.adoc`
 . Request/response: Gatherers & RPC Topics — `gatherers-and-rpc-topics.adoc`
 . Versioning & Shell capability negotiation — `versioning-and-capabilities.adoc`
@@ -67,7 +62,7 @@ From the Shell's `index.html` to a running App or Remote Component.
 . Shared dependency config & mismatch — `shared-dependencies.adoc`
 . Preloaders (build time and runtime) — `preloaders.adoc`
 . Loading the matched remote — `loading-matched-remote.adoc`
-. App bootstrap as web component (Angular/React, legacy module Apps) — `web-component-bootstrap.adoc` (if split: `web-component-bootstrap-angular.adoc`, `web-component-bootstrap-react.adoc`)
+. App bootstrap as web component (Angular/React, legacy module Apps) — `web-component-bootstrap.adoc`
 . Multiple-router problem & router wiring — `multiple-routers.adoc`
 
 [#shell-context]
@@ -89,7 +84,7 @@ The data the Shell provides to Apps, and where that data comes from.
 Where CSS comes from and how the styles of different Apps are kept apart.
 
 . Why isolation & style kinds — `why-style-isolation.adoc`
-. App/Remote Component stylesheet load & removal — `stylesheet-loading.adoc`
+. App/Remote Component stylesheet load & removal (usage counting) — `stylesheet-loading.adoc`
 . `@scope` scoping model — `scope-model.adoc`
 . Shell's own stylesheets & legacy portal layout — `shell-stylesheets.adoc`
 . Angular component styles — `angular-component-styles.adoc`
@@ -137,7 +132,7 @@ How a URL change reaches every router on the page, and how the Shell activates t
 
 Who owns authentication and how Apps get tokens. The user profile is covered in Area 10.
 
-. Ownership & mechanism selection (keycloak, custom, disabled) — `mechanism-selection.adoc`
+. Ownership & mechanism selection (keycloak, custom, disabled, authenticated gating) — `mechanism-selection.adoc`
 . Keycloak integration — `keycloak.adoc`
 . Custom auth service contract — `custom-auth-service.adoc`
 . How Apps obtain tokens — `obtaining-tokens.adoc`
@@ -175,7 +170,7 @@ The kinds of failure, where each one ends up, and how the user is informed.
 . Initialization failures & init-error page — `initialization-failures.adoc`
 . App load failures & global errors — `app-load-failures-and-global-errors.adoc`
 . Global loading — `global-loading.adoc`
-. Portal Messages & Notifications — `portal-messages-and-notifications.adoc`
+. Portal Messages & Notifications (incl. the Shell's toast Remote Component, which shows only when assigned to a Slot) — `portal-messages-and-notifications.adoc`
 
 [#state-management]
 === 12. State Management — `state-management/`
