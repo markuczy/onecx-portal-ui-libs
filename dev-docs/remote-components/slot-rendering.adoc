@@ -36,17 +36,7 @@ flowchart TD
   WC --> E
 ----
 
-Both flavours set the same `RemoteComponentConfig` on the rendered child:
-
-[source,typescript]
-----
-type RemoteComponentConfig = {
-  appId: string
-  productName: string
-  baseUrl: string
-  permissions: string[]
-}
-----
+Both flavours set the same `RemoteComponentConfig` on the rendered child.
 
 Both flavours also mark the child for style isolation with `data-style-id` (set to `{productName}|{appId}`) and `data-style-isolation` — see link:../styling/dynamic-content-attribution.adoc[Dynamic content attribution] in Area 4.
 
@@ -54,28 +44,11 @@ Both flavours also mark the child for style isolation with `data-style-id` (set 
 
 The component was loaded through Module Federation as an Angular component, so the slot has a real component type. It creates the component with Angular's `ViewContainerRef` and, if the component's instance exposes an `ocxInitRemoteComponent` method (the link:{libs}/angular-remote-components/src/lib/model/remote-component.ts[`ocxRemoteComponent`] contract), calls it with the config:
 
-[source,typescript]
-----
-if (componentRef && 'ocxInitRemoteComponent' in componentRef.instance) {
-  (componentRef.instance as ocxRemoteComponent).ocxInitRemoteComponent({
-    appId, productName, baseUrl, permissions,
-  })
-}
-----
-
 A Remote Component written in Angular implements the `ocxRemoteComponent` interface to receive its config.
 
 === Web-component flavour
 
 The component is a web component, so it is not loaded as a component type — it is declared as a custom element. The slot creates the element by its `elementName` and attaches the config as a plain property; the component reads it when it connects:
-
-[source,typescript]
-----
-const element = document.createElement(elementName)
-element['ocxRemoteComponentConfig'] = {
-  appId, productName, baseUrl, permissions,
-} satisfies RemoteComponentConfig
-----
 
 The component implements the link:{libs}/angular-remote-components/src/lib/model/remote-webcomponent.ts[`ocxRemoteWebcomponent`] contract, which simply declares the `ocxRemoteComponentConfig` property.
 
