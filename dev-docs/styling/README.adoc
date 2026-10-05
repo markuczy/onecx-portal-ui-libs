@@ -1,12 +1,15 @@
 = Styling & Style Isolation
 :idprefix:
 :idseparator: -
+:dev-docs-index: ../README.adoc
 :libs: ../../libs
 :shell: https://github.com/onecx/onecx-shell-ui/blob/main
+:u1: ./why-style-isolation.adoc
+:u2: ./stylesheet-loading.adoc
 :u3: ./scope-model.adoc
 :u8: ./scope-polyfill.adoc
 
-This Area explains where CSS on a OneCX page comes from and how the styles of the many applications that share a single page are kept apart.
+This Area explains where CSS on a OneCX page comes from and how the styles of the many applications that share a single page are kept apart. It is the fourth Area in the link:{dev-docs-index}[Dev Docs index].
 
 toc::[]
 
@@ -33,6 +36,7 @@ flowchart TD
     scopeId["Scope id and attributes<br/>(scope.utils)"]
     styleUtils["App stylesheet utilities<br/>(fetch, scope, usage count)<br/>(angular-utils/style)"]
     slot["Angular Slot component<br/>loads/removes RC styles"]
+    react["React scoping and theme HOCs<br/>(react-utils/styling)"]
   end
   subgraph shell["Shell (onecx-shell-ui)"]
     init["styleInitializer<br/>(pick polyfill mode, load shell and legacy styles)"]
@@ -43,21 +47,24 @@ flowchart TD
   init --> polyfill
   routes --> styleUtils
   slot --> styleUtils
-  slotHost --> slot
+  react --> styleUtils
   scopeId --> styleUtils
+  slotHost --> slot
 ----
 
-The two pages in this Area so far:
+The four pages in this Area so far:
 
+* *Why isolation & style kinds* (Unit 1) covers the scope model and the kinds of stylesheets that exist on a page.
+* *App/Remote Component stylesheet load & removal* (Unit 2) covers the load-on-demand and remove-on-unuse lifecycle with per-App/Slot usage counting.
 * *`@scope` scoping model* (Unit 3) covers how the `@scope` at-rule binds an application's styles to its content, including nested Remote Components.
 * *Scope polyfill* (Unit 8) covers how the Shell rewrites scoped stylesheets when the browser does not support `@scope`.
 
 == Unit map
 
-The Units of this Area, in reading order. Units not yet written are listed unlinked.
+The Units of this Area, in reading order. Units 1, 2, 3, and 8 are written; the rest are planned.
 
-. *Why isolation & style kinds* — `why-style-isolation.adoc` _(planned)_
-. *App/Remote Component stylesheet load & removal (usage counting)* — `stylesheet-loading.adoc` _(planned)_
+. *Why isolation & style kinds* — link:{u1}[why-style-isolation.adoc] _(written)_
+. *App/Remote Component stylesheet load & removal (usage counting)* — link:{u2}[stylesheet-loading.adoc] _(written)_
 . *`@scope` scoping model* — link:{u3}[scope-model.adoc] _(written)_
 . *Shell's own stylesheets & legacy portal layout* — `shell-stylesheets.adoc` _(planned)_
 . *Angular component styles* — `angular-component-styles.adoc` _(planned)_
@@ -68,11 +75,11 @@ The Units of this Area, in reading order. Units not yet written are listed unlin
 
 == Reading order
 
-The `@scope` model (Unit 3) establishes how a scope is opened, addressed and bounded, and how a nested Remote Component opens a scope of its own. The polyfill (Unit 8) then explains what happens on a browser that cannot interpret that model natively. The load-on-demand lifecycle (Unit 2) and the PrimeNG variable scoping (Unit 9) build on the same scope ids and attributes and are the natural next steps.
+Start with Units 1 and 2 so the scope model and stylesheet categories are established, then read Unit 3 for the `@scope` model and Unit 8 for the polyfill that rewrites it on browsers without native support. The Shell's own stylesheets, component styles, dynamic content attribution, and PrimeNG variable scoping build on the same scope ids and attributes and are the natural next steps.
 
 == Related Areas
 
-* *Bootstrap* — how an App or Remote Component is loaded in the first place; the scope opened here is the scope of that application.
-* *Remote Components & Slots* — the Slot that hosts a Remote Component is what gives the component its own `data-style-id` / `data-style-isolation` and its own scoped stylesheet.
+* *Bootstrap* — how an App or Remote Component is loaded in the first place; stylesheet loading (Unit 2) is triggered by that bootstrap.
+* *Remote Components & Slots* — the Slot that hosts Remote Components is the caller of the RC style lifecycle (Unit 2).
 * *Theming & Visual Assets* — the Theme's CSS variables and PrimeNG/PrimeReact tokens flow into the scoped stylesheets described here.
 * *Diagnostics* — how to observe stylesheets at runtime once you understand the model.
