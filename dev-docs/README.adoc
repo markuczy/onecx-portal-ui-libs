@@ -39,8 +39,8 @@ An Area ticket may change its Unit split after investigation, for example by spl
 ====
 
 [#integration-contract]
-[%collapsible]
 .1. Integration Contract & Topics — `integration-contract/`
+[%collapsible]
 ====
 How Apps and the Shell communicate through Topics. This Area covers the messaging mechanism only. The meaning of each concrete Topic is described in the Area that owns it.
 
@@ -55,8 +55,8 @@ How Apps and the Shell communicate through Topics. This Area covers the messagin
 ====
 
 [#bootstrap]
-[%collapsible]
 .2. Application Bootstrap — `bootstrap/`
+[%collapsible]
 ====
 From the Shell's `index.html` to a running App or Remote Component.
 
@@ -70,8 +70,8 @@ From the Shell's `index.html` to a running App or Remote Component.
 ====
 
 [#shell-context]
-[%collapsible]
 .3. Shell Context & Runtime Configuration — `shell-context/`
+[%collapsible]
 ====
 The data the Shell provides to Apps, and where that data comes from.
 
@@ -85,8 +85,8 @@ The data the Shell provides to Apps, and where that data comes from.
 ====
 
 [#styling]
-[%collapsible]
 .4. Styling & Style Isolation — `styling/`
+[%collapsible]
 ====
 Where CSS comes from and how the styles of different Apps are kept apart.
 
@@ -102,8 +102,8 @@ Where CSS comes from and how the styles of different Apps are kept apart.
 ====
 
 [#theming-assets]
-[%collapsible]
 .5. Theming & Visual Assets — `theming-assets/`
+[%collapsible]
 ====
 The values a Theme provides (colors, favicon, logo), how they reach the page, and how icons and images are delivered.
 
@@ -115,8 +115,8 @@ The values a Theme provides (colors, favicon, logo), how they reach the page, an
 ====
 
 [#remote-components]
-[%collapsible]
 .6. Remote Components & Slots — `remote-components/`
+[%collapsible]
 ====
 How the Workspace places Remote Components into Slots. Bootstrap, styles, permissions and translations of Remote Components are covered in Areas 2, 4, 9 and 10.
 
@@ -128,8 +128,8 @@ How the Workspace places Remote Components into Slots. Bootstrap, styles, permis
 . Slot size reporting — `slot-size-reporting.adoc`
 
 [#navigation]
-[%collapsible]
 .7. Navigation & Routing — `navigation/`
+[%collapsible]
 ====
 How a URL change reaches every router on the page, and how the Shell activates the Current App.
 
@@ -142,8 +142,8 @@ How a URL change reaches every router on the page, and how the Shell activates t
 ====
 
 [#authentication]
-[%collapsible]
 .8. Authentication — `authentication/`
+[%collapsible]
 ====
 Who owns authentication and how Apps get tokens. The user profile is covered in Area 10.
 
@@ -155,8 +155,8 @@ Who owns authentication and how Apps get tokens. The user profile is covered in 
 ====
 
 [#permissions]
-[%collapsible]
 .9. Permissions — `permissions/`
+[%collapsible]
 ====
 How permissions reach Apps and Remote Components and how they are checked.
 
@@ -167,8 +167,8 @@ How permissions reach Apps and Remote Components and how they are checked.
 ====
 
 [#localization]
-[%collapsible]
 .10. Localization — `localization/`
+[%collapsible]
 ====
 User profile, language choice, translations and formatting.
 
@@ -182,8 +182,8 @@ User profile, language choice, translations and formatting.
 ====
 
 [#errors-feedback]
-[%collapsible]
 .11. Errors, Loading & User Feedback — `errors-feedback/`
+[%collapsible]
 ====
 The kinds of failure, where each one ends up, and how the user is informed.
 
@@ -195,8 +195,8 @@ The kinds of failure, where each one ends up, and how the user is informed.
 ====
 
 [#state-management]
-[%collapsible]
 .12. State Management — `state-management/`
+[%collapsible]
 ====
 How the Shell context and the URL connect to an App's ngrx store. Covers ngrx only.
 
@@ -206,8 +206,8 @@ How the Shell context and the URL connect to an App's ngrx store. Covers ngrx on
 ====
 
 [#diagnostics]
-[%collapsible]
 .13. Diagnostics — `diagnostics/`
+[%collapsible]
 ====
 Tools for looking inside a running OneCX page. This Area links to the owning Areas instead of repeating their content.
 
