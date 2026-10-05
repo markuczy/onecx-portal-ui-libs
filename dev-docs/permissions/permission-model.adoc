@@ -28,15 +28,6 @@ The two Topics are defined in the framework-agnostic `@onecx/integration-interfa
 
 === The push Topic: `PermissionsTopic`
 
-[source,typescript]
-----
-export class PermissionsTopic extends Topic<string[]> {
-  constructor() {
-    super('permissions', 1)
-  }
-}
-----
-
 `link:{libs}/integration-interface/src/lib/topics/permissions/v1/permissions.topic.ts[permissions.topic.ts]`
 
 * Name `permissions`, version `1`, `sendGetMessage` left at its default (`true`).
@@ -45,30 +36,12 @@ export class PermissionsTopic extends Topic<string[]> {
 
 === The RPC Topic: `PermissionsRpcTopic`
 
-[source,typescript]
-----
-export class PermissionsRpcTopic extends Topic<PermissionsRpc> {
-  constructor() {
-    super('permissionsRpc', 1, false)
-  }
-}
-----
-
 `link:{libs}/integration-interface/src/lib/topics/permissions-rpc/v1/permissions-rpc.topic.ts[permissions-rpc.topic.ts]`
 
 * Name `permissionsRpc`, version `1`, and `sendGetMessage` set to `false`.
-* The value type is the `PermissionsRpc` interface:
+* The value type is the `PermissionsRpc` interface defined in `link:{libs}/integration-interface/src/lib/topics/permissions-rpc/v1/permissions-rpc.model.ts[permissions-rpc.model.ts]`.
 
-[source,typescript]
-----
-export interface PermissionsRpc {
-  appId: string
-  productName: string
-  permissions?: Array<string>
-}
-----
-
-`link:{libs}/integration-interface/src/lib/topics/permissions-rpc/v1/permissions-rpc.model.ts[permissions-rpc.model.ts]`
+It carries the requested `appId` and `productName`, with an optional list of permission keys.
 
 * The optional `permissions` field is the difference between a *request* and a *response*: a request has `permissions === undefined`; a response has it set to `string[]`.
 * It is used to check permissions for an application that is *not* the one currently in the foreground — the case that arises for Remote Components, which are rendered by one App but act on features owned by another.
@@ -135,14 +108,7 @@ A standalone (no-Shell) Angular app has no Shell to answer anything, so `link:{l
 
 == Debugging
 
-Enable Topic logging to watch the `permissions` and `permissionsRpc` traffic:
-
-[source,js]
-----
-// Watch both permission topics
-localStorage.debug = '@onecx/accelerator:Topic:*'
-location.reload()
-----
+To watch `permissions` and `permissionsRpc` traffic, set `localStorage.debug` to `@onecx/accelerator:Topic:*` and reload the page.
 
 `TopicGet` / `TopicNext` messages on the `permissions` topic show the push flow; the `{ appId, productName }` request and the filled-in answer on `permissionsRpc` show the request/response flow. General tooling (log namespaces, `window` state) is covered in link:../diagnostics/logging.adoc[Area 13 — Diagnostics].
 

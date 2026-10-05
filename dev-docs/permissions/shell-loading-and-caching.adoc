@@ -23,14 +23,7 @@ The Shell reads permissions from its own Backend-for-Frontend (BFF). The generat
 
 === The cache and its key
 
-`link:{shell}/src/app/shell/services/permissions-cache.service.ts[`PermissionsCacheService`]` is a `providedIn: 'root'` singleton that holds
-
-[source,typescript]
-----
-permissions: Record<string, Observable<string[]>> = {}
-----
-
-and exposes `getPermissions(appId, productName, cacheMissFkt)`. The behaviour is:
+`link:{shell}/src/app/shell/services/permissions-cache.service.ts[`PermissionsCacheService`]` is a `providedIn: 'root'` singleton that holds a `permissions` map keyed by strings, with observable permission lists as its values, and exposes `getPermissions(appId, productName, cacheMissFkt)`. The behaviour is:
 
 * The cache key is `appId + '|' + productName` — a string concatenation, not an object or a Topic name.
 * On a *cache hit* it returns the stored `Observable<string[]>` as-is.
@@ -43,48 +36,11 @@ and exposes `getPermissions(appId, productName, cacheMissFkt)`. The behaviour is
 
 === The push path (route activation)
 
-`link:{shell}/src/app/shell/services/routes.service.ts[`RoutesService`]` converts each backend route into an Angular route whose `canActivateChild` guard runs `updateAppEnvironment` → `updateAppState`. On a route whose `remoteBaseUrl` differs from the one currently loaded (or on the first load), `updateAppState` runs `Promise.all([updateMfeInfo, updatePermissions])`, and `updatePermissions` does:
-
-[source,typescript]
-----
-const permissions = await firstValueFrom(
-  this.permissionsCacheService.getPermissions(r.appId, r.productName, (appId, productName) =>
-    this.permissionsService.getPermissions({ appId, productName }).pipe(map(({ permissions }) => permissions))
-  )
-)
-await this.permissionsTopic$.publish(permissions)
-----
-
-It resolves the list from the cache and publishes it onto its own `PermissionsTopic` (the push Topic, `string[]`). This is the mechanism that keeps every App's "current MFE permissions" in step with the active route.
+`link:{shell}/src/app/shell/services/routes.service.ts[`RoutesService`]` converts each backend route into an Angular route whose `canActivateChild` guard runs `updateAppEnvironment` → `updateAppState`. On a route whose `remoteBaseUrl` differs from the one currently loaded (or on the first load), `updateAppState` runs `Promise.all([updateMfeInfo, updatePermissions])`; `updatePermissions` resolves the list from the cache and publishes it on its own `PermissionsTopic` (the push Topic, `string[]`). This keeps every App's "current MFE permissions" in step with the active route.
 
 === The RPC path (Remote Components)
 
-`link:{shell}/src/app/shell/services/permission-proxy.service.ts[`PermissionProxyService`]` is the answerer on `PermissionsRpcTopic`, started by the `permissionProxyInitializer` in `link:{shell}/src/app/app.module.ts[`app.module.ts`]`. Its `init()` subscribes to its own `PermissionsRpcTopic` and, for every message whose `permissions` is `undefined` (i.e. a request), loads the list through the same cache and publishes the filled-in answer back:
-
-[source,typescript]
-----
-this.permissionsTopic$
-  .pipe(
-    filter((message) => message.permissions === undefined),
-    mergeMap((message) =>
-      this.permissionsCacheService
-        .getPermissions(message.appId, message.productName, (appId, productName) =>
-          this.permissionsService.getPermissions({ appId, productName }).pipe(
-            retry({ delay: 500, count: 3 }),
-            catchError(() => {
-              console.error('Unable to load permissions for ', appId, productName)
-              return of({ permissions: [] })
-            }),
-            map(({ permissions }) => permissions)
-          )
-        )
-        .pipe(map((permissions) => ({ message, permissions })))
-    )
-  )
-  .subscribe(({ message, permissions }) => {
-    this.permissionsTopic$.publish({ appId: message.appId, productName: message.productName, permissions })
-  })
-----
+`link:{shell}/src/app/shell/services/permission-proxy.service.ts[`PermissionProxyService`]` is the answerer on `PermissionsRpcTopic`, started by the `permissionProxyInitializer` in `link:{shell}/src/app/app.module.ts[`app.module.ts`]`. Its `init()` subscribes to its own `PermissionsRpcTopic` and, for every message whose `permissions` is `undefined` (i.e. a request), loads the list through the same cache and publishes the filled-in answer back to the RPC Topic.
 
 The deny-all fallback lives here. `retry({ delay: 500, count: 3 })` re-attempts the BFF call three times, half a second apart. If every attempt fails, `catchError` returns `of({ permissions: [] })` — an empty list. An empty list means "the user has no permissions", which is the safe default: rather than hang a Remote Component on a request that can never be answered, the Shell answers with *deny everything*. The answer is published on the RPC Topic and the requesting component's `firstValueFrom` (filtered to the matching `appId`/`productName`) resolves.
 
