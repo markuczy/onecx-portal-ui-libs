@@ -124,8 +124,8 @@ How the Workspace places Remote Components into Slots. Bootstrap, styles, permis
 . Slot rendering (two flavours) — `slot-rendering.adoc`
 . Remote Component config & host communication — `host-communication.adoc`
 . Shell Slots catalogue (Slot Groups, legacy name mapping) — `shell-slots-catalogue.adoc`
-====
 . Slot size reporting — `slot-size-reporting.adoc`
+====
 
 [#navigation]
 .7. Navigation & Routing — `navigation/`
