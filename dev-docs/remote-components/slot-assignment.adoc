@@ -33,6 +33,23 @@ Second, a slot on the page resolves its assigned components. The slot service (t
 . resolves the component's permissions through the link:{libs}/angular-remote-components/src/lib/services/permission.service.ts[`PermissionService`];
 . emits one `SlotComponentConfiguration` per component, holding the loaded `componentType`, the `RemoteComponent` info, and the `permissions`.
 
+[source,mermaid]
+----
+sequenceDiagram
+  participant BFF
+  participant Shell
+  participant Topic as RemoteComponentsTopic
+  participant Slot as Slot element / SlotService
+
+  Shell->>BFF: loadWorkspaceConfig
+  BFF-->>Shell: { components, slots }
+  Shell->>Topic: publish { components, slots }
+  Topic-->>Slot: emit RemoteComponentsInfo
+  Slot->>Slot: resolve slot name -> component names -> RemoteComponents
+  Slot->>Slot: load each via Module Federation + fetch permissions
+  Slot-->>Slot: emit SlotComponentConfiguration[]
+----
+
 The slot element then renders one child per resolved component, in the order the `components` array lists them (see link:slot-rendering.adoc[Slot rendering]).
 
 == Libs side / Shell side
