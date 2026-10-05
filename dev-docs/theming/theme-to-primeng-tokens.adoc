@@ -45,24 +45,6 @@ The entry point an application adds is link:{app_config}[`provideThemeConfig`]. 
 
 link:{theme_config_service}[`ThemeConfigService`] is the actor. On construction it subscribes to `ThemeService.currentTheme$` and, for every theme emitted, calls `applyThemeVariables(theme)`:
 
-[source,typescript]
-----
-async applyThemeVariables(oldTheme: OneCXTheme) {
-  const oldThemeVariables = oldTheme.properties
-  const overridesFolded = this.isAdvancedTheming
-    ? this.foldOverrides(this.parsePrimeNGOverridesValue(oldTheme.overrides)) : {}
-
-  const themeConfig = new ThemeConfig(oldThemeVariables)
-  const preset = await (await import('../preset/custom-preset')).CustomPreset
-  this.primeNG.setThemeConfig({
-    theme: {
-      preset: mergeDeep(preset, mergeDeep(themeConfig.getConfig(), overridesFolded)),
-      options: { darkModeSelector: false },
-    },
-  })
-}
-----
-
 The steps in that method:
 
 * **Read the theme variables.** `theme.properties` is the flat map from link:{theme_to_page}[Theme → page].
@@ -86,29 +68,6 @@ React has no programmatic preset. Instead the theme is carried as CSS variables,
 
 `StyleRegistry` does three things:
 
-[source,typescript]
-----
-const { PRODUCT_NAME } = useAppGlobals()
-const themeStyleId = `${PRODUCT_NAME}|${PRODUCT_NAME}`
-const styleContainer = useMemo(
-  () => getOrCreateScopedStyleContainer(themeStyleId), [themeStyleId])
-
-useEffect(() => {
-  const topic = new CurrentThemeTopic()
-  const themeSubscription = topic.subscribe((theme) => {
-    applyThemeVariables(theme, themeStyleId)
-  })
-  return () => { themeSubscription.unsubscribe(); topic.destroy() }
-}, [themeStyleId])
-
-return (
-  <PrimeReactProvider
-    value={{ unstyled: false, appendTo: 'self', styleContainer }}>
-    {children}
-  </PrimeReactProvider>
-)
-----
-
 * **A per-app scoped style container.** link:{scoped_style_container}[`scopedStyleContainer.ts`] returns a `Proxy` over `document.head` that rewrites PrimeReact's style ids to this product's id. This keeps PrimeReact's CSS scoped to the app even when PrimeReact is a shared Module-Federation singleton loaded by another app.
 * **Runtime theme application.** For every theme emitted on `CurrentThemeTopic`, link:{apply_theme_variables}[`applyThemeVariables`](theme, themeStyleId) runs.
 * **Provider config.** `PrimeReactProvider` is configured with `unstyled: false` and the scoped `styleContainer`.
@@ -118,12 +77,7 @@ return (
 
 link:{apply_theme_variables}[`applyThemeVariables`] turns the theme `properties` into CSS custom properties:
 
-[source,typescript]
-----
-// flatten { general: { 'primary-color': '#274b5f' } } ->
-// { '--app-primary-color': '#274b5f' }
-// keys are kebab-cased; a leading 'app-' is stripped before re-prefixing '--app-'
-----
+It flattens a theme entry such as `general.primary-color` to a scoped variable such as `--app-primary-color`; a leading `app-` is stripped before the `--app-` prefix is added.
 
 It then applies them in two ways:
 

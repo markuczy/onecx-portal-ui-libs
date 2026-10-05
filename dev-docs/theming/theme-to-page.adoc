@@ -31,24 +31,7 @@ The theme travels from the backend to the page in two parallel legs that both st
 
 link:{theme_model}[`theme.model.ts`] (in `@onecx/integration-interface`) defines the framework-agnostic structure:
 
-[source,typescript]
-----
-interface Theme {
-  id?: string
-  assetsUpdateDate?: string
-  assetsUrl?: string
-  logoUrl?: string       // Workspace logo image
-  faviconUrl?: string    // Workspace favicon
-  cssFile?: string
-  description?: string
-  name?: string
-  previewImageUrl?: string
-  properties?: { [key: string]: { [key: string]: string } }  // theme variables
-  overrides?: Array<ThemeOverride>
-}
-----
-
-`properties` is the set of theme variables. It is a flat, two-level map: a *section* (`font`, `topbar`, `sidebar`, `general`) and, inside it, *kebab-case variable names* mapping to string values (for example `general` → `primary-color` → `#274b5f`). Everything a reader of this page needs is carried by that one object.
+The `Theme` carries optional metadata and asset URLs, a `properties` map, and optional overrides. `properties` is the set of theme variables: a flat, two-level map with a *section* (`font`, `topbar`, `sidebar`, `general`) and, inside it, *kebab-case variable names* mapping to string values (for example `general` → `primary-color` → `#274b5f`). The linked model defines the complete structure.
 
 [#the-channel]
 === The channel: `CurrentThemeTopic`
