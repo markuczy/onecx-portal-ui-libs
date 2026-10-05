@@ -29,26 +29,9 @@ Second, a slot on the page resolves its assigned components. The slot service (t
 
 . finds the `Slot` whose `name` matches, and reads the list of component names it holds;
 . resolves each name to the corresponding `RemoteComponent` from the `components` array;
-. loads the component's code through Module Federation (Angular only — see link:slot-rendering.adoc[Slot rendering]);
+. loads the component's remote module through Module Federation; Angular's `SlotService` does this for every component, but returns a `componentType` only for `Angular` technology (see link:slot-rendering.adoc[Slot rendering]);
 . resolves the component's permissions through the link:{libs}/angular-remote-components/src/lib/services/permission.service.ts[`PermissionService`];
 . emits one `SlotComponentConfiguration` per component, holding the loaded `componentType`, the `RemoteComponent` info, and the `permissions`.
-
-[source,mermaid]
-----
-sequenceDiagram
-  participant BFF
-  participant Shell
-  participant Topic as RemoteComponentsTopic
-  participant Slot as Slot element / SlotService
-
-  Shell->>BFF: loadWorkspaceConfig
-  BFF-->>Shell: { components, slots }
-  Shell->>Topic: publish { components, slots }
-  Topic-->>Slot: emit RemoteComponentsInfo
-  Slot->>Slot: resolve slot name -> component names -> RemoteComponents
-  Slot->>Slot: load each via Module Federation + fetch permissions
-  Slot-->>Slot: emit SlotComponentConfiguration[]
-----
 
 The slot element then renders one child per resolved component, in the order the `components` array lists them (see link:slot-rendering.adoc[Slot rendering]).
 
@@ -57,7 +40,7 @@ The slot element then renders one child per resolved component, in the order the
 === Libs side
 
 * link:{libs}/integration-interface/src/lib/topics/remote-components/v1/remote-components.topic.ts[`RemoteComponentsTopic`] — the topic that carries the assignment to every MFE.
-* link:{libs}/angular-remote-components/src/lib/services/slot.service.ts[`SlotService`] — `getComponentsForSlot(slotName)` and `isSomeComponentDefinedForSlot(slotName)`. It resolves names to `RemoteComponent`s, loads each via Module Federation (for `Angular` technology; web components get no `componentType`) and fetches permissions. It exposes the `SLOT_SERVICE` injection token.
+* link:{libs}/angular-remote-components/src/lib/services/slot.service.ts[`SlotService`] — `getComponentsForSlot(slotName)` and `isSomeComponentDefinedForSlot(slotName)`. It resolves names to `RemoteComponent`s, loads every remote module via Module Federation, returns a `componentType` only for `Angular` technology (web-component modules get no `componentType`), and fetches permissions. It exposes the `SLOT_SERVICE` injection token.
 * link:{libs}/react-remote-components/src/lib/contexts/slotContext.tsx[`SlotProvider`] / link:{libs}/react-remote-components/src/lib/hooks/useSlot.ts[`useSlot`] — the React equivalent. `getComponentsForSlot` resolves names and loads each via `shellMfInstance.loadRemote`; for `Angular` technology it throws, because a React host cannot render an Angular component.
 * link:{libs}/angular-remote-components/src/lib/services/permission.service.ts[`PermissionService`] — resolves the per-component `permissions` a slot passes to the component it renders.
 
@@ -71,7 +54,7 @@ The slot element then renders one child per resolved component, in the order the
 
 The assignment itself is identical: both read the same `RemoteComponentsTopic` and resolve the same slot-to-component mapping. They differ in how the result is exposed and what they can load.
 
-* Angular exposes the slot service through the link:{libs}/angular-remote-components/src/lib/services/slot.service.ts[`SLOT_SERVICE`] token and the link:{libs}/angular-remote-components/src/lib/components/slot/slot.component.ts[`SlotComponent`] (`<ocx-slot>`). It can render both Angular components and web components, so it loads only `Angular` components via Module Federation and leaves `WebComponent*` ones with no `componentType` (the slot then builds the web component element directly).
+* Angular exposes the slot service through the link:{libs}/angular-remote-components/src/lib/services/slot.service.ts[`SLOT_SERVICE`] token and the link:{libs}/angular-remote-components/src/lib/components/slot/slot.component.ts[`SlotComponent`] (`<ocx-slot>`). It can render both Angular components and web components: it loads every remote module via Module Federation, returns a `componentType` only for `Angular` technology, and leaves `WebComponent*` ones with no `componentType` (the slot then builds the web component element directly).
 * React exposes the same operations through `SlotProvider` / `useSlot`. It can only render web components, so loading an `Angular` component is a hard error.
 
 == Edge cases & pitfalls
@@ -86,6 +69,10 @@ The assignment itself is identical: both read the same `RemoteComponentsTopic` a
 
 * Inspect the published assignment directly from the console by reading the `RemoteComponentsTopic` value, or watch the Shell log it during `workspaceConfigInitializer`.
 * To see whether a given slot resolves any component, use `isSomeComponentDefinedForSlot` and log its value.
+
+== Known issues
+
+No known issues are identified beyond the documented edge cases.
 
 == Related Units
 
