@@ -69,7 +69,7 @@ The Shell is the producer and it *republishes* the context per navigation, not o
 == Edge cases & pitfalls
 
 * *`basePath` is a placeholder until `currentMfe$` arrives.* `PortalApiConfiguration` initialises `basePath$` with `./<apiPrefix>` and only replaces it on the first `currentMfe$` value (Unit 1 readiness). Code that reads `basePath` before that value — e.g. constructing a request during a very early lifecycle hook — gets the relative placeholder rather than a real host. Gate on `currentMfe$.isInitialized` if you need the resolved value synchronously.
-* *The context resets on an unknown URL.* Navigating to a route the Workspace does not define lands on the not-found page, which publishes a blank `MfeInfo`. Any per-`appId` lookup (`parameters`, `PortalApiConfiguration`) then resolves against empty `appId`/`remoteBaseUrl`; treat that state as "no current App".
+* *The context resets on an unknown URL.* Navigating to a route the Workspace does not define lands on the not-found page, which publishes a blank `MfeInfo`. An instance whose first value is blank resolves its base path from the empty `remoteBaseUrl` and keeps that empty-base resolution; a later blank publish does not rewrite an instance that already consumed an App value. Any per-`appId` lookup (`parameters`, new `PortalApiConfiguration` instances) then resolves against empty `appId`/`remoteBaseUrl`; treat that state as "no current App" for new consumers.
 * *`remoteBaseUrl` is the raw route `url`, not `baseHref`.* `updateMfeInfo` sets `remoteBaseUrl` to the BFF route's `url` while `baseHref`/`mountPath` are the joined `baseUrl`. They normally agree, but the API base URL specifically follows `remoteBaseUrl`.
 * *`basePath` cannot be set.* The `basePath` setter throws `Error('Do not set basePath')`; a generated client must rely on the resolved value, not override it.
 
@@ -81,7 +81,7 @@ The Shell is the producer and it *republishes* the context per navigation, not o
 
 == Known issues
 
-* *Reading `basePath` before the first `currentMfe$` returns the placeholder.* `PortalApiConfiguration.basePath` is `./<apiPrefix>` until the first `currentMfe$` value maps into `basePath$` (link:{libs}/angular-utils/src/lib/utils/portal-api-configuration.utils.ts[`portal-api-configuration.utils.ts`]). The setter exists but throws, so the value can only ever be the resolved one — the placeholder window is the only source of a wrong value. Also recorded in Unit 2.
+* *Reading `basePath` before the first `currentMfe$` returns the placeholder.* `PortalApiConfiguration.basePath` is `./<apiPrefix>` until the first `currentMfe$` value maps into `basePath$` (link:{libs}/angular-utils/src/lib/utils/portal-api-configuration.utils.ts[`portal-api-configuration.utils.ts`]). The setter exists but throws, so the value can only ever be the resolved one — the placeholder window is one source of a wrong value, and a later blank first publish can resolve an instance to the empty-base path instead of a product host. Also recorded in Unit 2.
 * *Misspelled `encocdeParam` accessor.* The same file defines a setter named `encocdeParam` (misspelling of `encodeParam`), so `configuration.encodeParam` cannot be reassigned through the intended accessor. Also recorded in Unit 2.
 
 == Related Units
