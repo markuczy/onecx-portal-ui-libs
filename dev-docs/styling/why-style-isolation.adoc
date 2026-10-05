@@ -102,7 +102,7 @@ The scope *model* is identical in both frameworks: the same `data-style-id` / `d
 * *Empty scope id.* `getScopeIdentifier` returns `''` when scoping is skipped (the Shell). Helpers such as `replacePrimengPrefix` treat an empty id as "do nothing", so Shell content is not prefixed or scoped by the per-app rules.
 * *`data-no-portal-layout-styles` without `data-style-id`.* The no-portal-layout marker only makes sense paired with `data-style-id`; the legacy portal-layout sheets target `[data-style-id]:not([data-no-portal-layout-styles])`, so a scope without a `data-style-id` is not addressed by them.
 * *Variables leaking via the wrong wrapping.* A variable that is not wrapped in the `@scope` block (or set on `:scope`) becomes global. Wrapping matters, not just the attribute.
-* *Browser without {scope_at_rule}.** All of the above only holds if the polyfill has run. In performance mode the Shell may allow a small amount of leakage to stay fast; in precision mode it rewrites every affected rule (Unit 8).
+* *Browser without {scope_at_rule}.* All of the above only holds if the polyfill has run. In performance mode the Shell may allow a small amount of leakage to stay fast; in precision mode it rewrites every affected rule (Unit 8).
 
 == Debugging
 
