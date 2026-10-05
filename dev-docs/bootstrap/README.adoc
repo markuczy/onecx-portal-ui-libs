@@ -1,0 +1,69 @@
+= Application Bootstrap
+:idprefix:
+:idseparator: -
+
+This Area covers the path from the Shell's `index.html` to a running App or Remote Component. It is the "cold start" of every OneCX page: how the Shell boots, how it discovers which App belongs at the current URL, how that App is loaded as a federated remote, and how the App's own router and framework runtime come up inside the shared page.
+
+== Problem
+
+A OneCX page is a micro-frontend host. The Shell owns the `window`, the `history` object and the top-level router, while each App is a separately-built bundle (Angular module or React/Vite build) that has to start up *inside* that host and stay synchronised with the same URL. Several things have to line up for the first pixel of an App to appear:
+
+* the Shell must load, before anything else, the framework runtimes that the first App will need (the *pre-loaders*);
+* the Shell must fetch the workspace config to learn which routes — and therefore which App — exist;
+* the Shell must register and load the matched App as a Module Federation remote; and
+* the App must boot its own framework and router *without* duplicating the shared runtime and *without* fighting the Shell for control of the URL.
+
+Nothing of this is visible to the end user, but every startup delay or "blank page" is rooted here. This Area explains the mechanism end-to-end.
+
+== Big picture
+
+The libraries provide the building blocks; the Shell orchestrates them. The split looks like this:
+
+[source]
+----
+  libs (onecx-portal-ui-libs)                     Shell (onecx-shell-ui)
+  ------------------------------------------------
+  @onecx/angular-webcomponents  ----->  bootstrapModule / WebcomponentConnector
+  @onecx/react-webcomponents    ----->  createViteAppWebComponent / SyncedRouterProvider
+  @onecx/angular-utils          ----->  toLoadRemoteEntryOptions (MF consumer)
+  @onecx/build-utils            ----->  shared-dependency policy for every bundle
+  @onecx/accelerator            ----->  getLocation() (shared base-path helper)
+----
+
+At startup the Shell is both a consumer and a provider of Module Federation: it loads every App/Remote Component as a remote, and it exposes its own toast Remote Component. The sequence, in short:
+
+[source]
+----
+index.html
+  -> main.ts (MF entrypoint): load pre-loaders, then import bootstrap
+  -> bootstrap.ts: setCapabilities + bootstrapModule(AppModule, 'shell')
+  -> app initializers: workspace config -> routes -> seed shared URL
+  -> router.activate(matched route) -> loadRemote(App)
+  -> App mounted in <router-outlet> (Angular NgModule) or as a custom element (web component)
+----
+
+Each step is explained once, in its owning Unit below.
+
+== Unit map
+
+Read the Units in this order; each builds on the previous one.
+
+. link:startup-timeline.adoc[index.html → first App timeline] — the full cold-start sequence from the served page to the first rendered App.
+. link:module-federation.adoc[Module Federation in OneCX] — how Apps/Remote Components are exposed and consumed as federated remotes, and how shared dependencies are reconciled.
+. Shared dependency config & mismatch — the singleton/version/share-scope rules and what happens when they conflict.
+. Preloaders (build time and runtime) — the per-framework pre-loader remotes and when they run.
+. Loading the matched remote — the `loadChildren` / `registerRemotes` / `loadRemote` path and its error handling in depth.
+. App bootstrap as web component (Angular/React, legacy module Apps) — mounting the loaded remote as a custom element.
+. Multiple-router problem & router wiring — keeping several routers on one page in sync.
+
+The first two Units are written; the remaining five are planned and will be linked here once their pages exist.
+
+== Related Areas
+
+* link:../integration-contract/message-delivery.adoc[Integration Contract & Topics] (Area 1) — the `CurrentLocationTopic`, `EventsTopic` and other Topics that drive URL and navigation synchronisation during bootstrap.
+* link:../shell-context/context-readiness.adoc[Shell Context & Runtime Configuration] (Area 3) — the workspace config the bootstrap fetches and the `currentMfe$` / `currentWorkspace$` state it publishes.
+* link:../navigation/url-to-every-router.adoc[Navigation & Routing] (Area 7) — the steady-state URL→router synchronisation that bootstrap seeds.
+* link:../authentication/obtaining-tokens.adoc[Authentication] (Area 8) — `isAuthenticated$`, which the workspace initializer waits on.
+* link:../permissions/checking-in-apps.adoc[Permissions] (Area 9) — the `PermissionsTopic` published as an App loads.
+* link:../errors-feedback/app-load-failures-and-global-errors.adoc[Errors, Loading & User Feedback] (Area 11) — the `remote-loading-error-page` and global-loading states reached when a remote fails.
+* link:../diagnostics/window-state-inventory.adoc[Diagnostics] (Area 13) — the `window` state the bootstrap relies on and how to observe it.

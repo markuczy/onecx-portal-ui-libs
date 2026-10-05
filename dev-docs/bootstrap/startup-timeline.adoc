@@ -1,0 +1,145 @@
+= index.html → first App timeline
+:idprefix:
+:idseparator: -
+:libs: ../../libs
+:shell: https://github.com/onecx/onecx-shell-ui/blob/main
+
+== Question answered
+
+In what order do the Shell's `index.html`, Module Federation entrypoints, bootstrap initializers and router work together so that the first matched App is rendered on screen?
+
+== Why it exists
+
+OneCX pages are micro-frontend hosts: a single Shell owns the browser `window`, the `history` object and the top-level router, while each App is a separately-built remote (Angular module or React/Vite bundle) that must boot up *inside* that shared host and stay in lockstep with the same URL. There is no single entrypoint that could start everything at once, because the App that should run is only known after the workspace config has been fetched and the URL matched against the configured routes. This Unit describes the whole startup chain end-to-end so a reader can reason about *when* and *why* each piece runs.
+
+The chain has to be resilient: an App (or one of the framework pre-loaders) may fail to load, yet the rest of the portal should still come up. The ordering and the `isRouterSync` / capability flags exist so that the Shell and every loaded App agree on one source of truth for the URL without triggering navigation feedback loops.
+
+== How it works
+
+The startup is a pipeline of async handoffs. A single `index.html` is served; the Module Federation entrypoint loads the pre-loaders for every supported framework, then dynamically imports the real Shell bootstrap. The Shell bootstraps its Angular module, its app initializers fetch the workspace config, register the workspace routes and seed the router. The router then lazily loads the matched App as a federated remote, and the App is rendered into the Shell's `router-outlet`.
+
+[source,mermaid]
+----
+sequenceDiagram
+  participant Browser
+  participant Shell as Shell (Angular)
+  participant MF as @module-federation/runtime
+  participant BFF as Workspace BFF
+  participant App as First App (remote)
+
+  Browser->>Shell: serve index.html (<base>, <ocx-shell-root>, splash)
+  Note over Shell: MF entrypoint main.ts runs
+  Shell->>MF: expose shell as remote 'onecx-shell-ui'
+  par preload every supported framework
+    Shell->>MF: registerRemotes + loadRemote(preloader)
+  end
+  Shell->>Shell: import('./bootstrap') once pre-loaders settled
+  Shell->>Shell: setCapabilities(...) + bootstrapModule(AppModule, 'shell')
+  Note over Shell: provideAppInitializer(workspaceConfigInitializer)
+  Shell->>BFF: loadWorkspaceConfig(applicationPath)
+  BFF-->>Shell: theme, routes, components, slots
+  Shell->>Shell: routesService.init(routes) -> router.resetConfig(...)
+  Shell->>App: publish CurrentLocationTopic {url, isFirst:true}
+  Shell->>MF: router.activate -> loadChildren -> registerRemotes + loadRemote(remote)
+  App->>Shell: publish currentMfe$ + PermissionsTopic
+  Shell-->>Browser: render App inside <router-outlet>
+----
+
+The steps, in order:
+
+1. **Serve `index.html`.** The page declares `<base href="/">`, a `<ocx-shell-root>` host element (with style-isolation dataset attributes) and a static splash. There is no framework script tag for the Apps — they are loaded later as remotes. link:{shell}/src/index.html[`src/index.html`]
+2. **Module Federation entrypoint.** `main.ts` is the MF entrypoint. It registers the Shell itself as a remote named `onecx-shell-ui` (exposing `./OneCXShellToastComponent`), publishes the shell federation instance on `globalThis.onexcFederationInstance`, initializes `window.onexcPreloaders`, and — critically — awaits the pre-loaders *before* importing the real bootstrap. link:{shell}/src/main.ts[`main.ts`]
+3. **Load the pre-loaders.** For every supported framework (`angular-18`, `angular-19`, `angular-20`, `angular-21`, `react-19`) a small MF remote is registered and loaded. Each pre-loader just sets `window.onexcPreloaders[windowKey] = true` once its framework runtime has been primed into the shared scope. `main.ts` runs `Promise.all` over both `loadPreloaderModule` and `ensurePreloaderModuleLoaded` for all five, so the Shell waits until each is either loaded or has degraded gracefully. link:{shell}/src/app/shell/utils/preloader.utils.ts[`preloader.utils.ts`]
+4. **Import and run the bootstrap.** Only after the pre-loaders settle does `main.ts` `import('./bootstrap')`. `bootstrap.ts` advertises the Shell's capabilities (`PARAMETERS_TOPIC`, `CURRENT_LOCATION_TOPIC`, `ACTIVENESS_AWARE_MENUS`) via `ShellCapabilityService`, then calls `bootstrapModule(AppModule, 'shell', environment.production)`. link:{shell}/src/bootstrap.ts[`src/bootstrap.ts`]
+5. **Bootstrap the Shell's Angular module.** `bootstrapModule` (from `@onecx/angular-webcomponents`) replaces `APP_ID` with a `DynamicAppId`, adds a dynamic-container provider, reuses the cached Angular platform and, for a `'shell'` app, stores the Shell's `NgZone` on the shared window state so later-loaded Angular Apps can share it. The module's `ocx-shell-root` component fills the element already present in `index.html`. link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-bootstrap.utils.ts[`bootstrapModule` in webcomponent-bootstrap.utils.ts]
+6. **Run the app initializers.** `app.module.ts` registers `provideAppInitializer(workspaceConfigInitializer, ...)`. It first awaits `appStateService.isAuthenticated$`, then calls `loadWorkspaceConfig(applicationPath)` (retried, with an init-error fallback), and finally fans out with `Promise.all`: publish the current workspace, call `routesService.init(routes)` followed by `urlChangeListenerInitializer`, apply theme variables, and publish the remote components/slots. link:{shell}/src/app/app.module.ts[`app.module.ts`]
+7. **Register the workspace routes.** `routesService.init` converts each BFF route into a lazy Angular route whose `loadChildren` resolves the remote via Module Federation, sorts them, appends a workspace fallback route when needed and a global catch-all, then calls `router.resetConfig([...appRoutes, ...workspaceRoutes, DEFAULT_CATCH_ALL_ROUTE])`. link:{shell}/src/app/shell/services/routes.service.ts[`RoutesService#init` in routes.service.ts]
+8. **Seed the shared URL.** `urlChangeListenerInitializer` publishes the current URL to the `CurrentLocationTopic` with `isFirst: true`, then subscribes to the topic so that later location changes drive `router.navigateByUrl(url, { replaceUrl, state: { isRouterSync: true } })`. It also listens for a `revertNavigation` event to step history back. The Shell additionally wraps `history.pushState`/`replaceState` to publish the `CurrentLocationTopic` for every non-sync navigation. link:{shell}/src/app/app.module.ts[`urlChangeListenerInitializer` and the history overrides in app.module.ts]
+9. **Activate the matched route → load the App remote.** Activation of the matched route runs `loadChildren`, which builds the MF entry options (`toLoadRemoteEntryOptions`), calls `registerRemotes` + `loadRemote` and resolves the exposed module. Before that, the `canActivateChild` guard (`updateAppEnvironment`) publishes the `currentMfe$` state and the `PermissionsTopic`. link:{shell}/src/app/shell/services/routes.service.ts[`RoutesService#loadChildren` in routes.service.ts], link:{libs}/angular-utils/src/lib/utils/get-load-remote-entry-options.utils.ts[`toLoadRemoteEntryOptions` in get-load-remote-entry-options.utils.ts]
+10. **Render the first App.** The Shell's viewport hosts the `<router-outlet>`. Once the lazy route resolves, the App is mounted there — as an Angular NgModule for `Angular`-technology Apps, or as a custom element created by the web-component loader for React / other web-component Apps. link:{shell}/src/app/shell/components/portal-viewport/portal-viewport.component.ts[`PortalViewportComponent` (template renders the `router-outlet`)]
+
+The full loading mechanics of the remote (share scopes, singleton resolution, `remoteEntry.js`) are covered in link:module-federation.adoc[Module Federation in OneCX].
+
+== Libs side / Shell side
+
+=== Libs side
+
+The libraries provide the primitives that make an App bootable inside a foreign host:
+
+* `@onecx/angular-webcomponents` — `bootstrapModule` / `createAppEntrypoint` / `bootstrapRemoteComponent` set up the Angular platform, the `DynamicAppId` and the dynamic container; `WebcomponentConnector` connects an App's router and guards to the Shell (see link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-connector.utils.ts[`WebcomponentConnector`] and link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-router-initializer.utils.ts[`initializeRouter`]).
+* `@onecx/react-webcomponents` — `createViteAppWebComponent` wraps a React component as a web component, and `withSyncedRouter` / `SyncedRouterProvider` give it a router that stays in sync with the shared `CurrentLocationTopic` (see link:{libs}/react-webcomponents/src/lib/bootstrap/webcomponent-bootstrap-vite.ts[`createViteAppWebComponent`] and link:{libs}/react-webcomponents/src/lib/contexts/syncedLocationContext.tsx[`RouterSync`]).
+* `@onecx/accelerator` — `getLocation()` derives `deploymentPath` / `applicationPath` from the `<base>` tag, used by both the Shell and the Apps to strip the portal base from the URL. link:{libs}/accelerator/src/lib/utils/path.utils.ts[`getLocation`]
+* `@onecx/angular-utils` — `toLoadRemoteEntryOptions` turns a workspace route into the `registerRemotes`/`loadRemote` options the Shell needs. link:{libs}/angular-utils/src/lib/utils/get-load-remote-entry-options.utils.ts[`toLoadRemoteEntryOptions`]
+
+=== Shell side
+
+The Shell owns the entrypoint, the pre-loaders, the initializers, the router and the viewport:
+
+* link:{shell}/src/main.ts[`main.ts`] — MF entrypoint; loads pre-loaders, then the bootstrap.
+* link:{shell}/src/app/shell/utils/preloader.utils.ts[`preloader.utils.ts`] — defines the five pre-loaders and the load/ensure helpers.
+* link:{shell}/src/bootstrap.ts[`src/bootstrap.ts`] — sets capabilities and calls `bootstrapModule(AppModule, 'shell', ...)`.
+* link:{shell}/src/app/app.module.ts[`app.module.ts`] — `workspaceConfigInitializer`, `urlChangeListenerInitializer` and the `history` overrides that back the shared URL.
+* link:{shell}/src/app/shell/services/routes.service.ts[`routes.service.ts`] — `RoutesService#init` builds the routes and `loadChildren` loads the App remote.
+* link:{shell}/src/app/shell/web-component-loader/webcomponent-loader.component.ts[`WebcomponentLoaderComponent`] — for non-Angular Apps it creates the `<elementName>` custom element (with style-isolation / `mfe-element` dataset) inside the activated route.
+* link:{shell}/src/app/shell/components/portal-viewport/portal-viewport.component.ts[`PortalViewportComponent`] — hosts the `<router-outlet>` where the first App appears.
+
+== Angular / React
+
+The shared timeline above is framework-agnostic. The two implementations differ in how the App is mounted once `loadChildren` resolves:
+
+* **Angular Apps** (`technology === 'Angular'`) are exposed as an NgModule. `loadChildren` returns the NgModule itself, Angular activates it inside the *same shared platform and `NgZone`* the Shell cached, and the `WebcomponentConnector` (created during `createEntrypoint`, hooked into the root `ngOnInit`) drives `router.navigateByUrl` from the `CurrentLocationTopic` and wires the cross-App guard checks. link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-connector.utils.ts[`WebcomponentConnector#connect`]
+* **React Apps** are built with Vite and wrapped as a web component by `createViteAppWebComponent` (via `@r2wc/react-to-web-component`). The Shell mounts them through the web-component loader; the app is wrapped with `withSyncedRouter` so `SyncedRouterProvider` keeps its `BrowserRouter` in sync with the shared `CurrentLocationTopic` (publishing on internal navigation, and applying incoming topic updates without echoing them back via a `skipPublishUntil` guard). link:{libs}/react-webcomponents/src/lib/contexts/syncedLocationContext.tsx[`RouterSync`], link:{libs}/react-webcomponents/src/lib/wrapper/withSyncedRouter.tsx[`withSyncedRouter`]
+
+== Edge cases & pitfalls
+
+* **A pre-loader failing is not fatal.** `loadPreloaderModule` swallows the error, logs *"Application might not work as expected"* and still sets the window flag, so `ensurePreloaderModuleLoaded` resolves and the Shell keeps bootstrapping. If the failed framework happens to be the one the first App needs, the App load — not the Shell — is what fails later.
+* **`isRouterSync` prevents loops.** Both the Shell's `history` overrides and the App connectors tag navigations they caused with `isRouterSync: true` so the `CurrentLocationTopic` is *not* re-published for them. Forgetting this flag makes the Shell and App chase each other in an infinite navigation loop.
+* **`isFirst` on the very first publish.** `urlChangeListenerInitializer` publishes with `isFirst: true` so Apps know this is the initial sync (used to decide whether to run guard checks). Subsequent navigation changes are `isFirst: false`.
+* **Angular initialization can land on a guarded route.** During the initial router sync, if the first navigation is cancelled by a guard, the App publishes a `revertNavigation` event and the Shell steps `history.back()` rather than showing a blank page.
+* **React Router's initial `replaceState`.** The Shell's `replaceState` override detects React Router's initialisation call (`data.idx === 0` with `url === undefined`) and uses the *current* URL instead of the undefined one, so the shared location is not reset during React boot.
+* **Unknown URLs fall back.** If no workspace route matches, `routesService.init` adds a fallback route (the workspace home page, or a redirect to it), and a global `**` catch-all always exists so the router stays activatable.
+
+== Debugging
+
+* Watch the ordered `console` markers the Shell logs during startup: the pre-loader warnings, `🧭 Adding Workspace routes`, `➡ Load remote module …` / `… finished` and the theme line. They map 1:1 onto the steps above.
+* Inspect `globalThis.onexcFederationInstance` and `globalThis.__FEDERATION__.__INSTANCES__` to confirm the Shell's MF instance is registered before the Apps load.
+* `window.onexcPreloaders` shows which framework pre-loaders have reported ready (a key that is `true` despite a failed load means that framework degraded).
+* `window['@onecx/angular-webcomponents']` holds the shared Angular platform cache and the Shell's `NgZone` for Angular Apps.
+* General cross-App tracing and log-namespace tooling belong to link:../diagnostics/tracing-communication.adoc[Tracing cross-App communication] (Area 13).
+
+== Related Units
+
+* link:module-federation.adoc[Module Federation in OneCX] — how the App/remote is exposed and consumed, share scopes, singletons.
+* link:preloaders.adoc[Preloaders (build time and runtime)] — the pre-loader remotes in detail.
+* link:loading-matched-remote.adoc[Loading the matched remote] — the `loadChildren` / `loadRemote` path in depth.
+* link:../navigation/url-to-every-router.adoc[URL change → every router] (Area 7) — the steady-state URL synchronisation this Unit seeds.
+* link:../integration-contract/message-delivery.adoc[Topic message delivery] (Area 1) — the `CurrentLocationTopic` / `EventsTopic` mechanism.
+* link:../diagnostics/logging.adoc[Logging] (Area 13) — log namespaces and filtering.
+
+== Sources
+
+Code::
+* link:{shell}/src/index.html[`src/index.html` (Shell)]
+* link:{shell}/src/main.ts[`src/main.ts` (Shell)]
+* link:{shell}/src/bootstrap.ts[`src/bootstrap.ts` (Shell)]
+* link:{shell}/src/app/app.module.ts[`src/app/app.module.ts` — `workspaceConfigInitializer`, `urlChangeListenerInitializer`, history overrides (Shell)]
+* link:{shell}/src/app/app.routes.ts[`src/app/app.routes.ts` (Shell)]
+* link:{shell}/src/app/shell/utils/preloader.utils.ts[`src/app/shell/utils/preloader.utils.ts` (Shell)]
+* link:{shell}/src/app/shell/services/routes.service.ts[`src/app/shell/services/routes.service.ts` — `RoutesService#init`, `#loadChildren` (Shell)]
+* link:{shell}/src/app/shell/web-component-loader/webcomponent-loader.component.ts[`src/app/shell/web-component-loader/webcomponent-loader.component.ts` (Shell)]
+* link:{shell}/src/app/shell/web-component-loader/webcomponent-loader.module.ts[`src/app/shell/web-component-loader/webcomponent-loader.module.ts` (Shell)]
+* link:{shell}/src/app/shell/components/portal-viewport/portal-viewport.component.ts[`src/app/shell/components/portal-viewport/portal-viewport.component.ts` (Shell)]
+* link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-bootstrap.utils.ts[`bootstrapModule`, `createAppEntrypoint`, `cachePlatform`, `setShellZone`]
+* link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-connector.utils.ts[`WebcomponentConnector`]
+* link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-router-initializer.utils.ts[`initializeRouter`]
+* link:{libs}/angular-webcomponents/src/lib/utils/dynamic-app-id.utils.ts[`DynamicAppId`]
+* link:{libs}/angular-utils/src/lib/utils/get-load-remote-entry-options.utils.ts[`toLoadRemoteEntryOptions`, `createRemoteConfig`]
+* link:{libs}/react-webcomponents/src/lib/bootstrap/webcomponent-bootstrap-vite.ts[`createViteAppWebComponent`]
+* link:{libs}/react-webcomponents/src/lib/contexts/syncedLocationContext.tsx[`SyncedRouterProvider`, `RouterSync`]
+* link:{libs}/react-webcomponents/src/lib/wrapper/withSyncedRouter.tsx[`withSyncedRouter`]
+* link:{libs}/accelerator/src/lib/utils/path.utils.ts[`getLocation`]
+
+Verification Sources checked::
+* In-code JSDoc/READMEs for `@onecx/angular-webcomponents`, `@onecx/react-webcomponents`, `@onecx/accelerator` and `@onecx/angular-utils`.
+* Shell `main.ts`, `app.module.ts`, `routes.service.ts` and `preloader.utils.ts` on `main` (read directly; the code is the baseline).
+* No old Dev Docs page exists for this Area, so nothing was superseded here.

@@ -1,0 +1,118 @@
+= Module Federation in OneCX
+:idprefix:
+:idseparator: -
+:libs: ../../libs
+:shell: https://github.com/onecx/onecx-shell-ui/blob/main
+
+== Question answered
+
+How are OneCX Apps and Remote Components exposed as federated remotes, how does the Shell discover and load them, and how are shared dependencies (singletons, versions, share scopes) reconciled so several bundles built at different times coexist in one `window`?
+
+== Why it exists
+
+The Shell and every App are independent npm packages that are built separately and deployed at independent times, yet they must run in the same page and share exactly one copy of the framework runtimes (Angular, React, RxJS, `@onecx/*`, PrimeNG, …). Webpack Module Federation (via `@module-federation/enhanced`) is the mechanism that makes this possible: each bundle *exposes* entrypoints, *consumes* other bundles' exposed modules at runtime, and *shares* dependencies through named share scopes with version arbitration.
+
+The hard part is not loading one remote but loading *many*, built with different framework versions, into one global scope without ending up with two copies of React or two Angular platforms. The libs therefore centralise the shared-dependency policy (patterns, blacklists, singleton rules and share-scope naming) so the Shell and every App apply the same rules.
+
+== How it works
+
+Module Federation has two halves. A **provider** exposes named entrypoints (an App's bootstrap module, a Remote Component, the Shell's toast) and declares which dependencies it *shares*. A **consumer** registers those providers as *remotes* and asks the runtime to load a specific exposed module. The shared-dependency rules decide, per package, whether it is a singleton, which version range is required, and which **share scope** it lives in.
+
+[source]
+----
+        provider (App / Remote Component / Shell)
+        ------------------------------------------------
+        expose   ./MyAppModule, ./MyRemoteComponent, ...
+        shared   { '@angular/core': {singleton, requiredVersion, shareScope}, ... }
+                       |
+                       v        remoteEntry.js / mf-manifest.json
+        ------------------------------------------------
+        consumer (Shell)
+        registerRemotes([{name, entry, shareScope}])
+        loadRemote('appId|productId/MyAppModule')
+----
+
+The libs implement the shared-dependency policy in two functions:
+
+* `getOneCXSharedRecommendations` — given a package name and a draft `SharedLibraryConfig`, it applies the OneCX recommendation for *OneCX-managed* packages (the `@angular/*`, `@onecx/*`, `rxjs`, `primeng`, `@ngx-translate`, `@ngrx`, `react`, `primereact` families): `singleton: false`, `strictVersion: false`, `eager: false`. Packages outside those patterns return `false` and are *not* emitted as shared entries at all. link:{libs}/build-utils/src/lib/get-onecx-shared-recommendations.ts[`getOneCXSharedRecommendations`]
+* `getOneCXSharedLibraryConfig` — builds the full `shared` map from a `package.json` dependency list. For each dependency (and, when requested, each exported *sub-package* read from that dependency's `package.json` `exports` field) it emits `{ requiredVersion, shareScope }`, filters out build/tooling packages via the `onecxPackageFilter` blacklist, and then hands each entry to `getOneCXSharedRecommendations` plus an optional `configCallback` that individual bundles use to override the default (most commonly to turn `singleton` back on for framework packages). link:{libs}/build-utils/src/lib/get-onecx-shared-library-config.ts[`getOneCXSharedLibraryConfig`]
+
+**Share scopes are the framework-isolation mechanism.** `getOneCXSharedLibraryConfig` computes a share scope per dependency from the framework versions present: React ≥ 19 → `react_<major>` (e.g. `react_19`), Angular ≥ 21 → `angular_<major>` (e.g. `angular_21`), otherwise `default`. Remotes that run in the same framework generation consume from the same scope, so they reuse a single framework copy; remotes in a different generation stay isolated.
+
+At *runtime* the Shell drives loading with `@module-federation/enhanced/runtime`:
+
+* `registerRemotes([{ name, entry, type, shareScope }])` tells the runtime where the remote's `remoteEntry` is and which share scope it uses.
+* `loadRemote('<remoteName>/<exposedModule>')` fetches and executes the exposed module.
+
+The Shell turns a workspace route into these MF options with `toLoadRemoteEntryOptions`, which also decides the `type` (`'module'` for `Angular` / `WebComponentModule`, `'script'` otherwise) and the remote `name` (`productName|appId`, or the explicit `remoteName` for `WebComponentScript` remotes that expose through a global instead of the module format). The `Technologies` enum here mirrors the Shell's own classification of what kind of remote each route points at. link:{libs}/angular-utils/src/lib/utils/get-load-remote-entry-options.utils.ts[`toLoadRemoteEntryOptions`, `createRemoteConfig`, `Technologies`, `registerAndLoadRemote`]
+
+How the first App is actually loaded into the router is covered in link:startup-timeline.adoc[index.html → first App timeline].
+
+== Libs side / Shell side
+
+=== Libs side
+
+* `@onecx/build-utils` — the build-time shared-dependency policy: `getOneCXSharedLibraryConfig`, `getOneCXSharedRecommendations`, the `onecxPackageFilter` blacklist and the sub-package expansion. Both the Shell and Apps call these when generating their `module-federation` config. link:{libs}/build-utils/src/lib/get-onecx-shared-library-config.ts[`getOneCXSharedLibraryConfig`], link:{libs}/build-utils/src/lib/get-onecx-shared-recommendations.ts[`getOneCXSharedRecommendations`]
+* `@onecx/angular-utils` — the runtime consumer helpers `toLoadRemoteEntryOptions` / `createRemoteConfig` / `registerAndLoadRemote` and the `Technologies` enum. link:{libs}/angular-utils/src/lib/utils/get-load-remote-entry-options.utils.ts[`get-load-remote-entry-options.utils.ts`]
+* `@onecx/react-remote-components` and `@onecx/angular-utils` — `getShellMfInstance`, which locates the Shell's MF instance from the page's global state (`globalThis.onexcFederationInstance` or the `__FEDERATION__` instance registry) so an App or Remote Component can talk to the Shell's federation runtime. link:{libs}/react-remote-components/src/lib/utils/getShellMfInstance.ts[`getShellMfInstance (react-remote-components)`], link:{libs}/angular-utils/src/lib/utils/get-load-remote-entry-options.utils.ts[`getShellMfInstance (angular-utils)`]
+
+=== Shell side
+
+* link:{shell}/module-federation.config.ts[`module-federation.config.ts`] — the Shell's own federation config: it exposes `./OneCXShellToastComponent` (the toast Remote Component) and applies `getOneCXSharedRecommendations` to each shared entry at build time.
+* link:{shell}/src/main.ts[`src/main.ts`] — publishes the Shell's MF instance on `globalThis.onexcFederationInstance` (`__FEDERATION__.__INSTANCES__[0]`) so consumers can find it.
+* link:{shell}/src/app/shell/services/routes.service.ts[`src/app/shell/services/routes.service.ts`] — `RoutesService#loadChildren` is the consumer path: it builds the entry options, calls `registerRemotes` + `loadRemote` and resolves the exposed module.
+* link:{shell}/src/app/remotes/shell-toast/shell-toast.component.main.ts[`src/app/remotes/shell-toast/shell-toast.component.main.ts`] — the entry that the Shell exposes to other remotes as `./OneCXShellToastComponent`.
+* link:{shell}/pre_loaders/react-19/module-federation.config.ts[`pre_loaders/<framework>/module-federation.config.ts`] — each pre-loader is itself a tiny MF remote (named with the `zzz_` prefix so it wins version arbitration) that declares the shared framework deps for its framework generation and, via `getOneCXSharedLibraryConfig`, turns specific packages into singletons (e.g. `@angular/*` in `pre_loaders/angular-21`, `react`/`react-dom`/`react-router`/`primereact` in `pre_loaders/react-19`).
+
+== Angular / React
+
+The shared policy is identical for both frameworks — the differences are only which packages become singletons and which share scope a bundle lands in:
+
+* **Angular** — an App is exposed as an NgModule. Pre-loaders set `singleton: true` for the `@angular/*` packages (see `pre_loaders/angular-21/module-federation.config.ts`), and an Angular ≥ 21 App uses the `angular_21` share scope. `toLoadRemoteEntryOptions` reports `type: 'module'` for `Angular` / `WebComponentModule` remotes.
+* **React** — a Vite-built App is wrapped as a web component. Pre-loaders set `singleton: true` for the React runtime family (`react`, `react-dom`, `react-router`, `i18next`, `primereact`, `@r2wc/react-to-web-component`, `pre_loaders/react-19/module-federation.config.ts`) and a React ≥ 19 App uses the `react_19` share scope. The React Remote Component runtime finds the Shell instance with link:{libs}/react-remote-components/src/lib/utils/getShellMfInstance.ts[`getShellMfInstance`].
+
+`WebComponentScript` remotes are the exception to the module format: they expose through a global variable rather than the module-federation module API, so `toLoadRemoteEntryOptions` returns the explicit `remoteName` and `type: 'script'` for them.
+
+== Edge cases & pitfalls
+
+* **`strictVersion: false` is deliberate.** OneCX-managed packages are shared with `strictVersion: false` and `eager: false` so remotes built against slightly different declared versions still resolve to the single copy present in the page. This is what allows the Shell and Apps to deploy independently; the cost is that a true version conflict is *not* a build error but a runtime mismatch (see link:shared-dependencies.adoc[Shared dependency config & mismatch]).
+* **Non-OneCX packages are not shared by default.** Anything outside the `getOneCXSharedRecommendations` patterns returns `false`, so it is bundled privately into each remote instead of being shared. This keeps third-party code isolated but increases page weight and can hide duplicate-state bugs.
+* **`zzz_`-prefixed pre-loader names.** Pre-loaders are named `zzz_onecx-<framework>-loader` so that, when version arbitration runs, the pre-loader's copy of a shared package is preferred over any other same-version remote. This ordering assumption is load-bearing for singletons to line up.
+* **Two ways of finding the Shell instance.** `getShellMfInstance` is implemented twice (`react-remote-components` reads the `__FEDERATION__` instance registry, `angular-utils` reads `globalThis.onexcFederationInstance` with an `getInstance` fallback). They agree on the instance names `onecx-shell-ui` / `onecx_shell_ui`; a consumer must be on the matching side of that split.
+* **Singleton vs the default `singleton: false`.** The libs default OneCX-managed packages to `singleton: false`; the individual bundles opt specific framework packages *into* singleton via the `configCallback`. If a bundle forgets to do so, two instances of that package can coexist and state (e.g. an Angular injector or a React context) silently diverges.
+
+== Debugging
+
+* Inspect `globalThis.onexcFederationInstance` and `globalThis.__FEDERATION__.__INSTANCES__` to confirm the Shell instance is registered and to see every remote that has been registered.
+* `loadRemote` failures surface in the route's `canActivateChild`/`loadChildren` chain and are routed to the Shell's `remote-loading-error-page` — the same path described in link:startup-timeline.adoc[index.html → first App timeline].
+* To reason about a version mismatch, compare the `requiredVersion` and `shareScope` each bundle emitted from `getOneCXSharedLibraryConfig` against the one actually present in the page — see link:shared-dependencies.adoc[Shared dependency config & mismatch].
+* General runtime inspection (window state, tracing) belongs to link:../diagnostics/window-state-inventory.adoc[Global `window` state inventory] (Area 13).
+
+== Related Units
+
+* link:startup-timeline.adoc[index.html → first App timeline] — the consumer path that uses this mechanism to load the first App.
+* link:shared-dependencies.adoc[Shared dependency config & mismatch] — the singleton/version/share-scope rules and what happens when they conflict.
+* link:preloaders.adoc[Preloaders (build time and runtime)] — the pre-loader remotes and their singleton declarations in detail.
+* link:loading-matched-remote.adoc[Loading the matched remote] — `registerRemotes`/`loadRemote` and error handling in depth.
+* link:web-component-bootstrap.adoc[App bootstrap as web component] — how the loaded remote is mounted as a custom element.
+* link:../integration-contract/message-delivery.adoc[Topic message delivery] (Area 1) — the runtime channel once a remote is up.
+
+== Sources
+
+Code::
+* link:{libs}/build-utils/src/lib/get-onecx-shared-library-config.ts[`getOneCXSharedLibraryConfig`, `onecxPackageFilter`, `generateSubPackageConfig`, `SharedLibraryConfig`]
+* link:{libs}/build-utils/src/lib/get-onecx-shared-recommendations.ts[`getOneCXSharedRecommendations`, `sharedLibraryPatterns`]
+* link:{libs}/angular-utils/src/lib/utils/get-load-remote-entry-options.utils.ts[`toLoadRemoteEntryOptions`, `createRemoteConfig`, `registerAndLoadRemote`, `getShellMfInstance`, `Technologies`]
+* link:{libs}/react-remote-components/src/lib/utils/getShellMfInstance.ts[`getShellMfInstance`]
+* link:{shell}/module-federation.config.ts[`module-federation.config.ts` (Shell)]
+* link:{shell}/src/main.ts[`src/main.ts` — `globalThis.onexcFederationInstance` (Shell)]
+* link:{shell}/src/app/shell/services/routes.service.ts[`src/app/shell/services/routes.service.ts` — `RoutesService#loadChildren` (Shell)]
+* link:{shell}/src/app/remotes/shell-toast/shell-toast.component.main.ts[`src/app/remotes/shell-toast/shell-toast.component.main.ts` (Shell)]
+* link:{shell}/pre_loaders/angular-21/module-federation.config.ts[`pre_loaders/angular-21/module-federation.config.ts` (Shell)]
+* link:{shell}/pre_loaders/react-19/module-federation.config.ts[`pre_loaders/react-19/module-federation.config.ts` (Shell)]
+* link:{shell}/pre_loaders/angular-21/src/main.ts[`pre_loaders/angular-21/src/main.ts` (Shell)]
+
+Verification Sources checked::
+* In-code JSDoc/READMEs for `@onecx/build-utils` (the `getOneCXSharedLibraryConfig` usage examples) and `@onecx/angular-utils`.
+* Shell `module-federation.config.ts`, `routes.service.ts` and the `pre_loaders/*/module-federation.config.ts` files on `main` (read directly; the code is the baseline).
+* No old Dev Docs page exists for this Area, so nothing was superseded here.
