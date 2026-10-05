@@ -92,17 +92,18 @@ The nesting is produced entirely by the Angular Slot, link:{libs}/angular-remote
 * loads or reuses that component's application stylesheet for the current slot (`updateComponentStyles` → `updateStylesForRcCreation`).
 
 ```
-<div data-style-id="mfe-product|mfe-app" data-no-portal-layout-styles>   ← MFE opens its scope
+<div data-style-id="mfe-product|mfe-app" data-no-portal-layout-styles data-style-isolation>   ← MFE opens its scope and closes the parent scope at this boundary
   ... mfe content ...
   <ocx-slot name="left">
     <div data-style-id="rc-product|rc-app" data-style-isolation>        ← RC opens a nested scope
       ... rc content ...
     </div>                                                              ← RC scope closed by data-style-isolation
+    ... mfe content after the slot ...
   </ocx-slot>
-</div>                                                                  ← MFE scope closed by the next data-style-isolation
+</div>                                                                  ← MFE styling resumes after the RC subtree
 ```
 
-Because the RC's `data-style-id` opens a *new* boundary and its `data-style-isolation` closes it, the MFE's scoped rules stop at the RC element — the RC content is styled by the RC application's own `@scope` block, not the MFE's. This is precisely why the model uses attributes on the content rather than a single wrapper around an app: isolation is a per-element boundary, so it composes under nesting. `SlotComponent.ngOnDestroy` calls `removeAllRcUsagesFromStyles` so that a destroyed Slot releases its use of the (possibly still-nested) stylesheet and does not leave "ghost styles" behind.
+Because the RC's `data-style-id` opens a *new* boundary and its `data-style-isolation` closes it, the RC subtree is isolated from the MFE's scoped rules; the MFE scope resumes for any following siblings after the RC subtree. This is precisely why the model uses attributes on the content rather than a single wrapper around an app: isolation is a per-element boundary, so it composes under nesting. `SlotComponent.ngOnDestroy` calls `removeAllRcUsagesFromStyles` so that a destroyed Slot releases its use of the (possibly still-nested) stylesheet and does not leave "ghost styles" behind.
 
 [NOTE]
 ====
@@ -131,10 +132,10 @@ The model is identical in both frameworks; the difference is the producer.
 == Edge cases & pitfalls
 
 * *Empty scope id.* `getScopeIdentifier` returns `''` when scoping is skipped (the Shell). `replacePrimengPrefix` treats `''` as "do nothing", and `scopePrimengCss` switches to the `shell-ui` from selector — so Shell content is styled by the Shell's own scope, not a per-app one.
-* *`data-no-portal-layout-styles` without `data-style-id`.** The legacy portal-layout sheets target `[data-style-id]:not([data-no-portal-layout-styles])`, so a scope that never gets a `data-style-id` is not addressed by them and effectively has no `@scope` boundary at all.
+* *`data-no-portal-layout-styles` without `data-style-id`.* The legacy portal-layout sheets target `[data-style-id]:not([data-no-portal-layout-styles])`, so a scope that never gets a `data-style-id` is not addressed by them and effectively has no `@scope` boundary at all.
 * *`html` in a class name.* `replaceRootAndHtmlWithScope` is a plain string replace of `html`; a selector that literally contains the word `html` outside a selector position would be over-replaced. Application CSS should select the root element, not contain the token `html` elsewhere.
 * *A nested scope with the same id.* Two scopes with the same `data-style-id` (e.g. the same app mounted twice) both open a boundary for that id; the `to` boundary is the *nearest* `data-style-isolation`, so the inner one still closes before the outer content resumes. Distinct `data-style-isolation` placement is what keeps the nesting correct.
-* *Browser without {scope_at_rule}.** Everything above only holds if the native rule exists or the polyfill has rewritten the block. In performance mode the Shell may allow some cross-scope leakage to stay fast (link:{u8}[Unit 8]).
+* *Browser without {scope_at_rule}.* Everything above only holds if the native rule exists or the polyfill has rewritten the block. In performance mode the Shell may allow some cross-scope leakage to stay fast (link:{u8}[Unit 8]).
 
 == Debugging
 
