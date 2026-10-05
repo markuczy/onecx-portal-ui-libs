@@ -75,8 +75,8 @@ From the Shell's `index.html` to a running App or Remote Component.
 ====
 The data the Shell provides to Apps, and where that data comes from.
 
-. Context overview & readiness — `context-readiness.adoc`
-. Workspace config load & distribution — `workspace-config-loading.adoc`
+. link:./shell-context/context-readiness.adoc[Context overview & readiness]
+. link:./shell-context/workspace-config-loading.adoc[Workspace config load & distribution]
 . Workspace model & URL building — `workspace-model-and-urls.adoc`
 . Current App & API base URL resolution — `current-app-and-api-base-url.adoc`
 . Configuration vs App Config vs Parameter — `configuration-kinds.adoc`
