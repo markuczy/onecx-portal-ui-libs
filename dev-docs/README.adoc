@@ -42,8 +42,6 @@ An Area ticket may change its Unit split after investigation, for example by spl
 [%collapsible]
 .1. Integration Contract & Topics — `integration-contract/`
 ====
-=== 1. Integration Contract & Topics — `integration-contract/`
-
 How Apps and the Shell communicate through Topics. This Area covers the messaging mechanism only. The meaning of each concrete Topic is described in the Area that owns it.
 
 . Why a message-based contract — `why-message-based.adoc`
@@ -60,8 +58,6 @@ How Apps and the Shell communicate through Topics. This Area covers the messagin
 [%collapsible]
 .2. Application Bootstrap — `bootstrap/`
 ====
-=== 2. Application Bootstrap — `bootstrap/`
-
 From the Shell's `index.html` to a running App or Remote Component.
 
 . index.html → first App timeline — `startup-timeline.adoc`
@@ -77,8 +73,6 @@ From the Shell's `index.html` to a running App or Remote Component.
 [%collapsible]
 .3. Shell Context & Runtime Configuration — `shell-context/`
 ====
-=== 3. Shell Context & Runtime Configuration — `shell-context/`
-
 The data the Shell provides to Apps, and where that data comes from.
 
 . Context overview & readiness — `context-readiness.adoc`
@@ -94,8 +88,6 @@ The data the Shell provides to Apps, and where that data comes from.
 [%collapsible]
 .4. Styling & Style Isolation — `styling/`
 ====
-=== 4. Styling & Style Isolation — `styling/`
-
 Where CSS comes from and how the styles of different Apps are kept apart.
 
 . Why isolation & style kinds — `why-style-isolation.adoc`
@@ -113,8 +105,6 @@ Where CSS comes from and how the styles of different Apps are kept apart.
 [%collapsible]
 .5. Theming & Visual Assets — `theming-assets/`
 ====
-=== 5. Theming & Visual Assets — `theming-assets/`
-
 The values a Theme provides (colors, favicon, logo), how they reach the page, and how icons and images are delivered.
 
 . Theme → page (variables, favicon, logo) — `theme-to-page.adoc`
@@ -128,8 +118,6 @@ The values a Theme provides (colors, favicon, logo), how they reach the page, an
 [%collapsible]
 .6. Remote Components & Slots — `remote-components/`
 ====
-=== 6. Remote Components & Slots — `remote-components/`
-
 How the Workspace places Remote Components into Slots. Bootstrap, styles, permissions and translations of Remote Components are covered in Areas 2, 4, 9 and 10.
 
 . Assignment — `slot-assignment.adoc`
@@ -143,8 +131,6 @@ How the Workspace places Remote Components into Slots. Bootstrap, styles, permis
 [%collapsible]
 .7. Navigation & Routing — `navigation/`
 ====
-=== 7. Navigation & Routing — `navigation/`
-
 How a URL change reaches every router on the page, and how the Shell activates the Current App.
 
 . URL change → every router — `url-to-every-router.adoc`
@@ -159,8 +145,6 @@ How a URL change reaches every router on the page, and how the Shell activates t
 [%collapsible]
 .8. Authentication — `authentication/`
 ====
-=== 8. Authentication — `authentication/`
-
 Who owns authentication and how Apps get tokens. The user profile is covered in Area 10.
 
 . Ownership & mechanism selection (keycloak, custom, disabled, authenticated gating) — `mechanism-selection.adoc`
@@ -174,8 +158,6 @@ Who owns authentication and how Apps get tokens. The user profile is covered in 
 [%collapsible]
 .9. Permissions — `permissions/`
 ====
-=== 9. Permissions — `permissions/`
-
 How permissions reach Apps and Remote Components and how they are checked.
 
 . Permission model & two Topics (push vs RPC) — `permission-model.adoc`
@@ -188,8 +170,6 @@ How permissions reach Apps and Remote Components and how they are checked.
 [%collapsible]
 .10. Localization — `localization/`
 ====
-=== 10. Localization — `localization/`
-
 User profile, language choice, translations and formatting.
 
 . Profile load & language decision — `profile-and-language.adoc`
@@ -205,8 +185,6 @@ User profile, language choice, translations and formatting.
 [%collapsible]
 .11. Errors, Loading & User Feedback — `errors-feedback/`
 ====
-=== 11. Errors, Loading & User Feedback — `errors-feedback/`
-
 The kinds of failure, where each one ends up, and how the user is informed.
 
 . Failure taxonomy map — `failure-taxonomy.adoc`
@@ -220,8 +198,6 @@ The kinds of failure, where each one ends up, and how the user is informed.
 [%collapsible]
 .12. State Management — `state-management/`
 ====
-=== 12. State Management — `state-management/`
-
 How the Shell context and the URL connect to an App's ngrx store. Covers ngrx only.
 
 . Shell context → App ngrx store — `shell-context-to-store.adoc`
@@ -233,8 +209,6 @@ How the Shell context and the URL connect to an App's ngrx store. Covers ngrx on
 [%collapsible]
 .13. Diagnostics — `diagnostics/`
 ====
-=== 13. Diagnostics — `diagnostics/`
-
 Tools for looking inside a running OneCX page. This Area links to the owning Areas instead of repeating their content.
 
 . Logging (mechanism, namespaces, enabling/filtering) — `logging.adoc`
