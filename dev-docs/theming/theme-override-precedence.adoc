@@ -19,7 +19,7 @@ The Workspace theme is mapped onto PrimeNG design tokens through the OneCX prese
 
 Two granularities are available, and they operate at different points of the theming pipeline:
 
-* **CSS-variable overrides** — raw CSS the application owns, placed on the page as a scoped `<style>` element. They compete with PrimeNG's generated CSS variables through the normal CSS cascade.
+* **CSS-variable overrides** — application-provided override values (not raw CSS). These values are supplied via `provideThemeConfig({ overrides })` and `CustomUseStyle` converts them (via PrimeUIX `toVariables`) into scoped CSS written into a `<style>` element. They compete with PrimeNG's generated CSS variables through the normal CSS cascade.
 * **PrimeNG / token overrides** — individual design-token values that are *folded into the preset* before PrimeNG computes any CSS. They change the token at the source, so no cascade is involved.
 
 Both are scoped per application so one app's overrides never leak into another.
@@ -112,10 +112,10 @@ The libraries' override mechanism is **Angular-only**. PrimeReact theming is dri
 == Edge cases & pitfalls
 
 * **Token overrides are opt-in and silently dropped otherwise.** When `IS_ADVANCED_THEMING` is `false` (the default), `applyThemeVariables` sets `overridesFolded` to `{}`, so `PRIMENG`-typed overrides have no effect even though they are present on the `Theme`. Only the CSS-variable channel still applies.
-* **Empty CSS overrides are a no-op.** `applyOverrides` returns without touching the DOM when the resolved value produces no variables (`variablesData.value.length === 0`).
+* **Empty CSS overrides are a no-op.** `applyOverrides` returns without touching the DOM when the resolved value produces no variables (`variablesData.value.length === 0`). This early return does not remove or replace an existing scoped override `<style>` element — any previously-applied scoped styles remain active for that scope.
 * **One override `<style>` per scope.** All updates for a scope write into the same `<style data-variable-override-id="<scopeId>">`, re-appended last each time. On a multi-application page each scope keeps its own element, so overrides stay isolated.
 * **The CSS channel is scoped.** The override CSS is wrapped with `@scope` (or `@supports (@scope …)` when the browser lacks `@scope`), so it only applies inside the owning scope — an override never changes another app's components.
-* **`mergeDeep` is not immutable.** The folding of token overrides mutates nested objects that both arguments share; the values are safe here because the theme variables and the preset are rebuilt on every `CurrentThemeTopic` change.
+* **`mergeDeep` returns a new object and does not mutate its inputs.** The folding of token overrides uses `mergeDeep` to build a merged preset object that gives later arguments priority without mutating the original preset or theme objects.
 
 == Debugging
 
