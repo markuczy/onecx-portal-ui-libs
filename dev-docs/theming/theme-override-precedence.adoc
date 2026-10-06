@@ -105,7 +105,7 @@ The application CSS-variable and PrimeNG / token channels are scoped through the
 
 === Libs side
 
-The libraries own the whole mechanism:
+The libraries own the application CSS-variable and PrimeNG / token mechanisms:
 
 * link:{libs}/angular-utils/theme/primeng/src/services/custom-use-style.service.ts[`CustomUseStyle`] — scopes and appends the CSS-variable override `<style>` last in `<head>`.
 * link:{libs}/angular-utils/theme/primeng/src/utils/application-config.ts[`application-config.ts`] — the `THEME_OVERRIDES` injection token and the `provideThemeConfig({ overrides, isAdvancedTheming })` entry point.
@@ -116,7 +116,7 @@ The `ThemeOverride` / `OverrideType` contract is defined in link:{libs}/integrat
 
 === Shell side
 
-The Shell is the page host: it owns the shared `<head>` in which every application's scoped override `<style>` lands, and it is itself one scope (scope id `shell-ui`, see `shellScopeId` in link:{libs}/angular-utils/src/lib/utils/scope.utils.ts[`scope.utils.ts`]). It also implements one override path itself: in link:{shell_app_module}[`src/app/app.module.ts`] it consumes Workspace `Theme.overrides` entries with `type === CSS`, creates raw `<style data-css-overrides data-marked-as-wrapped>` elements, and appends them to `document.head`.
+The Shell is the page host: it owns the shared `<head>` in which every application's scoped override `<style>` lands, and it is itself one scope (scope id `shell-ui`, see `shellScopeId` in link:{libs}/angular-utils/src/lib/utils/scope.utils.ts[`scope.utils.ts`]). It also owns the Workspace CSS-entry insertion path: in link:{shell_app_module}[`src/app/app.module.ts`] it consumes Workspace `Theme.overrides` entries with `type === CSS`, creates raw `<style data-css-overrides data-marked-as-wrapped>` elements, and appends them to `document.head`.
 
 Because those elements are marked as already wrapped, link:{shell_wrapping_utils}[`src/app/shell/utils/styles/update-required-wrapping-styles.utils.ts`] does not scope them automatically. The Shell therefore participates in override handling in two ways: it hosts the libraries' scoped application overrides, and it directly injects the Workspace's raw CSS overrides. The first stage of the flow (putting the Workspace theme's CSS variables, favicon and logo on the page) is covered by the *Theme → page* Unit.
 
