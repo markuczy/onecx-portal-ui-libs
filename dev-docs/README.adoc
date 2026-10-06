@@ -77,8 +77,8 @@ The data the Shell provides to Apps, and where that data comes from.
 
 . link:./shell-context/context-readiness.adoc[Context overview & readiness]
 . link:./shell-context/workspace-config-loading.adoc[Workspace config load & distribution]
-. Workspace model & URL building — `workspace-model-and-urls.adoc`
-. Current App & API base URL resolution — `current-app-and-api-base-url.adoc`
+. link:./shell-context/workspace-model-and-urls.adoc[Workspace model & URL building]
+. link:./shell-context/current-app-and-api-base-url.adoc[Current App & API base URL resolution]
 . Configuration vs App Config vs Parameter — `configuration-kinds.adoc`
 . Runtime configuration (env.json placeholders, configuration Topic, cross-repo keys) — `runtime-configuration.adoc`
 . Parameters — `parameters.adoc`
