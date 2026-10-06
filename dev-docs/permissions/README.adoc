@@ -57,6 +57,7 @@ Read the Units in this order. The first two explain the model and the Shell side
 . link:checking-in-apps.adoc[Checking in Apps] — `PermissionService`, the `HAS_PERMISSION_CHECKER` token and template-based checks.
 . link:remote-component-permissions.adoc[Remote Component permissions] — consuming the RPC Topic from the Remote Component's side.
 
+
 == Related Areas
 
 * link:../integration-contract/gatherers-and-rpc-topics.adoc[Integration Contract & Topics] — the messaging mechanism, request/response patterns and versioning that both permission Topics ride on (Area 1).

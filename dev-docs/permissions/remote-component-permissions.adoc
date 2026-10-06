@@ -54,7 +54,7 @@ On top of the Topic, each framework ships a thin consumer:
 * Angular: `link:{libs}/angular-remote-components/src/lib/services/permission.service.ts[PermissionService]` — a `providedIn: 'root'` injectable that lazily creates a `PermissionsRpcTopic`, keeps a `Map<string, Promise<string[]>>` keyed by `${appId}:${productName}`, and exposes `getPermissions(appId, productName)`. On a cache miss it builds `firstValueFrom(topic.pipe(filter(...), map(m => m.permissions ?? [])))`, stores that promise in the cache, then publishes the request. `ngOnDestroy` destroys the topic instance.
 * React: `link:{libs}/react-remote-components/src/lib/contexts/permissionContext.tsx[PermissionProvider]` / `PermissionContext` — a context that builds a `Map<string, Promise<string[]>>` in `useMemo`, obtains the topic via `useTopic(undefined, PermissionsRpcTopic)`, and exposes the same `getPermissions(appId, productName)`. `link:{libs}/react-remote-components/src/lib/hooks/usePermission.ts[usePermission()]` returns the context and throws when called outside a `PermissionProvider`.
 
-Both implementations are intentionally minimal — no retries, no deny-all fallback. That behaviour is owned by the Shell (see below). The Angular `PermissionService` is `providedIn: 'root'`, so a Remote Component that has already registered the `AngularRemoteComponentsModule` (or a host App that has done so) gets the same instance.
+Both implementations are intentionally minimal — no retries, no deny-all fallback. That behaviour is owned by the Shell (see below). The Angular `PermissionService` is `providedIn: 'root'`, so every consumer in the same Angular root injector shares the same service and cache whether or not `AngularRemoteComponentsModule` was imported; separate Angular roots get separate instances.
 
 === Shell side
 
@@ -75,7 +75,7 @@ There is no Angular/React "override" list or template-based check in this Unit's
 * *The promise stays cached forever.* The cache holds a promise, not a resolved value. If the answer never arrives (e.g. the Shell is absent), the promise never settles and neither does `getPermissions`. There is no timeout in the client code.
 * *An empty list is a valid answer.* When the Shell's deny-all fallback kicks in, the Remote Component resolves to `[]`. Treat `[]` as "deny", not as "not yet loaded" — it is the final answer.
 * *The filter is strict.* The client filters on `appId`, `productName` *and* `Array.isArray(permissions)`. A consumer that relaxes that filter would pick up its own outgoing request (which has `permissions === undefined`) or an unrelated message for the same `appId`/`productName` on the topic.
-* *The Angular service is `providedIn: 'root'`.* In a Remote Component that has not imported `AngularRemoteComponentsModule` (or that runs in a different Angular root) the `PermissionService` is a fresh instance with a fresh topic; if the Shell is the only other participant on the topic this works, but two separate Angular roots in the same browser tab each publish their own request.
+* *The Angular service is `providedIn: 'root'`.* In the same Angular root, all consumers share the one `PermissionService` instance and its cache even if some of them never imported `AngularRemoteComponentsModule`. A separate Angular root gets its own instance and its own cache.
 
 == Debugging
 

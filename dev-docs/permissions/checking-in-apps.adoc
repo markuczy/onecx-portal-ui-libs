@@ -16,7 +16,7 @@ The design keeps three layers deliberately separate:
 
 * a small framework-agnostic *contract* — what a checker is and how an App tells Angular to provide one;
 * a higher-level *service* for code, which caches results so templates do not re-render in a loop;
-* a *template* escape hatch (`ocxIfPermission` / `ocxIfNotPermission`) for declarative show/hide.
+* a *template* escape hatch in the Angular accelerator for declarative show/hide.
 
 This Unit explains each layer and how they resolve to an actual checker. It does not re-explain the Topics or the Shell side of loading/caching.
 
@@ -71,16 +71,7 @@ The provider `link:{libs}/angular-utils/src/lib/providers/permission-service.pro
 
 === The template-based check
 
-The declarative path is `link:{libs}/angular-accelerator/src/lib/directives/if-permission.directive.ts[IfPermissionDirective]`, declared and exported by `link:{libs}/angular-accelerator/src/lib/angular-accelerator.module.ts[AngularAcceleratorModule]` and selectable as `[ocxIfPermission]` or `[ocxIfNotPermission]` (`standalone: false`). It resolves the checker as `hasPermissionChecker ?? userService` (a computed signal) and throws `IfPermission requires UserService or HasPermissionChecker to be provided!` if there is none. The inputs and their meaning:
-
-* `ocxIfPermission` / `ocxIfNotPermission` — the permission key or `string[]`. The *negated* form is detected by `ocxIfNotPermission !== undefined`; exactly one is used per element.
-* `...OnMissingPermission` — `'hide'` (default) or `'disable'`.
-* `...Permissions` — an *override* `string[]` that, when set, short-circuits the checker entirely: the directive answers from this list only (`permission.every(p => overridePermissions.includes(p))`).
-* `...ElseTemplate` — a `TemplateRef` rendered when the check fails (instead of hiding/disabling).
-
-On each evaluation the directive normalises the key to an array and: if it is empty it hides (`shouldShow: false`); otherwise it asks the checker (override list if given, else `getPermissions` + `every`, else `hasPermission`), then flips the result when negated. When shown, it renders the element's own template; when the check fails and no `else` template is set, `hide` clears the view while `disable` renders the template and sets the `disabled` attribute on the first rendered node. The model types `PermissionInput` (`string | string[] | undefined`) and `OnMissingPermission` (`'hide' | 'disable'`) are in `link:{libs}/angular-accelerator/src/lib/model/permission.model.ts[permission.model.ts]`.
-
-`AngularAcceleratorModule` also calls `providePermissionChecker()` in its `providers`, so importing the accelerator gives a module-scoped checker (resolved via the factory above) to its declared directives and to anything in the module that injects the token.
+The Angular accelerator exposes a declarative permission check built on the same checker resolution described above. Its directive uses the resolved checker to decide whether to show or hide content, but the detailed selector, input and rendering API is outside this Unit's scope. See `link:{libs}/angular-accelerator/src/lib/directives/if-permission.directive.ts[IfPermissionDirective]` for the implementation.
 
 == Libs side / Shell side
 
@@ -90,7 +81,7 @@ On each evaluation the directive normalises the key to an array and: if it is em
 * `link:{libs}/angular-utils/src/lib/utils/has-permission-checker-factory.ts[has-permission-checker-factory.ts]` — the DI factory that resolves an existing parent checker or builds one bound to `UserService`.
 * `link:{libs}/angular-utils/src/lib/services/permission.service.ts[permission.service.ts]` — the caching `PermissionService` for code; `link:{libs}/angular-utils/src/lib/providers/permission-service.providers.ts[permission-service.providers.ts]` exports it.
 * `link:{libs}/angular-integration-interface/src/lib/services/user.service.ts[UserService]` — the *default* checker. `providedIn: 'root'`, it keeps a lazily-created `PermissionsTopic`, exposes `getPermissions()` (`permissionsTopic$.asObservable()`, i.e. `Observable<string[]>`) and `hasPermission(key | key[])` (a `firstValueFrom` over the topic; an array means *all* keys must be present; an empty/`undefined` key resolves `true`).
-* `link:{libs}/angular-accelerator/src/lib/directives/if-permission.directive.ts[IfPermissionDirective]` — the `ocxIfPermission` / `ocxIfNotPermission` template check, plus `link:{libs}/angular-accelerator/src/lib/model/permission.model.ts[permission.model.ts]` and `link:{libs}/angular-accelerator/src/lib/angular-accelerator.module.ts[AngularAcceleratorModule]`.
+* `link:{libs}/angular-accelerator/src/lib/directives/if-permission.directive.ts[IfPermissionDirective]` — the Angular template check that consumes the resolved checker, plus `link:{libs}/angular-accelerator/src/lib/model/permission.model.ts[permission.model.ts]` and `link:{libs}/angular-accelerator/src/lib/angular-accelerator.module.ts[AngularAcceleratorModule]`.
 * Deprecated re-exports: `link:{libs}/angular-accelerator/src/lib/injection-tokens/has-permission-checker.ts[@onecx/angular-accelerator]` re-exports `HasPermissionChecker`, `AlwaysGrantPermissionChecker` and `HAS_PERMISSION_CHECKER` — all marked `@deprecated`; import them from `@onecx/angular-utils` instead.
 
 === Shell side
