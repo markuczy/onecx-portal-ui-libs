@@ -60,17 +60,17 @@ The same Topics exist in both repositories. The Shell *publishes* them; an App *
 
 == Unit map
 
-The Units of this Area, in reading order. Units 1 and 2 are written; the rest are planned and listed so their paths are reserved. Each Unit follows the link:{dev-docs-index}[Dev Docs index] slugs and the Unit template.
+The Units of this Area, in reading order. Units 1 to 4 are written; the rest are planned and listed so their paths are reserved. Each Unit follows the link:{dev-docs-index}[Dev Docs index] slugs and the Unit template.
 
 . link:context-readiness.adoc[Context overview & readiness] — what context the Shell provides and how an App knows it is ready.
 . link:workspace-config-loading.adoc[Workspace config load & distribution] — how the Workspace configuration is loaded and fanned out to Topics/services.
-. `workspace-model-and-urls.adoc` — Workspace model & URL building.
-. `current-app-and-api-base-url.adoc` — Current App & API base URL resolution.
+. link:workspace-model-and-urls.adoc[Workspace model & URL building] — the Workspace model and how cross-App URLs are built.
+. link:current-app-and-api-base-url.adoc[Current App & API base URL resolution] — how the Current App is described and the API base URL is resolved.
 . `configuration-kinds.adoc` — Configuration vs App Config vs Parameter.
 . `runtime-configuration.adoc` — Runtime configuration (env.json placeholders, configuration Topic, cross-repo keys).
 . `parameters.adoc` — Parameters.
 
-Read Units 1 and 2 first. They define the readiness and distribution mechanisms that the later Units (workspace model, API base URL, configuration kinds, runtime configuration, parameters) take for granted.
+Read Units 1 and 2 first. They define the readiness and distribution mechanisms that the later Units (configuration kinds, runtime configuration, parameters) take for granted. Units 3 and 4 build directly on the Workspace and the `currentMfe$` that Units 1 and 2 load and distribute.
 
 == Related Areas
 
