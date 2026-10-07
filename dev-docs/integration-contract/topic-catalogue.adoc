@@ -173,11 +173,7 @@ Two columns need a definition before the tables:
 |===
 |Class |Version |Where built |Consumers |Owning Area
 
-|`GuardGatherer` (not a named class)
-|1
-|link:{libs}/angular-utils/guards/src/services/guards-gatherer.service.ts[Angular `GuardsGathererService`], link:{libs}/react-utils/src/lib/guards/services/guards-gatherer.ts[React `GuardsGatherer`]
-|the cross-App guards machinery (one instance per app on the page)
-|Area 7 — Navigation
+|`GuardGatherer` (not a named class) |1 |link:{libs}/angular-utils/guards/src/services/guards-gatherer.service.ts[Angular `GuardsGathererService`], link:{libs}/react-utils/src/lib/guards/services/guards-gatherer.ts[React `GuardsGatherer`] |the cross-App guards machinery (one instance per app on the page) |Area 7 — Navigation
 
 |===
 
