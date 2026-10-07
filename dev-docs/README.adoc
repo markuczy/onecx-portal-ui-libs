@@ -224,20 +224,17 @@ Every Unit follows the link:{unit-template}[Unit template]. The template defines
 
 == Superseded pages
 
-The following older pages are still in this folder. Each one is removed by the last ticket of the Area listed here, after its content has been checked against the new Units. A page that spans several Areas is removed by the last Area that uses it.
+The following older folders still remain in this folder. Each one is removed by the last ticket of the Area listed here, after its content has been checked against the new Units. A page that spans several Areas is removed by the last Area that uses it. The legacy `theming/` pages covered by Area 5 have already been removed.
 
 [cols="2,1", options="header"]
 |===
-|Old pages |Superseded by
+|Old folders |Superseded by
 
 |`topics/`, `gatherer/`
 |1. Integration Contract & Topics (debugging parts: 13. Diagnostics)
 
 |`styles/`
-|4. Styling & Style Isolation (`primeng-token-variables.adoc` also feeds 5. Theming & Visual Assets)
-
-|`theming/`
-|5. Theming & Visual Assets
+|4. Styling & Style Isolation
 
 |`guards/`
 |7. Navigation & Routing
