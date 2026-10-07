@@ -60,31 +60,31 @@ The Shell declares its Slot Groups in link:{shell}/src/app/shell/components/port
 
 ==== Portal viewport overview
 
-[source,mermaid]
+[source,text]
 ----
-flowchart TB
-  PV["onecx-viewport-wrapper (portal-viewport)"]
-  PV --> H["onecx-shell-header"]
-  PV --> SH["onecx-shell-sub-header"]
-  subgraph BodyWrapper
-    direction LR
-    BS["onecx-shell-body-start"]
-    CenterCol["center column"]
-    BE["onecx-shell-body-end"]
-    BS --> CenterCol
-    CenterCol --> BE
-    CenterCol --> BF["onecx-shell-body-footer"]
-    CenterCol --> BH["onecx-shell-body-header"]
-    CenterCol --> App["application content (router-outlet)"]
-  end
-  PV --> BodyWrapper
-  PV --> F["onecx-shell-footer"]
-  %% The extensions slot sits outside the viewport wrapper in the DOM
-  Extensions["onecx-shell-extensions (standalone <ocx-slot>)"]
-  Extensions -. outside viewport .-> PV
+onecx-viewport-wrapper (portal-viewport)
++-------------------------------------------------------------------------------------------------------------+
+| onecx-shell-header [horizontal slots: start -> center -> end]                                               |
+| onecx-shell-sub-header [horizontal slots: start -> center -> end]                                           |
+|                                                                                                             |
+| BODY (onecx-body-wrapper)                                                                                   |
+|   +------------------------------+-----------------------------------------------+------------------------+ |
+|   | onecx-shell-body-start       | CENTER COLUMN (onecx-body-center)              | onecx-shell-body-end   | |
+|   | vertical slot order:         |                                               | vertical slot order:    | |
+|   | start                        | onecx-shell-body-header                       | start                   | |
+|   |   v                          | [horizontal slots: start -> center -> end]    |   v                     | |
+|   | center                       | application content (router-outlet)           | center                  | |
+|   |   v                          | onecx-shell-body-footer                       |   v                     | |
+|   | end                          | [horizontal slots: start -> center -> end]    | end                     | |
+|   +------------------------------+-----------------------------------------------+------------------------+ |
+| onecx-shell-footer [horizontal slots: start -> center -> end]                                              |
++-------------------------------------------------------------------------------------------------------------+
+
+Outside the viewport wrapper (declared after it):
+onecx-shell-extensions (standalone <ocx-slot>)
 ----
 
-Note: this diagram represents the component hierarchy declared in the Shell's portal-viewport template. It shows the nesting relationship (header and sub-header above a body wrapper; within the body wrapper, a start region and an end region flank a center column that contains the body-header, application content, and body-footer; footer follows the body). It does not claim CSS dimensions or specific positioning beyond the DOM/templating hierarchy.
+Note: this spatial sketch represents the component hierarchy and declaration order in the Shell's portal-viewport template. It shows the header and sub-header before the body wrapper; within the body wrapper, the start and end regions flank a center column containing the body-header, application content, and body-footer; and the footer follows the body. Slot-group order is left-to-right in horizontal groups and top-to-bottom in vertical groups; this describes slot order, not screen coordinates. The sketch does not claim CSS dimensions or specific rendered positioning beyond the DOM/templating hierarchy.
 
 There is also one standalone slot that is *not* a group: `<ocx-slot name="onecx-shell-extensions">`, used to append extra custom functionality at the end of the page.
 
