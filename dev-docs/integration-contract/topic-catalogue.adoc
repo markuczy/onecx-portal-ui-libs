@@ -41,7 +41,7 @@ Two columns need a definition before the tables:
 
 |link:{libs}/integration-interface/src/lib/topics/permissions/v1/permissions.topic.ts[`PermissionsTopic`] |1 |Shell |Angular `UserService`; React `userContext` |Area 9 — Permissions
 
-|link:{libs}/integration-interface/src/lib/topics/configuration/v1/configuration.topic.ts[`ConfigurationTopic`] |1 |Shell |Angular `ConfigurationService`; React `configurationContext` |Area 3 — Shell Context
+|link:{libs}/integration-interface/src/lib/topics/configuration/v1/configuration.topic.ts[`ConfigurationTopic`] |1 |Shell and Apps/RC |Angular `ConfigurationService`; React `configurationContext` |Area 3 — Shell Context
 
 |link:{libs}/integration-interface/src/lib/topics/current-page/v1/current-page.topic.ts[`CurrentPageTopic`] |1 |App/RC |Angular `AppStateService`; React `appStateContext` |Area 7 — Navigation
 
@@ -51,13 +51,13 @@ Two columns need a definition before the tables:
 
 |link:{libs}/integration-interface/src/lib/topics/is-authenticated/v1/isAuthenticated.topic.ts[`IsAuthenticatedTopic`] |1 |Shell |Angular `AppStateService`; React `appStateContext` |Area 8 — Authentication
 
-|link:{libs}/integration-interface/src/lib/topics/global-loading/v1/global-loading.topic.ts[`GlobalLoadingTopic`] |1 |Any App/RC |Angular `AppStateService`; React `appStateContext` |Area 11 — Errors & Feedback
+|link:{libs}/integration-interface/src/lib/topics/global-loading/v1/global-loading.topic.ts[`GlobalLoadingTopic`] |1 |Shell and any App/RC |Angular `AppStateService`; React `appStateContext` |Area 11 — Errors & Feedback
 
 |link:{libs}/integration-interface/src/lib/topics/global-error/v1/global-error.topic.ts[`GlobalErrorTopic`] |1 |Any App/RC |Angular `AppStateService`; React `appStateContext` |Area 11 — Errors & Feedback
 
 |link:{libs}/integration-interface/src/lib/topics/parameters/v1/parameters.topic.ts[`ParametersTopic`] |1 |Shell |Angular `ParametersService`; React `parametersContext` |Area 3 — Shell Context
 
-|link:{libs}/integration-interface/src/lib/topics/message/v1/message.topic.ts[`MessageTopic`] |1 |Apps/Remote Components |Angular `PortalMessageService`; React `portalMessageContext` |Area 11 — Errors & Feedback
+|link:{libs}/integration-interface/src/lib/topics/message/v1/message.topic.ts[`MessageTopic`] |1 |Shell and Apps/Remote Components |Angular `PortalMessageService`; React `portalMessageContext` |Area 11 — Errors & Feedback
 
 |link:{libs}/integration-interface/src/lib/topics/notification/v1/notification.topic.ts[`NotificationTopic`] |1 |Shell |shared `NotificationService` |Area 11 — Errors & Feedback
 
