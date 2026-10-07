@@ -79,6 +79,7 @@ The data the Shell provides to Apps, and where that data comes from.
 . link:./shell-context/workspace-config-loading.adoc[Workspace config load & distribution]
 . link:./shell-context/workspace-model-and-urls.adoc[Workspace model & URL building]
 . link:./shell-context/current-app-and-api-base-url.adoc[Current App & API base URL resolution]
+
 . Configuration vs App Config vs Parameter — `configuration-kinds.adoc`
 . Runtime configuration (env.json placeholders, configuration Topic, cross-repo keys) — `runtime-configuration.adoc`
 . Parameters — `parameters.adoc`
@@ -162,8 +163,9 @@ How permissions reach Apps and Remote Components and how they are checked.
 
 . Permission model & two Topics (push vs RPC) — `permission-model.adoc`
 . Shell loading & caching (deny-all fallback) — `shell-loading-and-caching.adoc`
-. Checking in Apps — `checking-in-apps.adoc`
-. Remote Component permissions — `remote-component-permissions.adoc`
+. link:./permissions/checking-in-apps.adoc[Checking in Apps]
+. link:./permissions/remote-component-permissions.adoc[Remote Component permissions]
+
 ====
 
 [#localization]
