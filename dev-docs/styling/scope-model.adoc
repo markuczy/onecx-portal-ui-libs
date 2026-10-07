@@ -13,17 +13,19 @@ How does the {scope_at_rule}[`@scope` at-rule] keep one application's CSS confin
 
 == Why it exists
 
-The libraries load every application's `styles.css` into the same document `<head>`. A plain stylesheet is global to the document, so a `.card` rule from one app would restyle the `.card` of every other app on the page. The `@scope` at-rule is the browser primitive that makes a stylesheet *local*: it declares the rules inside it as applicable only between a *from* boundary and a *to* boundary, and re-anchors the special selector `:scope` to the element that opened the boundary. OneCX wraps every non-global stylesheet in such a boundary, and the boundaries are opened and closed by attributes that the libraries place on the content each application renders.
+The libraries load every application's `styles.css` into the same document `<head>`. A plain stylesheet is global to the document, so a `.card` rule from one app would restyle the `.card` of every other app on the page. OneCX uses `@scope` to make those rules local: the browser only evaluates them between a *from* boundary and a *to* boundary.
 
-This page is about the *model* — the id, the attributes, and the `@scope` block — not about when stylesheets are fetched and removed (that is a separate Unit) and not about the browser fallback (link:{u8}[Unit 8]).
+That boundary is a selector boundary, not an inheritance reset. It decides which selectors match; it does not break normal CSS inheritance. A custom property set on an application's `:scope` root can still flow to descendants, including descendants rendered by a nested Remote Component, unless a nearer rule overrides it.
+
+This page is about the *model* — the id, the attributes, the `@scope` block, nested Remote Components, and the custom-property rules — not about when stylesheets are fetched and removed (that is a separate Unit) and not about the browser fallback (link:{u8}[Unit 8]).
 
 == How it works
 
-A scoped scope has four parts that must agree: an *id*, a *from* element, a *to* element, and a stylesheet bound to the id.
+A scoped stylesheet has four parts that must agree: an *id*, a *from* element, a *to* element, and a stylesheet bound to the id.
 
 === The scope id
 
-A scope id is a string of the form `productName|appId`. It is built by `scopeIdFromProductNameAndAppId` in link:{libs}/angular-utils/src/lib/utils/scope.utils.ts[`scope.utils.ts`]; an empty product or app id is logged (namespace `scope.utils`) but the function still returns `productName|appId`. The Shell is the one application whose styles may reach across the page, so it uses a fixed id `shell-ui` (`shellScopeId`), and opts out of per-app scoping by running with `SKIP_STYLE_SCOPING` on — `getScopeIdentifier` returns the empty string in that case.
+A scope id is a string of the form `productName|appId`. It is built by `scopeIdFromProductNameAndAppId` in link:{libs}/angular-utils/src/lib/utils/scope.utils.ts[`scope.utils.ts`]; an empty product or app id is logged (namespace `scope.utils`) but the function still returns `productName|appId`. The Shell is the one application whose styles may reach across the page, so it uses a fixed id `shell-ui` (`shellScopeId`) and opts out of per-app scoping by running with `SKIP_STYLE_SCOPING` on — `getScopeIdentifier` returns the empty string in that case.
 
 === The from/to attributes
 
@@ -37,7 +39,7 @@ The content of a scope is fenced by the attributes defined in link:{libs}/angula
 |The *from* boundary: opens the scope section for `scopeId`. Present on MFE and Remote Component content and on dynamic content.
 
 |`data-style-isolation`
-|The *to* boundary: from this element on, the enclosing scope no longer applies to its children. Closes the section opened by the nearest `data-style-id`.
+|The *to* boundary: from this element on, the enclosing scope no longer matches selectors for its descendants. This is a DOM selector boundary, not an inheritance reset.
 
 |`data-no-portal-layout-styles`
 |Paired with `data-style-id`; marks the scope as libs-v6 compatible and excludes it from the legacy portal-layout rules.
@@ -57,7 +59,7 @@ A stylesheet then binds to a scope by writing an {scope_at_rule} block whose *fr
 }
 ----
 
-Inside the block, `:scope` names the element that opened the boundary. An application's own CSS is written against `:root`/`html` (the top of its document when it is the whole page). So before the block is emitted, those selectors are rewritten to `:scope`. `createApplicationScopedCss` in link:{libs}/angular-utils/style/src/utils/app-styles-scope.utils.ts[`app-styles-scope.utils.ts`] does exactly that — it rewrites `html` and `:root` to `:scope` (via `replaceRootAndHtmlWithScope`) and wraps the result in the `@scope`/`@supports` block. Because `:scope` is re-anchored to the `data-style-id` element, the app's `:root` rules now apply to the top of *its* content, not to the page.
+Inside the block, `:scope` names the element that opened the boundary. An application's own CSS is often written against `:root` or `html`, so before the block is emitted those selectors are rewritten to `:scope`. `createApplicationScopedCss` in link:{libs}/angular-utils/style/src/utils/app-styles-scope.utils.ts[`app-styles-scope.utils.ts`] does exactly that — it rewrites `html` and `:root` to `:scope` (via `replaceRootAndHtmlWithScope`) and wraps the result in the `@scope`/`@supports` block. Because `:scope` is re-anchored to the `data-style-id` element, the app's root-level rules apply to the top of its own content, not to the page.
 
 [cols="1,2", options="header"]
 |===
@@ -67,7 +69,7 @@ Inside the block, `:scope` names the element that opened the boundary. An applic
 |`:scope` — the element carrying `data-style-id`
 
 |any other selector
-|unchanged, but now only evaluated between the `from` and `to` boundaries
+|unchanged, but only matched between the `from` and `to` boundaries
 |===
 
 The two scope producers differ only in the *from* selector:
@@ -79,7 +81,9 @@ Both fall back to an `@supports (@scope(...))` wrapper when the browser does not
 
 === Variables vs ordinary rules
 
-A CSS variable that must not leak outside its scope is set on `:scope` inside the block (so it is resolved at the scope's root and inherited only within it). Ordinary rules need no extra wrapping — the `@scope` block already confines them. PrimeNG's `--p-` variables are additionally renamed per scope by `replacePrimengPrefix` / `scopeIdentifierToVariablePrefix` in `scope.utils.ts` (each scope gets a `--<scopeId>-` prefixed copy) so two scopes can never share one `--p-` definition.
+A CSS variable that must not be shared should either be overridden on the nested scope root or given a uniquely scoped name. Setting the variable on `:scope` inside a block keeps it anchored to that scope root, but it does not stop descendants from inheriting it in the normal CSS way. Ordinary rules need no extra wrapping — the `@scope` block already confines which elements they match.
+
+PrimeNG's `--p-` variables are additionally renamed per scope by `replacePrimengPrefix` / `scopeIdentifierToVariablePrefix` in `scope.utils.ts`, so each scope gets a `--<scopeId>-` prefixed copy and two scopes can never share one `--p-` definition by accident.
 
 == Nested Remote Components
 
@@ -103,7 +107,7 @@ The nesting is produced entirely by the Angular Slot, link:{libs}/angular-remote
 </div>                                                                  ← MFE styling resumes after the RC subtree
 ```
 
-Because the RC's `data-style-id` opens a *new* boundary and its `data-style-isolation` closes it, the RC subtree is isolated from the MFE's scoped rules; the MFE scope resumes for any following siblings after the RC subtree. This is precisely why the model uses attributes on the content rather than a single wrapper around an app: isolation is a per-element boundary, so it composes under nesting. `SlotComponent.ngOnDestroy` calls `removeAllRcUsagesFromStyles` so that a destroyed Slot releases its use of the (possibly still-nested) stylesheet and does not leave "ghost styles" behind.
+`data-style-isolation` stops the outer scope's selectors from matching into the nested RC subtree, but it does not erase inherited values. That means a custom property declared on the MFE's `:scope` root can still be inherited by the nested Remote Component unless the nested scope overrides it or uses a different property name. This is why the model uses attributes on the content rather than a single wrapper around an app: selector boundaries compose under nesting, but inherited values still follow the DOM tree.
 
 [NOTE]
 ====
@@ -144,6 +148,7 @@ In the devtools:
 * Inspect a content element: it should carry `data-style-id="productName|appId"` and, at its end, `data-style-isolation`. A nested Remote Component's root element carries the *component's* id.
 * Inspect the `<head>`: the app's `style[data-app-styles="productName|appId"]` should contain an `@scope(...)` (native) or `@supports (@scope(...))` (fallback) block whose from selector matches the `data-style-id` value.
 * If a rule from app A visibly affects app B, the from/to boundaries do not match — check that the `data-style-id` on the target content equals the `data-app-styles` value, and that a `data-style-isolation` closes the section before B's content.
+* If a custom property seems to "leak", check whether it is being inherited from an ancestor scope root. In that case the selector boundary is probably correct and the fix is an explicit override on the nested scope root or a uniquely scoped property name.
 
 The libs log under `scope.utils` when a scope id cannot be built and under `fetch-app-css` when a `styles.css` fetch fails. General runtime inspection is covered by the *Diagnostics* Area.
 
