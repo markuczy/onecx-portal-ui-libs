@@ -156,5 +156,5 @@ Verification Sources checked::
 * Dev Docs top index (`README.adoc`) — Area 7 slug and reading order.
 * Draft Outline commit (6108bdff) — navigation-routing outline (topic list only; no content baseline).
 * Antora docs `docs/modules/onecx-portal-ui-libs/pages/libraries/integration-interface.adoc` — `#current-mfe-topic` and `#current-page-topic` (publisher, payload, deprecated fields).
-* Old Dev Docs `dev-docs/guards/modes.adoc` — cross-checked the `current-location` / `isFirst` semantics it references.
+* Old Dev Docs `dev-docs/guards/` (both pages, now removed) — cross-checked the `current-location` / `isFirst` semantics it references; the guard detail is superseded by the per-framework Units (link:angular-guards.adoc[Angular guards], link:react-guards.adoc[React guards]).
 * No contradiction found against libs `docs/` or JSDoc; the Shell is linked by file only (read-only for this work).
