@@ -58,7 +58,44 @@ The Shell declares its Slot Groups in link:{shell}/src/app/shell/components/port
 . `onecx-shell-body-end` (`direction="column"`) — the vertical end region.
 . `onecx-shell-footer`
 
+==== Portal viewport overview
+
+[source,mermaid]
+----
+flowchart TB
+  PV["onecx-viewport-wrapper (portal-viewport)"]
+  PV --> H["onecx-shell-header"]
+  PV --> SH["onecx-shell-sub-header"]
+  subgraph BodyWrapper
+    direction LR
+    BS["onecx-shell-body-start"]
+    CenterCol["center column"]
+    BE["onecx-shell-body-end"]
+    BS --> CenterCol
+    CenterCol --> BE
+    CenterCol --> BF["onecx-shell-body-footer"]
+    CenterCol --> BH["onecx-shell-body-header"]
+    CenterCol --> App["application content (router-outlet)"]
+  end
+  PV --> BodyWrapper
+  PV --> F["onecx-shell-footer"]
+  %% The extensions slot sits outside the viewport wrapper in the DOM
+  Extensions["onecx-shell-extensions (standalone <ocx-slot>)"]
+  Extensions -. outside viewport .-> PV
+----
+
+Note: this diagram represents the component hierarchy declared in the Shell's portal-viewport template. It shows the nesting relationship (header and sub-header above a body wrapper; within the body wrapper, a start region and an end region flank a center column that contains the body-header, application content, and body-footer; footer follows the body). It does not claim CSS dimensions or specific positioning beyond the DOM/templating hierarchy.
+
 There is also one standalone slot that is *not* a group: `<ocx-slot name="onecx-shell-extensions">`, used to append extra custom functionality at the end of the page.
+
+==== onecx-shell-extensions — extension slot (not a Slot Group)
+
+The Shell's `onecx-shell-extensions` slot is declared after the portal-viewport wrapper in the template and is explicitly commented as an "Extensions slot for adding custom functionality" in the source. This slot is a plain `<ocx-slot>` (the regular Slot component) and is not implemented as an `ocx-shell-slot-group`.
+
+Consequently:
+
+* `onecx-shell-extensions` is not expanded into `.start`/`.center`/`.end` subslots. Treat it as a single host slot named exactly `onecx-shell-extensions`.
+* It does not receive a `slotGroupName` input injected by a group wrapper; components placed there will not see a `slotGroupName` value.
 
 Every group name becomes three slots in the form `<group>.start`, `<group>.center`, `<group>.end`; together with the standalone `onecx-shell-extensions`, these are the slot names a Workspace configuration may assign components to.
 
