@@ -135,8 +135,8 @@ How a URL change reaches every router on the page, and how the Shell activates t
 
 . link:./navigation/url-to-every-router.adoc[URL change → every router]
 . link:./navigation/shell-routes-and-current-app.adoc[Shell routes & Current App activation (including not-found)]
-. Page & workspace Topics during navigation — `navigation-topics.adoc`
-. Why cross-App guards — `why-cross-app-guards.adoc`
+. link:./navigation/navigation-topics.adoc[Page & workspace Topics during navigation]
+. link:./navigation/why-cross-app-guards.adoc[Why cross-App guards]
 . Angular guards — `angular-guards.adoc`
 . React guards — `react-guards.adoc`
 ====
