@@ -6,7 +6,7 @@
 :scoping: ./scoping.adoc
 :provide_theme_config: ../../libs/angular-utils/src/lib/theme/application-config.ts
 :custom_use_style: ../../libs/angular-utils/src/lib/services/custom-use-style.service.ts
-:theme_overrides: ../theming/theme-overrides.adoc
+:theme_overrides: ../theming/theme-override-precedence.adoc
 
 The goal of this document is to explain styles scoping mechanisms related to PrimeNG available in OneCX and technical details behind them. After reading this document it should be clear how PrimeNG style sheets are scoped on the pages.
 

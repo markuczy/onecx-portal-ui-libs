@@ -105,7 +105,7 @@ Both delegate all cross-unit traffic to the same framework-agnostic `Gatherer`/`
 
 == Debugging
 
-The `Gatherer` logs under the `@onecx/accelerator:Gatherer:<name>` namespace (created per `Gatherer` in link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]). Enable it with `localStorage.debug`, for example `localStorage.debug = '@onecx/accelerator:Gatherer:*'`, then reload — you will see each request received, each answer, and the collected result. The RPC Topics log under their usual per-topic namespace `@onecx/accelerator:Topic:<name>`. The exact patterns are in the old pages link:../gatherer/debug.adoc[How to debug Gatherer] and link:../topics/debug.adoc[How to debug Topics]; general cross-App tracing is in link:../diagnostics/tracing-communication.adoc[Area 13].
+The `Gatherer` logs under the `@onecx/accelerator:Gatherer:<name>` namespace (created per `Gatherer` in link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]). Enable it with `localStorage.debug`, for example `localStorage.debug = '@onecx/accelerator:Gatherer:*'` (or `localStorage.debug = '@onecx/accelerator:Gatherer:<name>'` for one gatherer), then reload — you will see each request received, each answer, and the collected result. The RPC Topics log under their usual per-topic namespace `@onecx/accelerator:Topic:<name>`; add `:error` to a `*` pattern to see only errors. General cross-App tracing is in the planned Unit link:../diagnostics/tracing-communication.adoc[Area 13].
 
 == Known issues
 
@@ -142,8 +142,8 @@ Code::
 * link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts` (Shell)]
 
 Verification Sources checked::
-* link:../topics/overview.adoc[old `dev-docs/topics/overview.adoc`] — the `publish`/resolve sequence and the "why awaiting the promise works" argument (matches `gatherer.ts`; the old page documents only the plain Topic, not the `Gatherer`).
-* link:../gatherer/debug.adoc[old `dev-docs/gatherer/debug.adoc`] — the `Gatherer` debug namespace (matches the code).
-* link:../topics/debug.adoc[old `dev-docs/topics/debug.adoc`] — the `Topic` debug namespace.
+* old `dev-docs/topics/overview.adoc` — the `publish`/resolve sequence and the "why awaiting the promise works" argument (matches `gatherer.ts`; the old page documents only the plain Topic, not the `Gatherer`).
+* old `dev-docs/gatherer/debug.adoc` — the `Gatherer` debug namespace (matches the code; inlined into Debugging above).
+* old `dev-docs/topics/debug.adoc` — the `Topic` debug namespace.
 * in-code JSDoc of `Gatherer`, the `AiCompletion`/`AiContext` gatherers and the `PermissionService`.
 * Draft Outline (commit `6108bdf`, `dev-docs/gatherer/index.adoc`) — scatter/gather phasing and self-identification (matches the code; its cross-tab wording is recorded under Known issues).

@@ -37,7 +37,7 @@ sequenceDiagram
 
 == Unit map
 
-The full set of Units of this Area, in reading order. The first six are written and linked; the rest are planned but not written yet, so they are listed unlinked (their slugs are fixed in the link:{dev-docs-index}[Dev Docs index] and will link once each page exists):
+The full set of Units of this Area, in reading order:
 
 . link:why-message-based.adoc[Why a message-based contract] — why the units communicate only through Topics, and what that forbids.
 . link:message-delivery.adoc[Topic message delivery] — the message types, how messages are ordered by id and timestamp, how a late subscriber is replayed, and the init/resolve handshake.
@@ -45,8 +45,8 @@ The full set of Units of this Area, in reading order. The first six are written 
 . link:topic-lifecycle.adoc[Topic lifecycle] — how a Topic is created and publishes, what `destroy` releases and what it leaves behind, where the adapters destroy, and the deprecated syncable Topic.
 . link:gatherers-and-rpc-topics.adoc[Request/response: Gatherers & RPC Topics] — how request/response is built on Topics (the `Gatherer` scatter/gather and the RPC Topics) and when to use it instead of a plain Topic.
 . link:versioning-and-capabilities.adoc[Versioning & Shell capability negotiation] — Topic versions, how the Shell advertises the capabilities it provides and how Apps and Remote Components check them to adapt to older or newer Shells.
-. Framework adapters — `framework-adapters.adoc`
-. Topic & Gatherer catalogue — `topic-catalogue.adoc`
+. link:framework-adapters.adoc[Framework adapters] — how the Angular services, React contexts and ngrx store connectors wrap the framework-agnostic `Topic`, who owns and destroys each `Topic` instance, and how a Topic value reaches the ngrx store.
+. link:topic-catalogue.adoc[Topic & Gatherer catalogue] — the reference table of every shared `Topic` and `Gatherer` the libraries define, with its version, publisher, consumers and owning Area.
 
 == Related Areas
 

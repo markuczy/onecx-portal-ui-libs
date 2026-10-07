@@ -92,12 +92,12 @@ Where CSS comes from and how the styles of different Apps are kept apart.
 
 . link:./styling/why-style-isolation.adoc[Why isolation & style kinds] — `why-style-isolation.adoc`
 . link:./styling/stylesheet-loading.adoc[App/Remote Component stylesheet load & removal (usage counting)] — `stylesheet-loading.adoc`
-. `@scope` scoping model — `scope-model.adoc`
-. Shell's own stylesheets & legacy portal layout — `shell-stylesheets.adoc`
-. Angular component styles — `angular-component-styles.adoc`
+. link:./styling/scope-model.adoc[`@scope` scoping model] — `scope-model.adoc`
+. link:./styling/shell-stylesheets.adoc[Shell's own stylesheets & legacy portal layout] — `shell-stylesheets.adoc`
+. link:./styling/angular-component-styles.adoc[Angular component styles] — `angular-component-styles.adoc`
 . Dynamic content attribution (trigger element) — `dynamic-content-attribution.adoc`
 . Dynamic content wrapping & listeners — `dynamic-content-wrapping.adoc`
-. Scope polyfill — `scope-polyfill.adoc`
+. link:./styling/scope-polyfill.adoc[Scope polyfill] — `scope-polyfill.adoc`
 . PrimeNG/PrimeReact style scoping — `primeng-style-scoping.adoc`
 ====
 
@@ -120,11 +120,11 @@ The values a Theme provides (colors, favicon, logo), how they reach the page, an
 ====
 How the Workspace places Remote Components into Slots. Bootstrap, styles, permissions and translations of Remote Components are covered in Areas 2, 4, 9 and 10.
 
-. Assignment — `slot-assignment.adoc`
-. Slot rendering (two flavours) — `slot-rendering.adoc`
-. Remote Component config & host communication — `host-communication.adoc`
-. Shell Slots catalogue (Slot Groups, legacy name mapping) — `shell-slots-catalogue.adoc`
-. Slot size reporting — `slot-size-reporting.adoc`
+. link:./remote-components/slot-assignment.adoc[Assignment]
+. link:./remote-components/slot-rendering.adoc[Slot rendering (two flavours)]
+. link:./remote-components/host-communication.adoc[Remote Component config & host communication]
+. link:./remote-components/shell-slots-catalogue.adoc[Shell Slots catalogue (Slot Groups, legacy name mapping)]
+. link:./remote-components/slot-size-reporting.adoc[Slot size reporting]
 ====
 
 [#navigation]
@@ -135,8 +135,8 @@ How a URL change reaches every router on the page, and how the Shell activates t
 
 . link:./navigation/url-to-every-router.adoc[URL change → every router]
 . link:./navigation/shell-routes-and-current-app.adoc[Shell routes & Current App activation (including not-found)]
-. Page & workspace Topics during navigation — `navigation-topics.adoc`
-. Why cross-App guards — `why-cross-app-guards.adoc`
+. link:./navigation/navigation-topics.adoc[Page & workspace Topics during navigation]
+. link:./navigation/why-cross-app-guards.adoc[Why cross-App guards]
 . Angular guards — `angular-guards.adoc`
 . React guards — `react-guards.adoc`
 ====
@@ -162,8 +162,9 @@ How permissions reach Apps and Remote Components and how they are checked.
 
 . Permission model & two Topics (push vs RPC) — `permission-model.adoc`
 . Shell loading & caching (deny-all fallback) — `shell-loading-and-caching.adoc`
-. Checking in Apps — `checking-in-apps.adoc`
-. Remote Component permissions — `remote-component-permissions.adoc`
+. link:./permissions/checking-in-apps.adoc[Checking in Apps]
+. link:./permissions/remote-component-permissions.adoc[Remote Component permissions]
+
 ====
 
 [#localization]
@@ -222,20 +223,17 @@ Every Unit follows the link:{unit-template}[Unit template]. The template defines
 
 == Superseded pages
 
-The following older pages are still in this folder. Each one is removed by the last ticket of the Area listed here, after its content has been checked against the new Units. A page that spans several Areas is removed by the last Area that uses it.
+The following older folders still remain in this folder. Each one is removed by the last ticket of the Area listed here, after its content has been checked against the new Units. A page that spans several Areas is removed by the last Area that uses it. The legacy `theming/` pages covered by Area 5 have already been removed.
 
 [cols="2,1", options="header"]
 |===
-|Old pages |Superseded by
+|Old folders |Superseded by
 
 |`topics/`, `gatherer/`
 |1. Integration Contract & Topics (debugging parts: 13. Diagnostics)
 
 |`styles/`
-|4. Styling & Style Isolation (`primeng-token-variables.adoc` also feeds 5. Theming & Visual Assets)
-
-|`theming/`
-|5. Theming & Visual Assets
+|4. Styling & Style Isolation
 
 |`guards/`
 |7. Navigation & Routing

@@ -126,7 +126,7 @@ Code::
 * link:{shell}/src/bootstrap.ts[`bootstrap.ts` (Shell)]
 
 Verification Sources checked::
-* link:../topics/overview.adoc[old `dev-docs/topics/overview.adoc`] — the name/version matching rule for message delivery (matches the code).
+* old `dev-docs/topics/overview.adoc` — the name/version matching rule for message delivery (matches the code).
 * link:../general/overview.adoc[old `dev-docs/general/overview.adoc`] — the list of libraries each of which carries its own `version.ts`.
 * in-code JSDoc of `ShellCapability`, the `shell-capability.utils.ts` helpers and `ParametersService.get`.
 * Draft Outline (commit `6108bdf`) — for locating the versioning/capability topics only, not as a content baseline.

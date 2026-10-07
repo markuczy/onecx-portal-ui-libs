@@ -54,8 +54,9 @@ Read the Units in this order. The first two explain the model and the Shell side
 
 . link:permission-model.adoc[Permission model & two Topics] — the push Topic (`permissions`, `string[]`) and the request/response Topic (`permissionsRpc`, `PermissionsRpc`), and why two are needed.
 . link:shell-loading-and-caching.adoc[Shell loading & caching] — the `appId|productName` cache, the `shareReplay` behaviour, the retry policy and the deny-all fallback.
-. `checking-in-apps.adoc` — Checking in Apps: `PermissionService`, the `HAS_PERMISSION_CHECKER` token and template-based checks. _Not yet written._
-. `remote-component-permissions.adoc` — Remote Component permissions: consuming the RPC Topic from the Remote Component's side. _Not yet written._
+. link:checking-in-apps.adoc[Checking in Apps] — `PermissionService`, the `HAS_PERMISSION_CHECKER` token and template-based checks.
+. link:remote-component-permissions.adoc[Remote Component permissions] — consuming the RPC Topic from the Remote Component's side.
+
 
 == Related Areas
 
