@@ -44,7 +44,7 @@ A message travels over one of three transports, selected per message by the `@on
 
 The transport is chosen per message in `TopicPublisher.sendMessage`. If `BroadcastChannel` is not available in the browser, the flag is forced to `false` and the code falls back to `postMessage`, logging `BroadcastChannel not supported...`.
 
-The flag is *shared page-wide state*, so a subscriber can downgrade it. The cascade is one-way and always toward the broader transport: `onWindowMessage` switches the flag directly to `false`, while the BroadcastChannel V1 handler (`onBroadcastChannelMessage`) steps it down from `'V2'` to `true` via `disableBroadcastChannelV2`. In practice this means that once a `postMessage` round-trip has happened in the page, every publisher converges on `postMessage`. The code treats `postMessage` as the reliable fallback when the BroadcastChannel path is not guaranteed to reach every peer.
+The flag is *shared page-wide state*, so any received message can change it. A `window` message sets `useBroadcastChannel` to `false`; a V1 BroadcastChannel message calls `disableBroadcastChannelV2()` and sets it to `true` regardless of the current value. The transport therefore follows the traffic it sees: a page can move from `'V2'` to `false` on a window message, or from whatever it currently is to `true` on a V1 BroadcastChannel message. That behaviour narrows the active transport for later sends, but it does not promise a permanent convergence on `postMessage`.
 
 [source,mermaid]
 ----
@@ -95,7 +95,7 @@ An App checks `hasShellCapability(...)` to decide whether to use a feature rathe
 
 * **Name/version mismatch.** A `Topic` only accepts messages whose `name` *and* `version` match exactly. A typo or a version drift between producer and consumer means messages are received and then silently ignored.
 * **Never initialising.** `isInitialized` stays pending until a `TopicNext` is applied. If no peer has published yet, subscribers block on the promise.
-* **Transport downgrade is one-way.** `disableBroadcastChannel` / `disableBroadcastChannelV2` move the flag only *down* the cascade (`'V2'` → `true` → `false`). Once a `postMessage`-delivered message is observed, every publisher in the page is locked onto `postMessage` for the rest of that page's life. Expect `postMessage` to be the steady-state transport once several Apps are present.
+* **Transport follows observed messages.** `onWindowMessage` sets `useBroadcastChannel` to `false`, while a V1 BroadcastChannel message sets it to `true` through `disableBroadcastChannelV2()`. Treat `postMessage` as a fallback path when a page has seen window traffic.
 * **Old/new message mix.** If an old-style message (no `id`) and a new-style message (with `id`) land with the same `timestamp`, the code logs:
 
   `Message was dropped because of equal timestamps, because there was an old style message in the system. Please upgrade all libraries to the latest version.`
@@ -112,10 +112,10 @@ Three tools, in increasing order of detail.
 [source,js]
 ----
 // One specific topic
-localStorage.debug = '@onecx/accelerator:Topic:my-topic:*'; location.reload();
+localStorage.debug = '@onecx/accelerator:Topic:my-topic:*,@onecx/accelerator:TopicPublisher:my-topic:*'; location.reload();
 
 // Everything about all topics
-localStorage.debug = '@onecx/accelerator:Topic:*:*'; location.reload();
+localStorage.debug = '@onecx/accelerator:Topic:*:*,@onecx/accelerator:TopicPublisher:*:*'; location.reload();
 ----
 
 . **Read the statistics.** The message and instance counters are off by default. Enable them, then inspect the shared globals on `window`:

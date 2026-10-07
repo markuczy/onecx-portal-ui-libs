@@ -170,11 +170,6 @@ The table lists every `window`/`globalThis` key that the current libraries read 
 |same file
 |6. Remote Components — Slot size reporting
 
-|`@onecx/angular-utils.guards.debug`
-|`@onecx/angular-utils` — link:{libs}/angular-utils/guards/src/declarations.ts[`guards/declarations.ts`] (initialised `{}`); toggled from DevTools
-|`@onecx/angular-utils` guards
-|7. Navigation — Guards
-
 |`onecx-shell-capabilities`
 |Shell — link:{shell}/src/bootstrap.ts[`bootstrap.ts`] via `setShellCapabilities`; defined by link:{libs}/integration-interface/src/lib/utils/shell-capability.utils.ts[`shell-capability.utils.ts`]
 |`@onecx/integration-interface` — `shell-capability.utils.ts`, `dynamic-translation.service.ts`
@@ -208,12 +203,13 @@ A separate pair of values is not a `window` key but is equally important at runt
 
 == Angular / React
 
-Both frameworks share the same globals. Angular writes and reads `@onecx/angular-utils.guards.debug`, `onecxTranslations` and `onecxAuth` (via `angular-auth`); React reads `onecxTriggerElement` and the Module Federation instance. `onecxIcons` and the `@onecx/accelerator.*` / `@onecx/integration-interface.*` keys are consumed by both, which is exactly why they live on `window` rather than in a single framework's store.
+Both frameworks share the same globals. Angular writes and reads `onecxTranslations` and `onecxAuth` (via `angular-auth`); React reads `onecxTriggerElement` and the Module Federation instance. `onecxIcons` and the `@onecx/accelerator.*` / `@onecx/integration-interface.*` keys are consumed by both, which is exactly why they live on `window` rather than in a single framework's store.
 
 == Edge cases & pitfalls
 
 * *No ownership guarantee.* Nothing stops a bundle from overwriting another's key. `ensureProperty` only protects against *first-writer-wins* on the leaf; it does not protect a key from being replaced wholesale. Treat the table above as the intended surface and inspect it before debugging.
 * *Values may not exist yet.* Most keys are created lazily with `??=`. Reading a key before its writer runs returns `undefined`; the auth reader in `angular-auth` handles this with a no-op default and a rejecting promise (`Error: No authServiceWrapper provided...`).
+* *`@onecx/angular-utils.guards.debug` is an unused declaration.* The guards package declares the global, but the current code does not write or read it. Guard logging is enabled through the logger namespace instead: `localStorage.debug = '@onecx/angular-utils:guards-utils:*'`.
 * *`onecxAngularAuth` is legacy.* It exists only so older library versions keep working. New code should read `onecxAuth`; the Shell writes both from the same `AuthServiceWrapper`.
 * *Two `@onecx/*` look-alikes.* `@onecx/accelerator` (accelerator lib) and `@onecx/integration-interface` / `@onecx/angular-utils` are separate top-level keys with unrelated sub-trees.
 
