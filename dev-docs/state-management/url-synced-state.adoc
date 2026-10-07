@@ -18,16 +18,17 @@ The effect lives in `@onecx/ngrx-accelerator`. The write helper is link:{libs}/n
 
 [source,typescript]
 ----
-// reducer receives a URLSearchParams instance (despite the declared Record type)
+// Example shown against the declared public callback type.
 createFragmentParamsEffect(actions$, MyActions.updateSort, router, activatedRoute,
-  (params: URLSearchParams, action) => {
-    // read existing values from params, update and return a plain object
-    params.set('sort', String(action.sort))
-    return Object.fromEntries(params.entries())
+  (_state: Record<string, any>, action) => {
+    // return the next fragment-parameter object
+    return {
+      sort: String(action.sort),
+    }
   })
 ----
 
-When the given action is dispatched, the effect reads the current `activatedRoute.fragment`, passes the *entire fragment string* to `new URLSearchParams(fragment)`, and gives that `URLSearchParams` instance to the App-supplied reducer. The reducer is therefore given a URLSearchParams object even though the callback is declared as `Record<string, any>`, so the runtime contract is stronger than the type suggests. If the reducer returns a spread object such as `{...params}`, the parsed entries are not preserved because `URLSearchParams` is not a plain object; use an explicit conversion such as `Object.fromEntries(params.entries())` when you want to carry existing pairs forward. The helper then formats the reducer's returned plain object into a new fragment and writes it back with `router.navigate([], { relativeTo, fragment, replaceUrl: true, onSameUrlNavigation: 'reload' })`.
+When the given action is dispatched, the effect reads the current `activatedRoute.fragment`, passes the *entire fragment string* to `new URLSearchParams(fragment)`, and gives that `URLSearchParams` instance to the App-supplied reducer. The public callback type is still `(state: Record<string, any>, action) => Record<string, any>`, so the type-correct contract the docs can illustrate is "return the next plain object from the action". The current implementation/runtime mismatch remains important: at runtime the reducer actually receives a `URLSearchParams` instance, not a plain object. That means code written against the declared type cannot safely rely on existing fragment parameters being present in `state`, and code written against the runtime object is not type-correct against the public signature. This example therefore shows only a fresh plain-object result, rather than pretending existing params can be safely preserved through the declared `state` parameter. The helper then formats the reducer's returned plain object into a new fragment and writes it back with `router.navigate([], { relativeTo, fragment, replaceUrl: true, onSameUrlNavigation: 'reload' })`.
 
 It returns an effect with `{ dispatch: false }`, so it has no side effect on the store — the store is the *source*, the URL is the *mirror*. The fragment prefix before `?` is reattached separately: for `#tab?sort=asc` the helper writes back `tab?…`, but the reducer itself still sees a `URLSearchParams` created from the full `tab?sort=asc` fragment string.
 

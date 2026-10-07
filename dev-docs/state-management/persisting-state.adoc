@@ -20,12 +20,12 @@ The two helpers live in `@onecx/ngrx-accelerator` under link:{libs}/ngrx-acceler
 
 link:{libs}/ngrx-accelerator/src/lib/utils/local-storage/lazy-loading-merge-reducer.ts[`lazyLoadingMergeReducer(state, rehydratedState, _action)`] is the `stateReconciler` you hand to a store-persistence setup. On each restore it:
 
-. Collects `keysToRehydrate` — the keys that exist in the *persisted* `rehydratedState` **and** are already present in the live `state` (a lazy feature that has not loaded yet has no key in the live state, so it is excluded).
+. Collects `keysToRehydrate` with `Object.keys(rehydratedState).filter((key) => state[key])` — in practice, only keys that exist in the *persisted* `rehydratedState` **and** currently have a *truthy* value in the live `state` are selected. A lazy feature that has not loaded yet is excluded because it has no live key, and a present-but-falsy live value such as `false`, `0`, `''` or `null` is also excluded.
 . Deep-merges only those keys from `rehydratedState` into the live `state` using `deepmerge`, with `arrayMerge` set to *overwrite* (the persisted array wins, not a concatenation).
-. Deletes the merged keys from `rehydratedState` so they are not re-applied later.
+. Deletes the merged keys from `rehydratedState`; any keys that were not selected stay in the supplied snapshot object.
 . Returns the reconciled `state`.
 
-The effect is that persisted data is applied only to slices that are *already loaded*. A slice that is still loading lazily is left untouched at boot; when that feature loads and its slice appears in the store, the persisted copy for it can then be reconciled. This is what makes the helper "lazy-loading"-safe.
+The effect is that persisted data is applied only to slices selected on *that invocation*. A slice that is still loading lazily is left untouched at boot, and its unmerged persisted key remains in the supplied `rehydratedState` object. Restoring it later is not automatic: the App's persistence integration must invoke the reconciler again while that snapshot is still available after the feature loads. The same caveat applies to present-but-falsy live slice values, because the current truthiness check excludes them from `keysToRehydrate`. This is what makes the helper "lazy-loading"-safe, but only as part of an App integration that re-runs reconciliation when needed.
 
 [source,typescript]
 ----
@@ -55,7 +55,7 @@ The helpers are plain TypeScript (they take and return state objects and use `de
 
 == Edge cases & pitfalls
 
-* Only keys present in *both* the persisted snapshot and the live store are merged. If a lazily-loaded slice is not in the live store yet, its persisted value is deferred — do not expect it to appear until the slice loads.
+* Only keys whose current live value is truthy are merged. If a lazily-loaded slice is not in the live store yet, or a present slice currently holds `false`, `0`, `''` or `null`, its persisted value is left in `rehydratedState` and will not appear unless the App later invokes the reconciler again while that snapshot is still available.
 * Arrays are *replaced*, not merged: `arrayMerge` is overwritten so the persisted array wins. If you want concatenated history, you must reconcile it yourself.
 * `_action` is ignored by the helper — it exists only to match the `stateReconciler` signature.
 * `createNestedKeyConfiguration` is a type-level cast; it does not validate the shape, so a malformed key list will only surface at persistence time.
