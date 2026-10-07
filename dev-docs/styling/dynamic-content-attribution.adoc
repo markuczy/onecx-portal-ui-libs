@@ -1,0 +1,130 @@
+= Dynamic content attribution (trigger element)
+:idprefix:
+:idseparator: -
+:libs: ../../libs
+:shell: https://github.com/onecx/onecx-shell-ui/blob/main
+:area: ./README.adoc
+:u3: ./scope-model.adoc
+:u7: ./dynamic-content-wrapping.adoc
+:u8: ./scope-polyfill.adoc
+:scope_at_rule: https://developer.mozilla.org/en-US/docs/Web/CSS/@scope
+
+== Question answered
+
+How does an overlay or dialog that renders *outside* the app's scope (appended under `document.body`) still pick up the styles of the app that opened it?
+
+== Why it exists
+
+The {scope_at_rule} model (link:{u3}[Unit 3]) confines an app's rules to the DOM subtree that carries its `data-style-id`. Overlays — PrimeNG dialogs, CDK popups, PrimeReact dropdowns, tooltips — are rendered at the end of `document.body`, *outside* that subtree, so on their own they would receive no scoped rules at all and look broken.
+
+Attribution answers *which* app an out-of-scope element belongs to. The app is not known from the element (it carries no `data-style-id` yet); it is recovered from the element the user just interacted with to open the overlay — the *trigger element*. The trigger element sits inside the app's own content, so a short walk up its ancestors finds the app's scope, and that scope is what the overlay is attributed to. How the overlay is then actually *stamped* and *wrapped* is link:{u7}[Unit 7]; this Unit is about recovering the scope and choosing the container the overlay lands in.
+
+== How it works
+
+Two ingredients produce the attribution: a *trigger element* that names the current app, and a *closest-ancestor walk* that turns that element into concrete style data.
+
+=== The trigger element
+
+The trigger element is "the element under the pointer / under focus." The Shell tracks it continuously: `initializeOnecxTriggerElementListener` in link:{shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts[`onecx-trigger-element.utils.ts`] attaches `mouseover` and `focusin` handlers to `document`; on each event it stores `event.target` on the page-global `window.onecxTriggerElement`. A plain read of that global is the whole accessor on the React side — `getOnecxTriggerElement` in link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/onecx-trigger-element.ts[`onecx-trigger-element.ts`] returns `globalThis.onecxTriggerElement`, typed by `onecxTriggerElement: EventTarget | null` in link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/declarations.ts[`declarations.ts`].
+
+Because `window.onecxTriggerElement` is a single page-global, attribution always reflects *the most recent* interaction. That is deliberate: an overlay is opened in response to a user gesture, so the last hovered/focused element is the correct owner.
+
+=== The closest-ancestor walk
+
+From the trigger element, the mechanism climbs the DOM to the nearest ancestor that carries a scope marker, and reads the app's style data off it.
+
+* `findElementWithStyleDataOrIntermediateStyleData(startNode)` walks `parentElement` upward until it finds an element whose `dataset` holds a `styleId` (`data-style-id`) or an `intermediateStyleId` (`data-intermediate-style-id`); if it reaches the top without one it returns `null`. Both frameworks implement this identically — link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/findElementWithStyleDataOrIntermediateStyleData.ts[`findElementWithStyleDataOrIntermediateStyleData.ts`] (React) and the same-named function in link:{libs}/angular-utils/style/src/utils/dom-style.utils.ts[`dom-style.utils.ts`] (Angular).
+* `getStyleDataOrIntermediateStyleData(element)` calls that walk and, on the element it finds, reads `dataStyleIdKey` / `dataNoPortalLayoutStylesKey` / `dataMfeElementKey` (falling back to the `dataIntermediate*` keys). It returns a `StyleData` object, or `null` when no scoped ancestor exists.
+
+The marker keys are the ones listed in link:{libs}/react-utils/src/lib/utils/styleAttributes.ts[`styleAttributes.ts`] (React) and link:{libs}/angular-utils/src/lib/utils/scope.utils.ts[`scope.utils.ts`] (Angular): `data-style-id` opens the scope section for a `productName|appId`, and the `data-intermediate-style-id` family is the short-lived marker an element carries *while it is being placed* (see link:{u7}[Unit 7]).
+
+The result of the walk is what gets written onto the overlay's container, turning that container into a scope section of the owning app. The attributes, the `@scope` blocks they feed, and the `to ([data-style-isolation])` boundary are all described in link:{u3}[Unit 3]; this Unit only recovers the id.
+
+== Angular / React
+
+The *read* side (trigger element + closest-ancestor walk) is the same in both frameworks; what differs is how the overlay is *landed* and how the app element is located when the trigger is not a plain DOM node.
+
+=== Angular
+
+CDK renders overlays into an `OverlayContainer` it creates on `document.body`. The OneCX variants reparent that container into the app's *dynamic container* so the overlay inherits the app's scope:
+
+* link:{libs}/angular-utils/cdk/src/lib/onecx-overlay-container.ts[`OnecxOverlayContainer`] extends `OverlayContainer`; in `_createContainer()` it takes the CDK container element, copies its `className` and every attribute onto the element returned by the `DYNAMIC_CONTAINER` injection token, and `replaceWith()`es the original so the overlay now lives inside the dynamic container.
+* link:{libs}/angular-utils/cdk/src/lib/onecx-fullscreen-overlay-container.ts[`OnecxFullscreenOverlayContainer`] does the same for `FullscreenOverlayContainer`.
+* `DYNAMIC_CONTAINER` is an `InjectionToken<() => HTMLElement>` in link:{libs}/angular-integration-interface/src/lib/api/injection-tokens.ts[`injection-tokens.ts`].
+
+The dynamic container itself is `onecx-dynamic-{elementName}` (the `onecxDynamicContainerSelectorPrefix`). `getDynamicContainer(containerTag, appElementName)` in link:{libs}/angular-webcomponents/src/lib/utils/get-dynamic-container.utils.ts[`get-dynamic-container.utils.ts`] returns the element if it is already in the document, otherwise asks the Shell's `document.createOnecxDynamicContainer(...)`. The callback is wired up during bootstrap in link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-bootstrap.utils.ts[`webcomponent-bootstrap.utils.ts`], which registers a `DYNAMIC_CONTAINER_PROXY` provider whose `getDynamicContainerCallback` is `() => getDynamicContainer('onecx-dynamic-' + elementName, elementName)` and whose `removeDynamicContainer` removes it again on component destroy.
+
+Angular also resolves style data from a non-DOM caller: `getStyleDataFromInjector(object)` in link:{libs}/angular-utils/style/src/utils/dom-style.utils.ts[`dom-style.utils.ts`] pulls the `APP_ID` off the object's injector (via `getInjector` in link:{libs}/angular-utils/src/lib/utils/get-object-injector.utils.ts[`get-object-injector.utils.ts`]), reads its `appElementName`, finds the first `<appElementName>` element in the document, and runs the same closest-ancestor walk on it.
+
+=== React
+
+React has no overlay container to reparent; instead it stamps the out-of-scope element directly when it is created. The *attribution read* used there is the same `getOnecxTriggerElement` → `getStyleDataOrIntermediateStyleData` pair above (link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/getStyleDataOrIntermediateStyleData.ts[`getStyleDataOrIntermediateStyleData.ts`]); the stamping is the `createPortal` patch covered in link:{u7}[Unit 7]. The React accessor returns `null` for the Shell's scope (`data-style-id="shell-ui"`), so Shell overlays are not attributed to an app.
+
+== Libs side / Shell side
+
+=== Libs side
+
+* link:{libs}/react-utils/src/lib/utils/styleAttributes.ts[`styleAttributes.ts`] — the `data-style-*` and `data-intermediate-style-*` key/attribute constants the walk tests.
+* link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/onecx-trigger-element.ts[`onecx-trigger-element.ts`] + link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/declarations.ts[`declarations.ts`] (React) — `getOnecxTriggerElement` and the `Window.onecxTriggerElement` declaration.
+* link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/findElementWithStyleDataOrIntermediateStyleData.ts[`findElementWithStyleDataOrIntermediateStyleData.ts`] and link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/getStyleDataOrIntermediateStyleData.ts[`getStyleDataOrIntermediateStyleData.ts`] (React) — the closest-ancestor walk and the style-data read.
+* link:{libs}/angular-utils/style/src/utils/dom-style.utils.ts[`dom-style.utils.ts`] (Angular) — the same walk plus `getStyleDataFromInjector` and `addStyleToHead`.
+* link:{libs}/angular-utils/cdk/src/lib/onecx-overlay-container.ts[`onecx-overlay-container.ts`] and link:{libs}/angular-utils/cdk/src/lib/onecx-fullscreen-overlay-container.ts[`onecx-fullscreen-overlay-container.ts`] — the CDK overlay containers reparented into the dynamic container.
+* link:{libs}/angular-integration-interface/src/lib/api/injection-tokens.ts[`injection-tokens.ts`] — the `DYNAMIC_CONTAINER` token.
+* link:{libs}/angular-webcomponents/src/lib/utils/get-dynamic-container.utils.ts[`get-dynamic-container.utils.ts`] and link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-bootstrap.utils.ts[`webcomponent-bootstrap.utils.ts`] — `getDynamicContainer` / the bootstrap wiring that creates and removes the dynamic container.
+
+=== Shell side
+
+The Shell owns the page-level pieces the libs read:
+
+* link:{shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts[`onecx-trigger-element.utils.ts`] — `initializeOnecxTriggerElementListener` writes `window.onecxTriggerElement` on `mouseover` / `focusin`; its `getOnecxTriggerElement` also falls back to searching `.onecx-body` for a descendant with a `data-style-id` when the global is not set.
+* link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`dynamic-content-initializer.utils.ts`] — `dynamicContentInitializer` starts the trigger-element listener and the body / container guards on startup (registered as an app initializer in link:{shell}/src/app/app.module.ts[`app.module.ts`]).
+* link:{shell}/src/app/shell/utils/styles/dynamic-content.utils.ts[`dynamic-content.utils.ts`] — `ensureCreateOnecxDynamicContainer` installs `document.createOnecxDynamicContainer`, which appends the app's dynamic container (stamped with its style data) to `document.body`; it is the function `getDynamicContainer` calls when the container does not exist yet.
+
+== Edge cases & pitfalls
+
+* *Stale trigger element.* `window.onecxTriggerElement` is a single global holding the last hovered/focused element. An overlay opened programmatically — with no recent pointer or focus inside the owning app — may be attributed to whichever app was interacted with most recently, or to nothing. The Shell's `getOnecxTriggerElement` fallback (search `.onecx-body` for a `data-style-id` descendant) narrows this, but a global gesture cannot infer the owner of a code-driven overlay.
+* *Trigger outside any scope.* If the trigger element has no scoped ancestor, the walk returns `null` and the overlay is left unattributed — it receives no app styles. Shell content (`data-style-id="shell-ui"`) is deliberately excluded by the React accessor, so Shell overlays get no app scope.
+* *Dynamic container not yet created.* `getDynamicContainer` creates the container on first use; before that point there is nothing for a CDK overlay to reparent into. Bootstrap registers the callback before the app's `ngOnInit`, so in practice the container exists by the time an overlay opens.
+* *One container per app element name.* The container is keyed by `onecx-dynamic-{elementName}`; `removeDynamicContainer` removes it on component destroy. A second instance of the same element name reuses the first container found.
+
+== Debugging
+
+In the devtools:
+
+* Evaluate `window.onecxTriggerElement` in the console: it should be the element you last hovered or focused (the thing that opened the overlay). `null` means no gesture has set it yet.
+* Inspect the overlay's container: an Angular CDK overlay should live inside `onecx-dynamic-{elementName}` (not directly under `body`), and that container should carry the app's `data-style-id`.
+* Trace the walk: from the trigger element, find the nearest ancestor with `data-style-id` or `data-intermediate-style-id`; that value is the scope the overlay is attributed to. If the overlay is unstyled, that walk is returning `null` or the wrong id.
+
+General runtime inspection is covered by the *Diagnostics* Area.
+
+== Related Units
+
+* link:{u3}[The @scope scoping model] — the `data-style-*` attributes and `@scope` blocks the recovered id feeds.
+* link:{u7}[Dynamic content wrapping & listeners] — how the attributed overlay is stamped, wrapped and kept in sync.
+* link:{u8}[Scope polyfill] — how these scope blocks are rewritten on browsers without native {scope_at_rule}.
+* link:{area}[Styling & Style Isolation — Area overview]
+* `primeng-style-scoping.adoc` (PrimeNG/PrimeReact style scoping — planned).
+* *Bootstrap* (how the app element that carries `data-style-id` is mounted) and *Remote Components & Slots* (the Slot that hosts nested dynamic content) — other Areas.
+
+== Sources
+
+Code::
+* link:{libs}/react-utils/src/lib/utils/styleAttributes.ts[`styleAttributes.ts`] — `data-style-*` / `data-intermediate-style-*` keys and attributes
+* link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/onecx-trigger-element.ts[`onecx-trigger-element.ts`] and link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/declarations.ts[`declarations.ts`] (React) — `getOnecxTriggerElement`, `Window.onecxTriggerElement`
+* link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/findElementWithStyleDataOrIntermediateStyleData.ts[`findElementWithStyleDataOrIntermediateStyleData.ts`] and link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/getStyleDataOrIntermediateStyleData.ts[`getStyleDataOrIntermediateStyleData.ts`] (React) — closest-ancestor walk and style-data read
+* link:{libs}/angular-utils/style/src/utils/dom-style.utils.ts[`dom-style.utils.ts`] (Angular) — same walk plus `getStyleDataFromInjector`, `addStyleToHead`
+* link:{libs}/angular-utils/src/lib/utils/get-object-injector.utils.ts[`get-object-injector.utils.ts`] — `getInjector`
+* link:{libs}/angular-utils/cdk/src/lib/onecx-overlay-container.ts[`onecx-overlay-container.ts`] and link:{libs}/angular-utils/cdk/src/lib/onecx-fullscreen-overlay-container.ts[`onecx-fullscreen-overlay-container.ts`] — CDK overlay reparenting
+* link:{libs}/angular-integration-interface/src/lib/api/injection-tokens.ts[`injection-tokens.ts`] — `DYNAMIC_CONTAINER`
+* link:{libs}/angular-webcomponents/src/lib/utils/get-dynamic-container.utils.ts[`get-dynamic-container.utils.ts`] and link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-bootstrap.utils.ts[`webcomponent-bootstrap.utils.ts`] — `getDynamicContainer`, bootstrap wiring
+* link:{shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts[`onecx-trigger-element.utils.ts` (Shell)] — `initializeOnecxTriggerElementListener`, `window.onecxTriggerElement`
+* link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`dynamic-content-initializer.utils.ts` (Shell)] — `dynamicContentInitializer`
+* link:{shell}/src/app/shell/utils/styles/dynamic-content.utils.ts[`dynamic-content.utils.ts` (Shell)] — `ensureCreateOnecxDynamicContainer`
+* link:{shell}/src/app/app.module.ts[`app.module.ts` (Shell)] — `dynamicContentInitializer` registration
+
+Verification Sources checked::
+* `dev-docs/styles/scoping.adoc` (the *Dynamic content* section: appended elements need scoping attributes based on the call context; the intermediate attributes)
+* `dev-docs/styles/concept.adoc` and `dev-docs/styles/style-types.adoc` (the style-isolation framing and the attribute table)
+* `dev-docs/styles/scope-polyfill.adoc` (the fallback that consumes the recovered scope blocks)
+* Draft Outline (https://github.com/markuczy/onecx-portal-ui-libs/commit/6108bdff79ea8dce5a15df5fd0b6b1e48dc7edca[6108bdff])
+* in-code JSDoc of `styleAttributes.ts`, `dom-style.utils.ts`, `onecx-overlay-container.ts`, `get-dynamic-container.utils.ts` and the Shell's `onecx-trigger-element.utils.ts`

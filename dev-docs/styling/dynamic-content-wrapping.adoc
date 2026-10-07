@@ -1,0 +1,138 @@
+= Dynamic content wrapping & listeners
+:idprefix:
+:idseparator: -
+:libs: ../../libs
+:shell: https://github.com/onecx/onecx-shell-ui/blob/main
+:area: ./README.adoc
+:u3: ./scope-model.adoc
+:u6: ./dynamic-content-attribution.adoc
+:u8: ./scope-polyfill.adoc
+:scope_at_rule: https://developer.mozilla.org/en-US/docs/Web/CSS/@scope
+
+== Question answered
+
+Once an out-of-scope element's owning app has been attributed (link:{u6}[Unit 6]), how is that element *stamped* and *wrapped* so it is scoped correctly, and which runtime listeners keep it styled as it changes?
+
+== Why it exists
+
+Attribution (link:{u6}[Unit 6]) only recovers *which* app an out-of-scope element belongs to. For the {scope_at_rule} model (link:{u3}[Unit 3]) to actually apply the app's rules, the element still has to *carry* the scope attributes (`data-style-id`, `data-style-isolation`, and the `data-no-portal-layout-styles` / `data-mfe-element` markers), and it has to keep carrying them while the DOM changes beneath it. Wrapping is the mechanism that writes those attributes onto dynamically appended content, and the listeners are the runtime observers that react to those changes.
+
+Two independent problems are handled. First, an element appended to `document.body` by an app — an overlay root, a tooltip, a portal — arrives with no scope attributes of its own; it needs to be *wrapped* so it sits inside a scope section. Second, PrimeReact and Angular component styles are loaded into the shared `<head>` at runtime; something has to *notice* those new `<style>` nodes and scope them. These are the two listeners this Unit describes.
+
+== How it works
+
+=== Stamping and wrapping
+
+The Shell intercepts appends to `document.body` so that every appended node ends up inside a scope section. `ensureBodyChangesIncludeStyleData(polyfillMode)` in link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`] wraps `document.body.appendChild` and `document.body.removeChild`:
+
+* *On append* — a small blacklist is checked first (CDK overlay containers, visually-hidden nodes, and the app's own `data-onecx-dynamic-container`). If the node matches the blacklist it is handled specially; otherwise the node is marked (`markElement`), its style data is resolved from the node itself or — falling back — from the current trigger element (the attribution of link:{u6}[Unit 6]), and the node is wrapped in a `div` that carries that data. The now-transferred style data is then stripped from the original child (`removeStyleDataRecursive`).
+* *On remove* — the matching wrapper is looked up and cleaned up so an unmounted element does not leave a dangling scope section behind.
+
+The wrappers are built by the helpers in link:{shell}/src/app/shell/utils/styles/style-data.utils.ts[`style-data.utils.ts`]:
+
+* `appendStyleData` writes the permanent scope attributes — `data-style-isolation` (always) plus, when available, `data-style-id`, `data-no-portal-layout-styles` and `data-mfe-element`.
+* `appendIntermediateStyleData` writes the short-lived `data-intermediate-style-id` / `data-intermediate-mfe-element` / `data-intermediate-no-portal-layout-styles` markers.
+* `createWrapper` / `wrapWithDiv` build the wrapper `div` (marked with `dataWrapperElement`) and stamp it with the resolved style data; `findStyleDataWrapper` walks back up to it; `removeStyleDataRecursive` clears it.
+
+The *intermediate* attributes are the key idea: an element is created, tagged with "this should become scope X," and only then inserted. The intermediate markers exist only in that gap between creation and insertion; once the element is in the DOM and wrapped, the permanent `data-style-*` attributes are what the {scope_at_rule} selectors actually match (link:{u3}[Unit 3]).
+
+The CDK-overlay path is a deliberate exception to the wrap: because the overlay container is the app's own dynamic container (already scoped, see link:{u6}[Unit 6]), `body-overwrites.utils.ts` writes `appendStyleData` directly onto the container instead of wrapping it in another `div`.
+
+=== The listeners
+
+Two listeners react to the two kinds of dynamic change:
+
+* *The body wrapper's own observer.* `wrapWithDiv` starts a `MutationObserver` (`observeStyleDataWrapper`) that removes a wrapper once its children become empty — an empty scope section serves no purpose and should not stay in the DOM.
+* *The PrimeReact scoper.* In React, PrimeReact style blocks arrive in the `<head>` as `<style data-primereact-style-id="…">`. `attachPrimeReactScoper` in link:{libs}/react-utils/src/lib/styling/primeReact/scopingFunctionality/index.ts[`scopingFunctionality/index.ts`] runs a `MutationObserver` on `document.head` (subtree, `childList` + `characterData`), and on each relevant change reads the style's raw CSS, hashes it (skipping unchanged content), scopes it with `scopeCss` into an `@scope(<root>) to ([data-style-isolation])` block, and writes it into a dedicated `<style data-app-primereact-style="<id>">` element. It is called by the app and remote contexts (link:{libs}/react-utils/src/lib/styling/primeReact/contexts/app/index.tsx[`app`], link:{libs}/react-utils/src/lib/styling/primeReact/contexts/remotes/index.tsx[`remotes`]) and returns a disposer that disconnects the observer. On unsupported browsers in *precision* mode, the body-append wrapper additionally triggers `updateStyleSheets(...)` so a newly appended element is styled immediately rather than waiting for the next mutation (link:{u8}[Unit 8]).
+
+[source,mermaid]
+----
+sequenceDiagram
+  participant App as App (overlay / portal)
+  participant Body as document.body.appendChild
+  participant Attr as trigger element (Unit 6)
+  participant Wrap as wrapper div
+  participant Head as <head>
+  App->>Body: appendChild(overlay root)
+  Body->>Attr: resolve style data (child ?? trigger)
+  Body->>Wrap: wrapWithDiv(node, styleData)
+  Note over Wrap: carries data-style-id / isolation
+  PrimeReact->>Head: <style data-primereact-style-id>
+  Head-->>Head: MutationObserver → attachPrimeReactScoper scopes it
+----
+
+== Angular / React
+
+The *wrapping* and the *body* listener are the Shell's, and the Shell is a single Angular application — so they apply to Angular *and* React content on the page alike, framework-agnostic. The difference is in the PrimeReact-side scoper and in how React stamps its own portals.
+
+* *Angular:* CDK overlays are reparented into the app's dynamic container (link:{u6}[Unit 6]), so they need no extra wrap; the body wrapper still observes and cleans up. PrimeNG styles are handled by the Shell's PrimeNG overwrites and the precision polyfill.
+* *React:* PrimeReact renders overlays through `ReactDOM.createPortal`. The libs patch that call — `ensurePrimereactDynamicDataIncludesIntermediateStyleData` in link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/index.ts[`dynamicScoping/index.ts`] — so that, when a portal's child is a PrimeReact element (its `className` starts with `p-`), the portal target is stamped with the *intermediate* style data taken from the trigger element (`getOnecxTriggerElement` → `getStyleDataOrIntermediateStyleData` → `appendIntermediateStyleData` in link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/appendIntermediateStyleData.ts[`appendIntermediateStyleData.ts`]). The Shell's `dynamicContentInitializer` runs its own `ensurePrimengDynamicDataIncludesIntermediateStyleData` / `ensureMaterialDynamicDataIncludesIntermediateStyleData` guards for the PrimeNG and Material equivalents (link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`dynamic-content-initializer.utils.ts`]). The body wrapper then promotes the intermediate markers to the permanent `data-style-*` attributes on insertion, and the `attachPrimeReactScoper` listener scopes the CSS.
+
+== Libs side / Shell side
+
+=== Libs side
+
+* link:{libs}/react-utils/src/lib/utils/styleAttributes.ts[`styleAttributes.ts`] (React) — the `data-intermediate-style-*` keys/attributes the intermediate markers use.
+* link:{libs}/angular-utils/src/lib/utils/scope.utils.ts[`scope.utils.ts`] (Angular) — `dataOnecxDynamicContainerKey` / `data-onecx-dynamic-container` (the blacklist marker for an app's dynamic container) and the shared `data-style-*` keys.
+* link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/index.ts[`dynamicScoping/index.ts`] (React) — the `createPortal` patch that stamps intermediate style data onto PrimeReact portals.
+* link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/appendIntermediateStyleData.ts[`appendIntermediateStyleData.ts`] (React) — maps resolved style data to the intermediate attributes.
+* link:{libs}/react-utils/src/lib/styling/primeReact/scopingFunctionality/index.ts[`scopingFunctionality/index.ts`] (React) — `attachPrimeReactScoper`, the `document.head` `MutationObserver`.
+* link:{libs}/react-utils/src/lib/styling/primeReact/contexts/app/index.tsx[`app`] and link:{libs}/react-utils/src/lib/styling/primeReact/contexts/remotes/index.tsx[`remotes`] (React) — the callers of `attachPrimeReactScoper`.
+
+=== Shell side
+
+* link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`] — `ensureBodyChangesIncludeStyleData`, the `appendChild` / `removeChild` wrapping.
+* link:{shell}/src/app/shell/utils/styles/style-data.utils.ts[`style-data.utils.ts`] — `markElement`, `createWrapper`, `wrapWithDiv`, `observeStyleDataWrapper`, `findStyleDataWrapper`, `removeStyleDataRecursive`, `appendStyleData`, `appendIntermediateStyleData`.
+* link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`dynamic-content-initializer.utils.ts`] — `dynamicContentInitializer` starts the body wrapping and the intermediate-style-data guards on startup (registered in link:{shell}/src/app/app.module.ts[`app.module.ts`]).
+* link:{shell}/src/scope-polyfill/polyfill.ts[`scope-polyfill/polyfill.ts`] — `updateStyleSheets`, called on unsupported browsers in precision mode when content is appended (link:{u8}[Unit 8]).
+
+== Edge cases & pitfalls
+
+* *Intermediate vs permanent.* The `data-intermediate-style-*` attributes must not be relied on for scoping; they are a creation-time hint that the body wrapper replaces with the permanent `data-style-*` attributes on insertion. If an element with intermediate markers is left in the DOM unwrapped, it is not scoped.
+* *Empty wrappers are removed.* `observeStyleDataWrapper` drops a wrapper once its children are gone. A wrapper that disappears while it still has children (or one that is created but never observed) is a bug, not expected behaviour.
+* *The blacklist is narrow.* Only the CDK overlay container, visually-hidden nodes and the `data-onecx-dynamic-container` take the special path; everything else gets a fresh wrapper `div`. A large overlay that is not one of these adds a wrapping element to the DOM tree.
+* *Per-app scoper.* `attachPrimeReactScoper` is one observer per app, watching the whole `document.head`; with many React apps on a page there are many observers. Its `captureWindowMs`, `freezeAfterFirstUpdate` and `blockFurtherUpdatesForCapturedIds` options bound how long and how much it reacts.
+* *Runtime cost.* Both listeners are `MutationObserver`s that run on every matching DOM change. The body wrapper touches the page's most active subtree; the scoper hashes every PrimeReact style change to skip no-ops. This is the price of keeping out-of-scope content styled without the app opting in.
+* *Unsupported browsers.* On a browser without native {scope_at_rule}, the scoper emits a bare `@scope(...)` block and the body wrapper triggers `updateStyleSheets` in precision mode; the polyfill path for those blocks is a link:{u8}[Unit 8] concern (see that Unit's known issue on bare React `@scope` blocks).
+
+== Debugging
+
+In the devtools:
+
+* *Is the wrapper there?* Inspect an overlay: it should be wrapped in (or be) an element carrying `data-style-id="<productName|appId>"` and `data-style-isolation`. A raw overlay with no such ancestor is not scoped.
+* *Intermediate markers.* While an element is being created you may see `data-intermediate-style-id`; after insertion it should be gone and replaced by `data-style-id`. If the intermediate markers persist in the DOM, the wrapper did not run.
+* *The scoper's output.* Look for `style[data-app-primereact-style="<id>"]` in the `<head>` — that is where `attachPrimeReactScoper` writes scoped PrimeReact rules. If PrimeReact looks unstyled in an out-of-scope dialog, confirm that element exists and contains an `@scope(...)` block.
+* *Empty-wrapper churn.* A wrapper `div` that keeps appearing and disappearing as a dialog opens and closes is the normal `observeStyleDataWrapper` cleanup.
+
+General runtime inspection is covered by the *Diagnostics* Area.
+
+== Related Units
+
+* link:{u6}[Dynamic content attribution (trigger element)] — how the owning app is recovered before the wrap.
+* link:{u3}[The @scope scoping model] — the `data-style-*` attributes and `@scope` blocks the wrap stamps.
+* link:{u8}[Scope polyfill] — how these blocks are rewritten on browsers without native {scope_at_rule}.
+* link:{area}[Styling & Style Isolation — Area overview]
+* `primeng-style-scoping.adoc` (PrimeNG/PrimeReact style scoping — planned).
+* *Bootstrap* (how the app content that is wrapped is mounted) — another Area.
+
+== Sources
+
+Code::
+* link:{libs}/react-utils/src/lib/utils/styleAttributes.ts[`styleAttributes.ts`] — `data-intermediate-style-*` keys and attributes
+* link:{libs}/angular-utils/src/lib/utils/scope.utils.ts[`scope.utils.ts`] — `data-onecx-dynamic-container` marker, shared `data-style-*` keys
+* link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/index.ts[`dynamicScoping/index.ts`] (React) — the `createPortal` patch
+* link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/appendIntermediateStyleData.ts[`appendIntermediateStyleData.ts`] (React)
+* link:{libs}/react-utils/src/lib/styling/primeReact/scopingFunctionality/index.ts[`scopingFunctionality/index.ts`] (React) — `attachPrimeReactScoper`, the `document.head` observer
+* link:{libs}/react-utils/src/lib/styling/primeReact/contexts/app/index.tsx[`app`] and link:{libs}/react-utils/src/lib/styling/primeReact/contexts/remotes/index.tsx[`remotes`] (React) — scoper callers
+* link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts` (Shell)] — `ensureBodyChangesIncludeStyleData`, `appendChild` / `removeChild` wrapping
+* link:{shell}/src/app/shell/utils/styles/style-data.utils.ts[`style-data.utils.ts` (Shell)] — wrappers and `appendStyleData` / `appendIntermediateStyleData`
+* link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`dynamic-content-initializer.utils.ts` (Shell)] — `dynamicContentInitializer`
+* link:{shell}/src/app/app.module.ts[`app.module.ts` (Shell)] — `dynamicContentInitializer` registration
+* link:{shell}/src/scope-polyfill/polyfill.ts[`scope-polyfill/polyfill.ts` (Shell)] — `updateStyleSheets`
+
+Verification Sources checked::
+* `dev-docs/styles/scoping.adoc` (the *Dynamic content* section: intercepting `document.body.appendChild` / `removeChild`, the intermediate attributes that "should exist only for a short period between elements creation and the moment of adding this element to the DOM", `document.createElementFromPrimeNg`)
+* `dev-docs/styles/concept.adoc` and `dev-docs/styles/style-types.adoc` (the isolation framing and the attribute table)
+* `dev-docs/styles/primeng-scoping.adoc` and `dev-docs/styles/scope-polyfill.adoc` (the PrimeNG dynamic-content and polyfill counterparts)
+* Draft Outline (https://github.com/markuczy/onecx-portal-ui-libs/commit/6108bdff79ea8dce5a15df5fd0b6b1e48dc7edca[6108bdff])
+* in-code JSDoc of `style-data.utils.ts`, `body-overwrites.utils.ts`, `scopingFunctionality/index.ts` and `dynamicScoping/index.ts`
