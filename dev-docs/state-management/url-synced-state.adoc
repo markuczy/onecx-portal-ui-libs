@@ -18,7 +18,7 @@ The effect lives in `@onecx/ngrx-accelerator`. The write helper is link:{libs}/n
 
 [source,typescript]
 ----
-// reducer receives a URLSearchParams instance and should return a plain object
+// reducer receives a URLSearchParams instance (despite the declared Record type)
 createFragmentParamsEffect(actions$, MyActions.updateSort, router, activatedRoute,
   (params: URLSearchParams, action) => {
     // read existing values from params, update and return a plain object
@@ -27,9 +27,9 @@ createFragmentParamsEffect(actions$, MyActions.updateSort, router, activatedRout
   })
 ----
 
-When the given action is dispatched, the effect reads the current `activatedRoute.fragment`, parses the parameter portion (the part after `?`) into a URLSearchParams instance and *passes that URLSearchParams* to the App-supplied reducer. The reducer is therefore given a URLSearchParams object (not a plain JS object) and may call `get`, `set`, or iterate `entries()`; the helper then formats the reducer's returned plain object into a new fragment and writes it back with `router.navigate([], { relativeTo, fragment, replaceUrl: true, onSameUrlNavigation: 'reload' })`.
+When the given action is dispatched, the effect reads the current `activatedRoute.fragment`, passes the *entire fragment string* to `new URLSearchParams(fragment)`, and gives that `URLSearchParams` instance to the App-supplied reducer. The reducer is therefore given a URLSearchParams object even though the callback is declared as `Record<string, any>`, so the runtime contract is stronger than the type suggests. If the reducer returns a spread object such as `{...params}`, the parsed entries are not preserved because `URLSearchParams` is not a plain object; use an explicit conversion such as `Object.fromEntries(params.entries())` when you want to carry existing pairs forward. The helper then formats the reducer's returned plain object into a new fragment and writes it back with `router.navigate([], { relativeTo, fragment, replaceUrl: true, onSameUrlNavigation: 'reload' })`.
 
-It returns an effect with `{ dispatch: false }`, so it has no side effect on the store — the store is the *source*, the URL is the *mirror*. The fragment's `#` prefix and any leading segment before `?` are preserved: for `#tab?sort=asc` the reducer sees a URLSearchParams representing `sort=asc`, may update or remove keys, and the output is merged back into `tab?…`.
+It returns an effect with `{ dispatch: false }`, so it has no side effect on the store — the store is the *source*, the URL is the *mirror*. The fragment prefix before `?` is reattached separately: for `#tab?sort=asc` the helper writes back `tab?…`, but the reducer itself still sees a `URLSearchParams` created from the full `tab?sort=asc` fragment string.
 
 The read side is a set of RxJS operators over the `@ngrx/router-store` `RouterNavigatedAction` stream (the Shell's "URL changed" event, see link:../navigation/url-to-every-router.adoc[URL change → every router]):
 
@@ -93,6 +93,7 @@ The mirror is the URL itself: watch the `#` fragment as a state change lands. To
 
 == Known issues
 
+* `createFragmentParamsEffect` currently constructs `new URLSearchParams(fragment)` from the whole fragment string and passes that instance into the reducer, while the public callback type is still `Record<string, any>`. That mismatch makes the current docs/example contract easy to misread. Follow-up: either align the helper signature/implementation with a plain-object reducer contract or keep the runtime contract and document it explicitly in code and types.
 * The three *fragment* helpers (`createFragmentParamsEffect`, `filterOutFragmentParamsHaveNotChanged`, `filterOutOnlyFragmentParamsChanged`) are not exported from the package barrel link:{libs}/ngrx-accelerator/src/index.ts[`src/index.ts`], while the *deprecated query-parameter* versions are. As the code stands, an App importing from the `@onecx/ngrx-accelerator` root can reach the deprecated helpers but not the recommended fragment ones (it would have to reach into a deep path). Follow-up: export the fragment helpers from the barrel.
 
 == Related Units
