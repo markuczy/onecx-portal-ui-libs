@@ -7,6 +7,7 @@
 :shell_repo: https://github.com/onecx/onecx-shell-ui
 :theme_to_page: ./theme-to-page.adoc
 :theme_to_tokens: ./theme-to-primeng-tokens.adoc
+:theme_to_overrides: ./theme-override-precedence.adoc
 
 This page is the overview of the **Theming & Visual Assets** Area of the Dev Docs. It explains the problem the Area is about, how the work is split between the OneCX libraries in this repository and the {shell_repo}[OneCX Shell], and lists the Units that belong to the Area in reading order. It does not explain any single mechanism in depth — that is the job of the individual Unit pages, which follow the Unit template.
 
@@ -70,8 +71,8 @@ The Units of this Area, in reading order. Units that already exist are linked; p
 |Written
 
 |Theme Overrides (CSS vs PRIMENG, precedence)
-|theme-override-precedence.adoc
-|Planned — see the existing link:theme-overrides.adoc[theme overrides page]
+|link:{theme_to_overrides}[theme-override-precedence.adoc]
+|Written
 
 |Icons
 |icons.adoc
