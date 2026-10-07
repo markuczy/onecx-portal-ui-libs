@@ -42,7 +42,7 @@ The resolution order in link:{libs}/integration-interface/src/lib/utils/configur
 
 The result is published to the `configuration` Topic by the Angular `ConfigurationService.init()` (link:{libs}/angular-integration-interface/src/lib/services/configuration.service.ts[`ConfigurationService`]) or the React `ConfigurationProvider.init()` (link:{libs}/react-integration-interface/src/lib/contexts/configurationContext.tsx[`ConfigurationProvider`]). On the Shell side, `configurationServiceInitializer` in link:{shell}/src/app/app.module.ts[`app.module.ts`] is what actually runs `init()` at bootstrap, so the *producer* of the `configuration` Topic is the Shell.
 
-The Shell's `env.json` (link:{shell}/src/assets/env.json[`src/assets/env.json`]) is the source of the cross-repo keys. Its values are `${PLACEHOLDER}` tokens (e.g. `KEYCLOAK_REALM: "${KEYCLOAK_REALM}"`, `APP_VERSION: "${APP_VERSION}"`) that the Shell's *deploy layer* substitutes with concrete values per environment: nginx (`link:{shell}/nginx/locations.conf[nginx/locations.conf]`) serves the file and the Docker/Helm build fills the tokens. The libs never see or substitute the placeholders — an App reads the resolved value off the Topic and treats it as an opaque string.
+The Shell's `env.json` (link:{shell}/src/assets/env.json[`src/assets/env.json`]) is the source of the cross-repo keys. Its values are `${PLACEHOLDER}` tokens (e.g. `KEYCLOAK_REALM: "${KEYCLOAK_REALM}"`, `APP_VERSION: "${APP_VERSION}"`). When the Shell image is based on `ghcr.io/onecx/docker-spa-base:2.39.0`, those placeholders are substituted at container startup by the base image entrypoint (see link:https://github.com/onecx/docker-spa-base/blob/main/entrypoint.sh[onecx/docker-spa-base entrypoint.sh]). Other deployment setups may substitute earlier in the pipeline (for example during a Docker/Helm build), but the libs themselves never perform placeholder substitution — an App reads the resolved value off the Topic and treats it as an opaque string.
 
 == Libs side / Shell side
 
@@ -121,12 +121,9 @@ The keys an App in `onecx-portal-ui-libs` (or an App talking to the Shell's back
 |Scope-polyfill behaviour.
 |Shell / style-isolation consumers (Area 4).
 
-|`TKIT_PORTAL_DEFAULT_THEME`, `TKIT_PORTAL_ID`, `TKIT_SUPPORTED_LANGUAGES`, `TKIT_SEARCH_BASE_URL`
-|Theme and portal identity keys.
-|Theme resolution, supported languages, search base.
-|Shell (theme/portal initializers); declared in the libs `CONFIG_KEY` enum for cross-repo naming.
-
 |===
+
+Note: The table above lists keys that are present in the Shell's `src/assets/env.json` and verified against concrete consumers. Some keys are declared in the `CONFIG_KEY` enum but are not present in the Shell's `src/assets/env.json`; those keys are not claimed here as Shell-published values. The grouped `TKIT_*` entries were removed from this cross-repo list because they are not present in link:{shell}/src/assets/env.json[`src/assets/env.json`].
 
 The rest of the `CONFIG_KEY` enum — the `ONECX_PORTAL_*_DISABLED` toggles, `TKIT_TOKEN_ROLE_CLAIM_NAME`, `KEYBOARD_FOCUSABLE_SELECTOR` — are consumed by the Shell's own UI and are documented by the Shell. The libs declare them in the enum so an App can read them by name, but the *meaning* is Shell-side.
 
