@@ -89,7 +89,7 @@ The underlying `Topic.destroy` it triggers is the same in both cases.
 == Debugging
 
 * *Count instances.* With stats enabled, `globalThis['@onecx/accelerator'].topic.stats.instancesCreated` shows how many `Topic` instances have been created per topic name (link:{libs}/accelerator/src/lib/utils/logs.utils.ts[`logs.utils.ts`]). A growing count for a topic that should be singletons per tab is the first symptom of a leak.
-* *Watch the lifecycle logs.* `Topic` and `TopicPublisher` log at the `@onecx/accelerator:Topic:<name>` / `:TopicPublisher:<name>` namespaces; `Gatherer` logs at `@onecx/accelerator:Gatherer:<name>` including its `created`/`destroyed` milestones. Enable them with `localStorage.debug` and reload (patterns in the old page link:../topics/debug.adoc[How to debug Topics]).
+* *Watch the lifecycle logs.* `Topic` and `TopicPublisher` log at the `@onecx/accelerator:Topic:<name>` / `:TopicPublisher:<name>` namespaces; `Gatherer` logs at `@onecx/accelerator:Gatherer:<name>` including its `created`/`destroyed` milestones. Enable them with `localStorage.debug` and reload — `localStorage.debug = '@onecx/accelerator:Topic:*'` for every topic, `localStorage.debug = '@onecx/accelerator:Gatherer:*'` for every gatherer, `localStorage.debug = '@onecx/accelerator:Topic:<name>'` (or `:Gatherer:<name>`) for one concrete instance, and add `:error` to a `*` pattern to see only errors.
 
 == Known issues
 
@@ -122,8 +122,8 @@ Code::
 * link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts` (Shell)]
 
 Verification Sources checked::
-* link:../topics/overview.adoc[old `dev-docs/topics/overview.adoc`] — the sync/lifecycle model and the `publish` sequence (matches the code).
-* link:../topics/debug.adoc[old `dev-docs/topics/debug.adoc`] — debug namespaces and `localStorage.debug` patterns.
-* link:../gatherer/debug.adoc[old `dev-docs/gatherer/debug.adoc`] — `Gatherer` debug namespaces.
+* old `dev-docs/topics/overview.adoc` — the sync/lifecycle model and the `publish` sequence (matches the code).
+* old `dev-docs/topics/debug.adoc` — debug namespaces and `localStorage.debug` patterns (inlined into Debugging above).
+* old `dev-docs/gatherer/debug.adoc` — `Gatherer` debug namespaces.
 * in-code JSDoc of `Topic`, `TopicPublisher`, `Gatherer` and the deprecated `SyncableTopic`.
 * Draft Outline (commit `6108bdf`) — for locating this Unit only, not as a content baseline.
