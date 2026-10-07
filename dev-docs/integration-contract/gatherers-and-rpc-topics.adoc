@@ -16,7 +16,7 @@ How is a request/response built on Topics — the `Gatherer` scatter/gather and 
 A plain `Topic` is a *shared value*: one value, published and replayed to every instance (link:message-delivery.adoc[Unit 2]). That is exactly right for state the Shell owns — the workspace, the theme, the user profile — where every unit wants the *same* value and reacts to it changing. It is the wrong shape for two other relationships a OneCX page needs (link:why-message-based.adoc[Unit 1]):
 
 * *One unit asks a question, another answers it.* An App or Remote Component does not know the current permissions or the current value of a parameter; it has to *ask* the unit that owns that data and wait for the reply. A plain Topic cannot collect a reply — it only broadcasts.
-* *One unit asks, and every instance answers, and the asker wants them all.* Guards have to run in *every* App on the page before a cross-App navigation is allowed, and the caller must block until *all* the answers are in.
+* *One unit asks, and every instance answers, and the asker wants them all.* A guard is a navigation check that decides whether a route change may proceed: these checks run in *every* App on the page before a cross-App navigation is allowed, and the caller must block until *all* the answers are in.
 
 Both are still built from the same framework-agnostic primitive — the `Topic` and its awaitable `publish` (link:message-delivery.adoc[Unit 2]). This Unit describes the two shapes built on it: the `Gatherer` (scatter/gather, many answerers) and the RPC Topic (one asker, one designated answerer).
 
