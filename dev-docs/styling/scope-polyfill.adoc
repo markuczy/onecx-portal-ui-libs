@@ -34,8 +34,8 @@ On a browser without {scope_at_rule}, the Shell picks one of two modes (chosen a
 Both modes deconstruct the `@supports (@scope(...))` block the libraries emit (Unit 3). The rewrite is per scope:
 
 . Find the scope from the block — `containsSupportsRule` / `findSupportsRule`, then `supportsConditionTextToScopeRuleText` + `matchScope` recover the *from* selector (e.g. `[data-style-id="shell-ui"]`).
-. Re-anchor the rules to that selector. `:root`/`html` and `:scope` become `&` and the rest of the block is wrapped in the from selector, so a rule written as `.custom-class { … }` becomes one that applies only inside the scope.
-. Because a bare selector cannot be re-scoped to a *specific* matching element, the update pass re-targets each rule with a `:where(:nth-child(n) > :nth-child(m) > …)` path to the element(s) that actually carry the original selector. For example `.custom-class` becomes `.custom-class:where(:nth-child(1) > :nth-child(2))`.
+. Performance mode wraps the rules under `:where(fromSelector)` so the browser can keep applying them quickly. That keeps the rewrite cheap, but it may leak some rules past the intended scope limit.
+. Precision mode uses `CssStyleSheetHandler` to re-target the matched elements with `:where(:nth-child(n) > :nth-child(m) > …)` paths. For example `.custom-class` becomes `.custom-class:where(:nth-child(1) > :nth-child(2))`.
 . Rules that cannot be nested inside a selector (`@keyframes`, `@font-face`) are lifted to the top level of the sheet instead.
 
 [source,css]
@@ -75,6 +75,10 @@ The Shell is the only consumer and the only place the polyfill runs:
 * *Mode matters.* Performance mode (default) is a one-pass rewrite that can leak a rule outside its scope; precision mode rewrites per element and is accurate but slower. A rule that visibly bleeds across apps on an older browser is a mode question, not a model one.
 * *Un-nestable rules.* `@keyframes` and `@font-face` cannot sit inside a selector, so the polyfill lifts them to the top of the sheet — they remain global even in a scoped sheet.
 
+== Known issues
+
+* React `scopeCss` in link:{libs}/react-utils/src/lib/styling/primeReact/scopingFunctionality/functions/index.ts[`scopingFunctionality/functions/index.ts`] emits a bare `@scope(...) { ... }` block. The Shell fallback only deconstructs `@supports (@scope(...))` wrappers, so those React-generated rules are not rewritten by the unsupported-browser polyfill path. Follow-up: align the React producer with the fallback wrapper or teach the Shell polyfill to consume bare `@scope` blocks too.
+
 == Debugging
 
 In the devtools:
@@ -100,6 +104,7 @@ Code::
 * link:{shell}/src/app/app.module.ts[`app.module.ts` (Shell)] — `POLYFILL_SCOPE_MODE`
 * link:{libs}/angular-utils/src/lib/utils/scope.utils.ts[`scope.utils.ts`] — `isCssScopeRuleSupported`
 * link:{libs}/angular-utils/style/src/utils/app-styles-scope.utils.ts[`app-styles-scope.utils.ts`] — the `@supports (@scope(...))` producer
+* link:{libs}/react-utils/src/lib/styling/primeReact/scopingFunctionality/functions/index.ts[`scopingFunctionality/functions/index.ts` (React)] — `scopeCss`
 
 Verification Sources checked::
 * `dev-docs/styles/scope-polyfill.adoc` (the older page describing the same mechanism; the current `polyfill.ts` precision/performance split is the baseline)

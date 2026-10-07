@@ -83,7 +83,7 @@ Both fall back to an `@supports (@scope(...))` wrapper when the browser does not
 
 A CSS variable that must not be shared should either be overridden on the nested scope root or given a uniquely scoped name. Setting the variable on `:scope` inside a block keeps it anchored to that scope root, but it does not stop descendants from inheriting it in the normal CSS way. Ordinary rules need no extra wrapping — the `@scope` block already confines which elements they match.
 
-PrimeNG's `--p-` variables are additionally renamed per scope by `replacePrimengPrefix` / `scopeIdentifierToVariablePrefix` in `scope.utils.ts`, so each scope gets a `--<scopeId>-` prefixed copy and two scopes can never share one `--p-` definition by accident.
+PrimeNG's `--p-` variables are additionally renamed per scope by `replacePrimengPrefix` / `scopeIdentifierToVariablePrefix` in `scope.utils.ts`, so each scope gets a `--<scopeId>-` prefixed copy. That rename is still only a sanitizer: `scopeIdentifierToVariablePrefix` replaces every non-alphanumeric/non-hyphen character with `-`, so two distinct ids can normalize to the same prefix.
 
 == Nested Remote Components
 
@@ -139,6 +139,7 @@ The model is identical in both frameworks; the difference is the producer.
 * *`data-no-portal-layout-styles` without `data-style-id`.* The legacy portal-layout sheets target `[data-style-id]:not([data-no-portal-layout-styles])`, so a scope that never gets a `data-style-id` is not addressed by them and effectively has no `@scope` boundary at all.
 * *`html` in a class name.* `replaceRootAndHtmlWithScope` is a plain string replace of `html`; a selector that literally contains the word `html` outside a selector position would be over-replaced. Application CSS should select the root element, not contain the token `html` elsewhere.
 * *A nested scope with the same id.* Two scopes with the same `data-style-id` (e.g. the same app mounted twice) both open a boundary for that id; the `to` boundary is the *nearest* `data-style-isolation`, so the inner one still closes before the outer content resumes. Distinct `data-style-isolation` placement is what keeps the nesting correct.
+* *Prefix collisions.* `scopeIdentifierToVariablePrefix` can collapse different ids to the same sanitized `--<scopeId>-` prefix. The rename is scope-local, not collision-proof.
 * *Browser without {scope_at_rule}.* Everything above only holds if the native rule exists or the polyfill has rewritten the block. In performance mode the Shell may allow some cross-scope leakage to stay fast (link:{u8}[Unit 8]).
 
 == Debugging

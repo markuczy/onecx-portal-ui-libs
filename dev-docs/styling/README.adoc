@@ -54,7 +54,7 @@ flowchart TD
 
 The four pages in this Area so far:
 
-* *Why isolation & style kinds* (Unit 1) covers the scope model and the kinds of stylesheets that exist on a page.
+* *Why isolation & style kinds* (Unit 1) covers why isolation exists and the kinds of stylesheets that exist on a page; Unit 3 carries the detailed `@scope` model.
 * *App/Remote Component stylesheet load & removal* (Unit 2) covers the load-on-demand and remove-on-unuse lifecycle with per-App/Slot usage counting.
 * *`@scope` scoping model* (Unit 3) covers how the `@scope` at-rule binds an application's styles to its content, including nested Remote Components.
 * *Scope polyfill* (Unit 8) covers how the Shell rewrites scoped stylesheets when the browser does not support `@scope`.
@@ -75,7 +75,7 @@ The Units of this Area, in reading order. Units 1, 2, 3, and 8 are written; the 
 
 == Reading order
 
-Start with Units 1 and 2 so the scope model and stylesheet categories are established, then read Unit 3 for the `@scope` model and Unit 8 for the polyfill that rewrites it on browsers without native support. The Shell's own stylesheets, component styles, dynamic content attribution, and PrimeNG variable scoping build on the same scope ids and attributes and are the natural next steps.
+Start with Units 1 and 2 for the isolation problem statement and stylesheet categories, then read Unit 3 for the detailed `@scope` model and Unit 8 for the polyfill that rewrites it on browsers without native support. The Shell's own stylesheets, component styles, dynamic content attribution, and PrimeNG variable scoping build on the same scope ids and attributes and are the natural next steps.
 
 == Related Areas
 

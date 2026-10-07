@@ -92,12 +92,12 @@ Where CSS comes from and how the styles of different Apps are kept apart.
 
 . link:./styling/why-style-isolation.adoc[Why isolation & style kinds] — `why-style-isolation.adoc`
 . link:./styling/stylesheet-loading.adoc[App/Remote Component stylesheet load & removal (usage counting)] — `stylesheet-loading.adoc`
-. `@scope` scoping model — `scope-model.adoc`
+. link:./styling/scope-model.adoc[`@scope` scoping model] — `scope-model.adoc`
 . Shell's own stylesheets & legacy portal layout — `shell-stylesheets.adoc`
 . Angular component styles — `angular-component-styles.adoc`
 . Dynamic content attribution (trigger element) — `dynamic-content-attribution.adoc`
 . Dynamic content wrapping & listeners — `dynamic-content-wrapping.adoc`
-. Scope polyfill — `scope-polyfill.adoc`
+. link:./styling/scope-polyfill.adoc[Scope polyfill] — `scope-polyfill.adoc`
 . PrimeNG/PrimeReact style scoping — `primeng-style-scoping.adoc`
 ====
 
