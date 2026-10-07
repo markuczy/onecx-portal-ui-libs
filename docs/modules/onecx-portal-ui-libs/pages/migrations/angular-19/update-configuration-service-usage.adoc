@@ -46,3 +46,4 @@ const config = await this.configService.getConfig();
 await this.configService.setProperty(CONFIG_KEY.APP_VERSION, '6.0.0');
 
 ----
+
