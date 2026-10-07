@@ -15,7 +15,7 @@ OneCX has three names that all mean "a setting an App reads at runtime", and the
 
 * *Configuration* — the Shell's runtime configuration. Delivered to every App on the `configuration` Topic. Keys are a fixed, typed set (`TKIT_*`, `KEYCLOAK_*`, `ONECX_PORTAL_*`, `IS_SHELL`, ...).
 * *App Config* — a per-App settings holder that is *not* a Topic. It is fetched by the App itself from its own `env.json` and stays inside the App's process.
-* *Parameter* — a per-App, per-Product value delivered on the `parameters` Topic. It is *not* a flat key/value map on one Topic; it is a list keyed by `productName` + `appId` + `key`, and it carries a real value type (`boolean | number | string | object`), not just strings.
+* *Parameter* — a per-App, per-Product value produced by the Shell's back-end via the Parameter BFF and delivered on the `parameters` Topic. It is *not* a flat key/value map on one Topic; it is a list keyed by `productName` + `appId` + `key`, and it carries a real value type (`boolean | number | string | object`), not just strings.
 
 A reader who picks the wrong mechanism reads the wrong value, or (for `App Config`) a value that never crosses the Shell boundary at all. This Unit draws the three apart: who produces it, which Topic (if any) carries it, which libs service reads it, and when to use which.
 
@@ -39,7 +39,7 @@ flowchart LR
   end
   ENV --> CFG
   PBFF --> PAR
-  AENV --> AC[AppConfigService (in-App)]
+  AENV --> AC["AppConfigService (in-App)"]
   CFG --> CS[ConfigurationService / ConfigurationProvider]
   PAR --> PS[ParametersService / useParameters]
   AC --> STORE[ngrx store / in-App consumers]

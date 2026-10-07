@@ -68,14 +68,14 @@ The delivery is identical; only the consumer shape differs.
 * Angular: `ParametersService.get(key, defaultValue)` for Apps, `ParametersService.get(key, defaultValue, productName, appId)` for Remote Components. `productName`/`appId` default to the current MFE from `AppStateService.currentMfe$`.
 * React: `useParameters().get(key, defaultValue, productName?, appId?)` inside a `ParametersProvider`. The same `findParameterValue` and the same capability gate.
 
-Both return a Promise and both always resolve (never throw) — a missing value or an old Shell yields the `defaultValue`, so an App must supply a sane one.
+Both return a Promise; their behavior depends on the Topic/stream state. An awaited source that completes without emitting will cause the Promise to reject; a source that neither emits nor completes will leave the Promise pending. Consequently, callers must gate reads on readiness (for both identity/current-MFE data and parameters) or provide explicit timeouts/defaults and handle rejections.
 
 == Edge cases & pitfalls
 
 * *Capability-gated.* `get()` returns `defaultValue` when the Shell does not advertise `PARAMETERS_TOPIC`. An older Shell (or a non-OneCX host) simply yields defaults — the only signal is the value you passed in.
 * *Scoped to the current MFE.* If you don't pass `productName`/`appId`, they come from `currentMfe$`. Outside the current-MFE context (or before the Shell publishes `current-mfe`), resolution is against an empty value and `get()` returns `defaultValue`.
 * *No value is "global."* A parameter set for product X is invisible to an App of product Y; `findParameterValue` only matches the exact `productName` + `appId` pair.
-* *Stale reads before publish.* Like every Topic, `parameters` is asynchronous. `firstValueFrom` rejects if the Topic has never received a value; the capability gate does *not* imply the Topic is populated. Gate on readiness (Unit 1) if you read before `workspaceConfigInitializer` has finished.
+* *Stale reads before publish.* Like every Topic, `parameters` is asynchronous. `firstValueFrom` rejects if the Topic has never received a value; the capability gate does *not* imply the Topic is populated. Gate on readiness (Unit 1) for both current-MFE identity and parameter publications if you read before `workspaceConfigInitializer` has finished.
 * *Remote Components must pass their own identity.* A Remote Component running in a host App does not inherit the host's `productName`/`appId`; it must pass them explicitly or it reads against the host's MFE context.
 
 == Debugging

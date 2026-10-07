@@ -11,7 +11,7 @@ How does the Shell's *runtime configuration* — the env keys an App reads from 
 
 == Why it exists
 
-An App needs a small set of environment facts — which Keycloak realm, which theme server, whether the current page is the Shell, which portal it is in — but none of these are compiled into the App. They differ per deployment. The Shell owns the answer and hands it over as a flat `Record<string, string>` on the `configuration` Topic. This Unit explains the three sources the value can come from (inlined `APP_CONFIG`, injected defaults, a remote `env.json`), the shape of the Shell's `env.json` with its `${PLACEHOLDER}` values, and the subset of keys that matter to an App living in the libs or talking to the Shell's back-end.
+An App needs a small set of environment facts — which Keycloak realm, whether the current page is the Shell, which portal it is in — but none of these are compiled into the App. They differ per deployment. The Shell owns the answer and hands it over as a flat `Record<string, string>` on the `configuration` Topic. This Unit explains the three sources the value can come from (inlined `APP_CONFIG`, injected defaults, a remote `env.json`), the shape of the Shell's `env.json` with its `${PLACEHOLDER}` values, and the subset of keys that matter to an App living in the libs or talking to the Shell's back-end.
 
 It deliberately covers only the *cross-repo-relevant* keys. The full `CONFIG_KEY` enum is long; most of it is consumed by the Shell itself (theme, search, portal-UI toggles), and those are documented by the Shell, not here.
 
