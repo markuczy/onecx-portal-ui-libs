@@ -26,7 +26,7 @@ The `globalError` and `globalLoading` signals themselves are Topics defined in t
 * link:{libs}/integration-interface/src/lib/topics/global-error/v1/global-error.topic.ts[`GlobalErrorTopic`] — `Topic<string>`, name `globalError`, version 1. A single error code for the whole page.
 * link:{libs}/integration-interface/src/lib/topics/global-loading/v1/global-loading.topic.ts[`GlobalLoadingTopic`] — `Topic<boolean>`, name `globalLoading`, version 1. A single loading flag for the whole page.
 
-A `Topic` is a page-global, cross-tab signal: every instance on the page converges on the same value. Both failures and the busy state therefore reach every part of the page from a single source of truth. See Area 1 (Integration Contract & Topics) for the delivery mechanism.
+A `Topic` is page-global within a single browser tab: every instance on the page within that tab converges on the same value. Topics do not propagate between browser tabs. Both failures and the busy state therefore reach every part of the page within the same tab from a single source of truth. See Area 1 (Integration Contract & Topics) for the delivery mechanism.
 
 [source,mermaid]
 ----
