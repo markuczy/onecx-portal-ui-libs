@@ -154,7 +154,7 @@ The libraries' override mechanism is **Angular-only**. PrimeReact theming is dri
 * link:{overview}[Theming & Visual Assets overview] — the Area this Unit belongs to.
 * link:theme-to-page.adoc[Theme → page] — the first stage that puts theme variables, favicon and logo on the page.
 * link:theme-to-primeng-tokens.adoc[Theme → PrimeNG / PrimeReact tokens] — how the Workspace theme is folded into the OneCX preset.
-* link:../styling/README.adoc[Styling & Style Isolation (overview)] (Styling Area) — the `--p-` → scoped-prefix rewriting the overrides are written against.
+* link:{libs}/angular-utils/src/lib/utils/scope.utils.ts[`angular-utils/src/lib/utils/scope.utils.ts`] — the live implementation of the `--p-` → scoped-prefix rewriting (`scopePrimengCss` / `replacePrimengPrefix`) that these overrides are written against.
 
 == Sources
 

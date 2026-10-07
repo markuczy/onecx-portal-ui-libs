@@ -7,6 +7,7 @@
 :shell: https://github.com/onecx/onecx-shell-ui/blob/main
 :overview: ./overview.adoc
 :theme_to_page: ./theme-to-page.adoc
+:scope_utils: {libs}/angular-utils/src/lib/utils/scope.utils.ts
 :app_config: {libs}/angular-utils/theme/primeng/src/utils/application-config.ts
 :theme_config_service: {libs}/angular-utils/theme/primeng/src/services/theme-config.service.ts
 :theme_config: {libs}/angular-utils/theme/primeng/src/utils/theme-config.ts
@@ -41,7 +42,7 @@ The two approaches differ because PrimeNG is configured programmatically through
 
 === Angular
 
-The entry point an application adds is link:{app_config}[`provideThemeConfig`]. It wires the Angular environment so that `ThemeConfigService` runs when the app starts, PrimeNG is provided, and the app's stylesheet gets its PrimeNG variables replaced for scoping (see the Styling & Style Isolation Area, link:../styling/README.adoc[overview]).
+The entry point an application adds is link:{app_config}[`provideThemeConfig`]. It wires the Angular environment so that `ThemeConfigService` runs when the app starts, PrimeNG is provided, and the app's stylesheet gets its PrimeNG variables rewritten for scoping by link:{scope_utils}[`scope.utils.ts`] (`scopePrimengCss` / `replacePrimengPrefix`).
 
 link:{theme_config_service}[`ThemeConfigService`] is the actor. On construction it subscribes to `ThemeService.currentTheme$` and, for every theme emitted, calls `applyThemeVariables(theme)`:
 
@@ -112,7 +113,7 @@ The rest of the PrimeReact theme reads `var(--app-*)`. So a token's resolved val
 * link:{theme_to_page}[Theme → page] — where the `Theme` and its `properties` come from.
 * link:{overview}[Theming & Visual Assets overview] — the Area this Unit belongs to.
 * link:theme-override-precedence.adoc[Theme Overrides] — how an application overrides the resulting token values.
-* link:../styling/README.adoc[Styling & Style Isolation (overview)] — the Area that covers how the generated `--p-*` variables are scoped per application.
+* link:{scope_utils}[`angular-utils/src/lib/utils/scope.utils.ts`] — the live implementation of the `--p-*` variable rewriting (`scopePrimengCss` / `replacePrimengPrefix`) used for per-application scoping.
 
 == Sources
 
@@ -124,6 +125,7 @@ Code::
 * link:{default_theme_variables}[`angular-utils/theme/primeng/src/preset/default-theme-variables.ts`] — default theme-variable values.
 * link:{create_palette}[`angular-utils/theme/primeng/src/utils/create-color-palette.ts`] — `createPalette` / `standardColorAdjustment` (primary scale).
 * link:{app_config}[`angular-utils/theme/primeng/src/utils/application-config.ts`] — `provideThemeConfig`, `IS_ADVANCED_THEMING`, `THEME_OVERRIDES`.
+* link:{scope_utils}[`angular-utils/src/lib/utils/scope.utils.ts`] — `scopePrimengCss` / `replacePrimengPrefix`, which rewrite PrimeNG's `--p-*` variables for per-application scoping.
 * link:{style_registry}[`react-utils/src/lib/styling/primeReact/theme/StyleRegistry.tsx`] — React wiring (scoped container, Topic subscription, `PrimeReactProvider`).
 * link:{apply_theme_variables}[`react-utils/src/lib/styling/primeReact/theme/applyThemeVariables.ts`] — properties → CSS variables, scope-root + stylesheet injection.
 * link:{scoped_style_container}[`react-utils/src/lib/styling/primeReact/theme/scopedStyleContainer.ts`] — per-product `document.head` Proxy.
