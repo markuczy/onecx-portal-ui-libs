@@ -121,7 +121,7 @@ The keys an App in `onecx-portal-ui-libs` (or an App talking to the Shell's back
 |Scope-polyfill behaviour.
 |Shell / style-isolation consumers (Area 4).
 
-|`TKIT_PORTAL_DEFAULT_THEME`, `TKIT_PORTAL_THEME_SERVER_URL`, `TKIT_PORTAL_ID`, `TKIT_SUPPORTED_LANGUAGES`, `TKIT_SEARCH_BASE_URL`
+|`TKIT_PORTAL_DEFAULT_THEME`, `TKIT_PORTAL_ID`, `TKIT_SUPPORTED_LANGUAGES`, `TKIT_SEARCH_BASE_URL`
 |Theme and portal identity keys.
 |Theme resolution, supported languages, search base.
 |Shell (theme/portal initializers); declared in the libs `CONFIG_KEY` enum for cross-repo naming.
