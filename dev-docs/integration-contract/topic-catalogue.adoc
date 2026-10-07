@@ -35,15 +35,15 @@ Two columns need a definition before the tables:
 
 |link:{libs}/integration-interface/src/lib/topics/current-workspace/v1/current-workspace.topic.ts[`CurrentWorkspaceTopic`] |1 |Shell |Angular `AppStateService`; React `appStateContext` |Area 3 — Shell Context
 
-|link:{libs}/integration-interface/src/lib/topics/current-theme/v1/current-theme.topic.ts[`CurrentThemeTopic`] |1 |Shell |Angular `ThemeService`; React `themecontext` |Area 5 — Theming
+|link:{libs}/integration-interface/src/lib/topics/current-theme/v1/current-theme.topic.ts[`CurrentThemeTopic`] |1 |Shell |Angular `ThemeService`; React `themeContext` |Area 5 — Theming
 
-|link:{libs}/integration-interface/src/lib/topics/user-profile/v1/user-profile.topic.ts[`UserProfileTopic`] |1 |Shell |Angular `UserService`; React `usercontext` |Area 10 — Localization
+|link:{libs}/integration-interface/src/lib/topics/user-profile/v1/user-profile.topic.ts[`UserProfileTopic`] |1 |Shell |Angular `UserService`; React `userContext` |Area 10 — Localization
 
-|link:{libs}/integration-interface/src/lib/topics/permissions/v1/permissions.topic.ts[`PermissionsTopic`] |1 |Shell |Angular `UserService`; React `usercontext` |Area 9 — Permissions
+|link:{libs}/integration-interface/src/lib/topics/permissions/v1/permissions.topic.ts[`PermissionsTopic`] |1 |Shell |Angular `UserService`; React `userContext` |Area 9 — Permissions
 
 |link:{libs}/integration-interface/src/lib/topics/configuration/v1/configuration.topic.ts[`ConfigurationTopic`] |1 |Shell |Angular `ConfigurationService`; React `configurationContext` |Area 3 — Shell Context
 
-|link:{libs}/integration-interface/src/lib/topics/current-page/v1/current-page.topic.ts[`CurrentPageTopic`] |1 |App/RC |Angular `AppStateService`; React `portalPage.tsx`/`portal-page.component.ts` |Area 7 — Navigation
+|link:{libs}/integration-interface/src/lib/topics/current-page/v1/current-page.topic.ts[`CurrentPageTopic`] |1 |App/RC |Angular `AppStateService`; React `appStateContext` |Area 7 — Navigation
 
 |link:{libs}/integration-interface/src/lib/topics/current-mfe/v1/current-mfe.topic.ts[`CurrentMfeTopic`] |1 |Shell |Angular `AppStateService`; React `appStateContext` |Area 7 — Navigation
 
