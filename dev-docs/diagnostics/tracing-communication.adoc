@@ -44,7 +44,7 @@ A message travels over one of three transports, selected per message by the `@on
 
 The transport is chosen per message in `TopicPublisher.sendMessage`. If `BroadcastChannel` is not available in the browser, the flag is forced to `false` and the code falls back to `postMessage`, logging `BroadcastChannel not supported...`.
 
-The flag is *shared page-wide state*, so a subscriber can downgrade it. The cascade is one-way and always toward the broader transport: receiving a `postMessage`-delivered message calls `disableBroadcastChannel` (flag → `false`), and receiving a `postMessage`-delivered message while in `'V2'` first steps down to `true` via `disableBroadcastChannelV2` (flag → `true`). In practice this means that once a `postMessage` round-trip has happened in the page, every publisher converges on `postMessage`. The code treats `postMessage` as the reliable fallback when the BroadcastChannel path is not guaranteed to reach every peer.
+The flag is *shared page-wide state*, so a subscriber can downgrade it. The cascade is one-way and always toward the broader transport: `onWindowMessage` switches the flag directly to `false`, while the BroadcastChannel V1 handler (`onBroadcastChannelMessage`) steps it down from `'V2'` to `true` via `disableBroadcastChannelV2`. In practice this means that once a `postMessage` round-trip has happened in the page, every publisher converges on `postMessage`. The code treats `postMessage` as the reliable fallback when the BroadcastChannel path is not guaranteed to reach every peer.
 
 [source,mermaid]
 ----
@@ -112,10 +112,10 @@ Three tools, in increasing order of detail.
 [source,js]
 ----
 // One specific topic
-localStorage.debug = '@onecx/accelerator:Topic:my-topic'; location.reload();
+localStorage.debug = '@onecx/accelerator:Topic:my-topic:*'; location.reload();
 
 // Everything about all topics
-localStorage.debug = '@onecx/accelerator:Topic:*'; location.reload();
+localStorage.debug = '@onecx/accelerator:Topic:*:*'; location.reload();
 ----
 
 . **Read the statistics.** The message and instance counters are off by default. Enable them, then inspect the shared globals on `window`:

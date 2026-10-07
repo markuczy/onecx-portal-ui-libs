@@ -44,7 +44,7 @@ Reading order within the Area:
 
 == Unit map
 
-All Units of this Area, in reading order. Every Unit follows the link:../unit-template.adoc[Unit template].
+All Units of this Area, in reading order. Every Unit follows the Unit template.
 
 [cols="1,3", options="header"]
 |===
@@ -71,6 +71,6 @@ This Area is deliberately cross-cutting. It links to the Areas that own the mech
 * *8. Authentication* — the `onecxAuth` / `onecxAngularAuth` auth-proxy globals.
 * *10. Localization* — the `onecxTranslations` and `dynamicTranslationsCache` globals.
 
-NOTE: The Related Areas listed above are named but not yet linked. Their Area overview pages and most Units have not been written yet, so the paths are not in the link:../README.adoc[Dev Docs index] and linking them would 404. Each is recorded here so the link can be added from the Dev Docs index once the owning ticket lands.
+NOTE: The Related Areas listed above are named but not yet linked. Their Area overview pages and most Units have not been written yet, so the paths are not in the Dev Docs index and linking them would 404. Each is recorded here so the link can be added from the Dev Docs index once the owning ticket lands.
 
 The Dev Docs are written from the current `main` branch of this repository and of the Shell. Where a mechanism is explained in full, this Area links to its owning Unit rather than repeating it.

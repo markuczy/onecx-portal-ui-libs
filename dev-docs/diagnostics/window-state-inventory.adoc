@@ -18,7 +18,7 @@ That is powerful and dangerous at the same time:
 * the value is shared across *all* frameworks on the page, so an Angular write and a React read see the same object;
 * nothing in the code tells you what is *supposed* to be there.
 
-This inventory is the reference for "what actually lives on `window` in a running OneCX page". Every entry is verified against the current code; every key names its owning Area so you know where to go for the mechanism. The *Owning Area* column points at the Area (from the link:../README.adoc[Dev Docs index]) that explains the mechanism — this Unit does not re-explain it.
+This inventory is the reference for "what actually lives on `window` in a running OneCX page". Every entry is verified against the current code; every key names its owning Area so you know where to go for the mechanism. The *Owning Area* column points at the Area from the Dev Docs index that explains the mechanism — this Unit does not re-explain it.
 
 == How it works
 
@@ -29,34 +29,57 @@ Global keys in OneCX come in two shapes.
 
 Both kinds are *shared across the page*: a value written by the Shell is read by an Angular App and a React App on the same `window`, with no per-bundle copy.
 
+=== Library-owned runtime state
+
 [source,mermaid]
 ----
 flowchart LR
   subgraph W["window / globalThis (one per page)"]
     K1["@onecx/accelerator.*"]
-    K2["onecxAuth / onecxAngularAuth"]
     K3["onecxIcons"]
     K4["@onecx/integration-interface.*"]
     K5["onecxTranslations"]
-    K6["onecx-shell-capabilities"]
-    K7["onecxTriggerElement"]
-    K8["__FEDERATION__ / onecxFederationInstance"]
   end
-  Shell["Shell (Shell side)"]
   Ang["Angular libs (Libs side)"]
   React["React libs (Libs side)"]
-  Shell -->|writes| K2
-  Shell -->|writes| K6
-  Shell -->|writes| K8
   Ang -->|writes/reads| K1
   Ang -->|writes/reads| K3
   Ang -->|writes/reads| K4
   Ang -->|writes/reads| K5
+  React -->|reads| K3
+----
+
+=== Shell-provided auth/capability state
+
+[source,mermaid]
+----
+flowchart LR
+  subgraph W["window / globalThis (one per page)"]
+    K2["onecxAuth / onecxAngularAuth"]
+    K6["onecx-shell-capabilities"]
+  end
+  Shell["Shell (Shell side)"]
+  Ang["Angular libs (Libs side)"]
+  Shell -->|writes| K2
+  Shell -->|writes| K6
   Ang -->|reads| K2
   Ang -->|reads| K6
+----
+
+=== Bootstrap / attribution state
+
+[source,mermaid]
+----
+flowchart LR
+  subgraph W["window / globalThis (one per page)"]
+    K7["onecxTriggerElement"]
+    K8["__FEDERATION__ / onecxFederationInstance"]
+  end
+  Shell["Shell (Shell side)"]
+  React["React libs (Libs side)"]
+  Shell -->|writes| K8
   React -->|reads| K7
   React -->|reads| K8
-  React -->|reads| K3
 ----
 
 == Libs side / Shell side
@@ -71,7 +94,7 @@ The Shell writes three kinds of globals. It sets the auth proxies (`onecxAuth`, 
 
 == The inventory
 
-The table lists every `window`/`globalThis` key that the current libraries read or write. `Writer` / `Reader` name the code that touches the key. The *Owning Area* column points at the Area (from the link:../README.adoc[Dev Docs index]) that explains the mechanism; link the page once it exists. A key tagged *Shell* is written by the Shell and consumed by the libs.
+The table lists every `window`/`globalThis` key that the current libraries read or write. `Writer` / `Reader` name the code that touches the key. The *Owning Area* column points at the Area from the Dev Docs index that explains the mechanism; link the page once it exists. A key tagged *Shell* is written by the Shell and consumed by the libs.
 
 [cols="25,25,20,30", options="header",width="100%"]
 |===
