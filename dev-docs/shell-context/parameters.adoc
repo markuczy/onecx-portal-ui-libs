@@ -35,13 +35,13 @@ sequenceDiagram
   PS->>Cache: read
   PS->>BFF: getParameters (missing/expired only)
   BFF-->>PS: values
-  PS->>Cache: write (3,600,000s expiry 2014 ≈1000h / 41d16h)
+  PS->>Cache: write (3,600,000s expiry  — ≈1000h / 41d16h)
   PS->>Topic: publish(payload)
   App->>Topic: get(key) (gated on PARAMETERS_TOPIC capability)
   Topic-->>App: findParameterValue -> value or default
 ----
 
-* *Producer:* `parametersService.initialize()` is the final step of `workspaceConfigInitializer` (link:{shell}/src/app/app.module.ts[`app.module.ts`]). The Shell's `ParametersService` (link:{shell}/src/app/shell/services/parameters.service.ts[`ParametersService`]) reads a `localStorage` cache, builds a request from the current Workspace routes + Remote Components, fetches only the missing or expired parameters through the generated Parameter BFF client, updates the cache (intended 1 hour; current effective expiry is 3,600,000 seconds 2014 ≈1000h / 41d16h due to a units mismatch). An expired entry is refetched on the next Shell parameter initialization that checks the cache, and `publish()`es the payload onto the `parameters` Topic.
+* *Producer:* `parametersService.initialize()` is the final step of `workspaceConfigInitializer` (link:{shell}/src/app/app.module.ts[`app.module.ts`]). The Shell's `ParametersService` (link:{shell}/src/app/shell/services/parameters.service.ts[`ParametersService`]) reads a `localStorage` cache, builds a request from the current Workspace routes + Remote Components, fetches only the missing or expired parameters through the generated Parameter BFF client, updates the cache (intended 1 hour; current effective expiry is 3,600,000 seconds  — ≈1000h / 41d16h due to a units mismatch). An expired entry is refetched on the next Shell parameter initialization that checks the cache, and `publish()`es the payload onto the `parameters` Topic.
 * *Consumer:* the App's `ParametersService.get(key, defaultValue, ...)` (Angular) or `useParameters().get(key, defaultValue, ...)` (React). It first checks the `PARAMETERS_TOPIC` Shell capability; resolves `productName`/`appId` from `currentMfe$` when not passed; then looks the value up with the shared `findParameterValue` and falls back to `defaultValue`.
 
 The libs only *carry* and *consume* the value — the Shell is the single producer (see Unit 1).
@@ -58,7 +58,7 @@ The libs only *carry* and *consume* the value — the Shell is the single produc
 
 === Shell side
 
-* link:{shell}/src/app/shell/services/parameters.service.ts[`ParametersService`] (Shell) — the producer. `initialize()` kicks off `init()` (not awaited, so it does not block the rest of bootstrap). `init()` reads the cache, builds a `GetParametersRequest` from the current Workspace routes and Remote Components (skipping any that have a valid cache entry), fetches the rest via the generated Parameter BFF client, updates the cache with a one-hour `expirationDate`, and publishes to the `parameters` Topic.
+* link:{shell}/src/app/shell/services/parameters.service.ts[`ParametersService`] (Shell) — the producer. `initialize()` kicks off `init()` (not awaited, so it does not block the rest of bootstrap). `init()` reads the cache, builds a `GetParametersRequest` from the current Workspace routes and Remote Components (skipping any that have a valid cache entry), fetches the rest via the generated Parameter BFF client, updates the cache with an `expirationDate` (intended 1 hour; current effective expiry is 3,600,000 seconds — ≈1000h / 41d16h), and publishes to the `parameters` Topic.
 * `workspaceConfigInitializer` in link:{shell}/src/app/app.module.ts[`app.module.ts`] — the caller of `parametersService.initialize()`; it runs *after* the workspace and Remote Components are published, which is why the parameter request is scoped to the actual current page.
 
 == Angular / React
