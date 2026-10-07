@@ -97,6 +97,19 @@ The size stream starts at `{ width: -1, height: -1 }` before the first observati
 
 Because the Shell's Slot Groups measure themselves (a Shell, i.e. Angular, concern), `SLOT_GROUP_RESIZED` is always available from the Shell regardless of the host framework. Only the per-slot `SLOT_RESIZED` is framework-dependent.
 
+=== Concrete consumer example: Workspace topbar logo
+
+The Workspace UI's topbar logo component demonstrates a practical (non-normative) consumer of the size events:
+
+* It registers for both the legacy slot and the canonical group names:
+  - ResizedEventsTopic.requestEvent(ResizedEventType.SLOT_RESIZED, `onecx-shell-vertical-menu`)
+  - ResizedEventsTopic.requestEvent(ResizedEventType.SLOT_GROUP_RESIZED, `onecx-shell-body-start`)
+* It listens to `SLOT_RESIZED` and `SLOT_GROUP_RESIZED` payloads, filters by the observed names, and combines the resulting payload streams. The handler reads the width from the payload using the payload fields shown above: either `slotDetails.width` or `slotGroupDetails.width`.
+* The reported width (when > 0) is used to set the logo container's CSS width (in px). When a static menu mode is active the component subtracts a toggle-button correction before applying the width.
+* The component also switches which logo variant to render based on a threshold: it uses a small logo when the reported width is less than 235 px, and the regular logo at or above 235 px.
+
+This is provided as a concrete usage example only — it documents how a consumer used the events in one Workspace component, not a required pattern for all consumers.
+
 == Edge cases & pitfalls
 
 * *No size until a consumer asks.* A slot publishes nothing unless `requestEvent(SLOT_RESIZED, name)` has run for it. A component that reads the Topic without registering receives no size, even after a resize.
@@ -129,6 +142,10 @@ Code::
 * link:{libs}/angular-remote-components/src/lib/components/slot/slot.component.ts[`SlotComponent` (Angular): `observeSlotSizeChanges`, `componentSize$`, `requestedEventsChanged$`]
 * link:{shell}/src/app/shell/components/slot-group/slot-group.component.ts[Slot group component (`observeSlotSizeChanges`)] (Shell)
 * link:{libs}/react-remote-components/src/lib/components/slot.tsx[`SlotComponent` (React) — no size reporting]
+
+Usage example (Workspace UI)::
+* link:https://github.com/onecx/onecx-workspace-ui/blob/deef7f41c8f61ef447fdbb2a5de4c5d86ced4a1f/src/app/topbar/topbar-logo.component.ts#L77[onecx/onecx-workspace-ui@deef7f41 — OneCXTopbarLogoComponent (see line 77)]
+
 
 Verification Sources checked::
 * Draft Outline commit `6108bdff79ea8dce5a15df5fd0b6b1e48dc7edca` — `dev-docs/remote-components/index.adoc` (topic coverage: slot size reporting; no content baseline).
