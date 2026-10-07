@@ -18,7 +18,7 @@ The libraries expose four Topics that a page uses to signal or read state, plus 
 * `message` — a Portal Message to show to the user (a toast).
 * `notification` — a structured cross-App notification.
 
-The Shell is the consumer that turns these into UI: an initialization-error page, a global-error page, a not-found page, a full-screen loading spinner, and the Shell's own toast Remote Component.
+The Shell is the consumer that turns these into UI: an initialization-error page, a global-error page, a not-found page, the Shell's own toast Remote Component, and a route-area loading spinner (the PortalViewport spinner). The route-area spinner is a distinct Shell outcome driven by RoutesService.showContent$ (updated by RoutesService.loadChildren()); publishing the libraries' globalLoading Topic alone does not toggle it.
 
 [source,mermaid]
 ----
