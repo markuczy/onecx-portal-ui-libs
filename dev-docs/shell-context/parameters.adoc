@@ -35,13 +35,13 @@ sequenceDiagram
   PS->>Cache: read
   PS->>BFF: getParameters (missing/expired only)
   BFF-->>PS: values
-  PS->>Cache: write (1h expiry)
+  PS->>Cache: write (3,600,000s expiry 2014 ≈1000h / 41d16h)
   PS->>Topic: publish(payload)
   App->>Topic: get(key) (gated on PARAMETERS_TOPIC capability)
   Topic-->>App: findParameterValue -> value or default
 ----
 
-* *Producer:* `parametersService.initialize()` is the final step of `workspaceConfigInitializer` (link:{shell}/src/app/app.module.ts[`app.module.ts`]). The Shell's `ParametersService` (link:{shell}/src/app/shell/services/parameters.service.ts[`ParametersService`]) reads a `localStorage` cache, builds a request from the current Workspace routes + Remote Components, fetches only the missing or expired parameters through the generated Parameter BFF client, updates the cache (one-hour expiry), and `publish()`es the payload onto the `parameters` Topic.
+* *Producer:* `parametersService.initialize()` is the final step of `workspaceConfigInitializer` (link:{shell}/src/app/app.module.ts[`app.module.ts`]). The Shell's `ParametersService` (link:{shell}/src/app/shell/services/parameters.service.ts[`ParametersService`]) reads a `localStorage` cache, builds a request from the current Workspace routes + Remote Components, fetches only the missing or expired parameters through the generated Parameter BFF client, updates the cache (intended 1 hour; current effective expiry is 3,600,000 seconds 2014 ≈1000h / 41d16h due to a units mismatch). An expired entry is refetched on the next Shell parameter initialization that checks the cache, and `publish()`es the payload onto the `parameters` Topic.
 * *Consumer:* the App's `ParametersService.get(key, defaultValue, ...)` (Angular) or `useParameters().get(key, defaultValue, ...)` (React). It first checks the `PARAMETERS_TOPIC` Shell capability; resolves `productName`/`appId` from `currentMfe$` when not passed; then looks the value up with the shared `findParameterValue` and falls back to `defaultValue`.
 
 The libs only *carry* and *consume* the value — the Shell is the single producer (see Unit 1).
@@ -87,7 +87,7 @@ Both return a Promise; their behavior depends on the Topic/stream state. If the 
 
 == Known issues
 
-None found in the code reviewed for this Unit.
+* Cache expiration unit mismatch: the Shell defines `cacheExpirationTimeMs = 3600 * 1000` (milliseconds, intended for 1 hour) but that value is passed to `Date.setSeconds`, which treats it as seconds. The stored `expirationDate` therefore lies 3,600,000 seconds in the future (≈1000 hours / 41 days 16 hours) instead of 1 hour. Follow-up: align units by passing seconds (3600) to `setSeconds` or by using `setTime`/`setMilliseconds` with the millisecond value. No Shell code changes were made in this documentation update.
 
 == Related Units
 
