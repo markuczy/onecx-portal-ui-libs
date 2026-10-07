@@ -35,7 +35,7 @@ The *language decision* is a pure function of that profile. link:{libs}/integrat
 . If the array is present but empty, it substitutes the normalised browser locales returned by `getNormalizedBrowserLocales()`.
 . It returns the first entry that is exactly two characters long, or `defaultLang` if none qualifies.
 
-The default is the constant `DEFAULT_LANG`, which is `'en'` in both the Angular and the React integration interfaces. A second, coarser helper, `determineBrowserLanguage()`, reads `navigator.languages[0]` (falling back to `navigator.language`) and strips a `-`/`_` region suffix so it returns a bare two-letter code; it returns `undefined` when there is no `navigator` (for example in a test environment).
+The default is the constant `DEFAULT_LANG`, which is `'en'` in both the Angular and the React integration interfaces. A second, coarser helper, `determineBrowserLanguage()`, reads `navigator.languages[0]` (falling back to `navigator.language`) and removes a `-`/`_` region suffix, returning the first language subtag (the part before any `-` or `_`), which can be longer than two characters; it returns `undefined` when there is no `navigator` (for example in a test environment).
 
 The three functions fit together like this:
 
