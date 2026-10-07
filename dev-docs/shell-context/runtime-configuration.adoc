@@ -67,7 +67,7 @@ For the *App Config* path (Unit 5), an App that fetches `env.json` directly hits
 
 The keys an App in `onecx-portal-ui-libs` (or an App talking to the Shell's back-end) actually reads. Every row is grounded in a consumer on `main`; the *consumer* column is where the value is read, which is what makes the key "cross-repo-relevant".
 
-[cols="1.2,1.2,2,1.5", options="header"]
+[cols="1,1,2,1", options="header"]
 |===
 |Key |Meaning |Used for |Read by
 
