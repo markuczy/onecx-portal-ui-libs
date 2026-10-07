@@ -38,7 +38,7 @@ flowchart LR
   Decide -->|lang$| R[React UserProvider]
   Trans --> Loader
   Loader --> Cache
-  A -->|use(lang)| NgX[ngx-translate]
+  A -->|use language| NgX[ngx-translate]
   R -->|changeLanguage(lang)| I18N[i18next]
 ----
 
