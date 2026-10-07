@@ -21,7 +21,13 @@ A reader who picks the wrong mechanism reads the wrong value, or (for `App Confi
 
 == How it works
 
-All three resolve from an `env.json` at some point, but the *producer* and the *delivery* differ. The split, by ownership:
+The three kinds have distinct producers and sources. In short:
+
+* *Configuration* — produced by the **Shell**. It resolves from the Shell's runtime inputs: an inlined `APP_CONFIG` (when present), injected defaults when `skipRemoteConfigLoad` is set, or a remote `env.json` fetched via `remoteConfigURL`. The Shell merges the chosen source and publishes the result to the `configuration` Topic.
+* *App Config* — produced and fetched by the **App** itself from its own `assets/env.json`; it never goes on a Topic and remains local to the App process.
+* *Parameter* — produced by the **Shell's back-end** (Parameter BFF). The Shell's `ParametersService` fetches/caches per-App values from the Parameter BFF and publishes them on the `parameters` Topic.
+
+The split, by ownership:
 
 [source,mermaid]
 ----
