@@ -114,7 +114,7 @@ The catalogue itself is framework-agnostic, but the *consumers* column differs p
 
 == Debugging
 
-To watch a concrete Topic or Gatherer from the catalogue, enable its namespace with `localStorage.debug` and reload — `localStorage.debug = '@onecx/accelerator:Topic:<name>'` for a Topic (use the `name` column, e.g. `currentPortal`) and `localStorage.debug = '@onecx/accelerator:Gatherer:<name>'` for a Gatherer (e.g. `GuardGatherer`). Add `:error` to a `*` pattern to see only errors. General cross-App tracing is in the planned Unit link:../diagnostics/tracing-communication.adoc[Tracing cross-App communication] (Area 13).
+To watch a concrete Topic or Gatherer from the catalogue, enable its namespace with `localStorage.debug` and reload — `localStorage.debug = '@onecx/accelerator:Topic:<name>'` for a Topic (look up the concrete `name` in the linked Topic definition, e.g. `CurrentWorkspaceTopic` declares `currentPortal`) and `localStorage.debug = '@onecx/accelerator:Gatherer:<name>'` for a Gatherer (e.g. `GuardGatherer`). Add `:error` to a `*` pattern to see only errors. General cross-App tracing is in the planned Unit link:../diagnostics/tracing-communication.adoc[Tracing cross-App communication] (Area 13).
 
 == Known issues
 
