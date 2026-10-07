@@ -118,6 +118,6 @@ Code::
 Verification Sources checked::
 * Unit template (`unit-template.adoc`) — sections, size limit, diagram/source rules.
 * Dev Docs top index (`README.adoc`) — slugs and reading order for this Area.
-* Existing `dev-docs/topics/overview.adoc` — Topic message types (`TopicNext`/`TopicGet`/`TopicResolve`) and scheduling, cross-checked against `topic.ts`.
+* Topic message types (`TopicNext`/`TopicGet`/`TopicResolve`) and scheduling — cross-checked against the Topic base class code (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]).
 * Draft Outline commit (6108bdff) — topic map only; no content baseline.
 * No contradiction found against libs `docs/` or JSDoc; the Shell is linked by file only (read-only for this work).
