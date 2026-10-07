@@ -69,19 +69,66 @@ The keys an App in `onecx-portal-ui-libs` (or an App talking to the Shell's back
 
 [cols="1.2,1.2,2,1.5", options="header"]
 |===
-|Key |Meaning |Used for |Read by
+|Key
+|Meaning
+|Used for
+|Read by
 
-|`IS_SHELL` |`true` when the current document is the Shell itself. |Lets the Shell's own UI code distinguish "I am the Shell" from "I am an App inside the Shell". |Shell UI; `CONFIG_KEY` enum in libs.
-|`APP_VERSION` |Build version of the running bundle. |Version display / sanity checks. |Shell; `SANITY_CHECK`-style consumers.
-|`APP_BASE_HREF` |The base path the App is served under. |Resolving relative URLs (`useAppHref` and friends). |link:{libs}/react-webcomponents/src/lib/hooks/useAppHref.ts[`useAppHref`] (React).
-|`KEYCLOAK_REALM`, `KEYCLOAK_URL`, `KEYCLOAK_CLIENT_ID` |Keycloak realm, issuer URL, and client id. |Token acquisition and validation. |link:{libs}/shell-auth/src/lib/auth_services/keycloak-auth.service.ts[`KeycloakAuthService`].
-|`KEYCLOAK_ENABLE_SILENT_SSO` |Whether silent SSO (iframe refresh) is on. |`=== 'true'` check before enabling the flow. |link:{libs}/shell-auth/src/lib/auth_services/keycloak-auth.service.ts[`KeycloakAuthService`].
-|`KEYCLOAK_TIME_SKEW`, `KEYCLOAK_UPDATE_TOKEN_MIN_VALIDITY` |Clock-skew tolerance and min-token-validity window, in seconds. |Numeric token-expiry decisions. |link:{libs}/shell-auth/src/lib/auth_services/keycloak-auth.service.ts[`KeycloakAuthService`] (parsed to number).
-|`KEYCLOAK_ON_TOKEN_EXPIRED_ENABLED`, `KEYCLOAK_ON_AUTH_REFRESH_ERROR_ENABLED` |Toggle refresh-on-expiry and refresh-on-error. |`=== 'true'` gates. |link:{libs}/shell-auth/src/lib/auth_services/keycloak-auth.service.ts[`KeycloakAuthService`].
-|`AUTH_SERVICE`, `AUTH_SERVICE_CUSTOM_URL`, `AUTH_SERVICE_CUSTOM_MODULE_NAME`, `CUSTOM_AUTH_SHARE_SCOPE` |Which auth mechanism, and the remote entry / module name / share scope for a custom auth service. |`AuthServiceWrapper` picks `keycloak` (default) or a custom remote. |link:{libs}/shell-auth/src/lib/auth-service-wrapper.ts[`AuthServiceWrapper`].
-|`ONECX_PORTAL_SEARCH_BUTTONS_REVERSED` |Toggle the search button order. |UI layout. |link:{libs}/angular-accelerator/src/lib/components/search-header/search-header.component.ts[`SearchHeaderComponent`].
-|`POLYFILL_SCOPE_MODE` |`PERFORMANCE` or `PRECISION`. |Scope-polyfill behaviour. |Shell / style-isolation consumers (Area 4).
-|`TKIT_PORTAL_DEFAULT_THEME`, `TKIT_PORTAL_THEME_SERVER_URL`, `TKIT_PORTAL_ID`, `TKIT_SUPPORTED_LANGUAGES`, `TKIT_SEARCH_BASE_URL` |Theme and portal identity keys. |Theme resolution, supported languages, search base. |Shell (theme/portal initializers); declared in the libs `CONFIG_KEY` enum for cross-repo naming.
+|`IS_SHELL`
+|`true` when the current document is the Shell itself.
+|Lets the Shell's own UI code distinguish "I am the Shell" from "I am an App inside the Shell".
+|Shell UI; `CONFIG_KEY` enum in libs.
+
+|`APP_VERSION`
+|Build version of the running bundle.
+|Version display / sanity checks.
+|Shell; `SANITY_CHECK`-style consumers.
+
+|`APP_BASE_HREF`
+|The base path the App is served under.
+|Resolving relative URLs (`useAppHref` and friends).
+|link:{libs}/react-webcomponents/src/lib/hooks/useAppHref.ts[`useAppHref`] (React).
+
+|`KEYCLOAK_REALM`, `KEYCLOAK_URL`, `KEYCLOAK_CLIENT_ID`
+|Keycloak realm, issuer URL, and client id.
+|Token acquisition and validation.
+|link:{libs}/shell-auth/src/lib/auth_services/keycloak-auth.service.ts[`KeycloakAuthService`].
+
+|`KEYCLOAK_ENABLE_SILENT_SSO`
+|Whether silent SSO (iframe refresh) is on.
+|`=== 'true'` check before enabling the flow.
+|link:{libs}/shell-auth/src/lib/auth_services/keycloak-auth.service.ts[`KeycloakAuthService`].
+
+|`KEYCLOAK_TIME_SKEW`, `KEYCLOAK_UPDATE_TOKEN_MIN_VALIDITY`
+|Clock-skew tolerance and min-token-validity window, in seconds.
+|Numeric token-expiry decisions.
+|link:{libs}/shell-auth/src/lib/auth_services/keycloak-auth.service.ts[`KeycloakAuthService`] (parsed to number).
+
+|`KEYCLOAK_ON_TOKEN_EXPIRED_ENABLED`, `KEYCLOAK_ON_AUTH_REFRESH_ERROR_ENABLED`
+|Toggle refresh-on-expiry and refresh-on-error.
+|`=== 'true'` gates.
+|link:{libs}/shell-auth/src/lib/auth_services/keycloak-auth.service.ts[`KeycloakAuthService`].
+
+|`AUTH_SERVICE`, `AUTH_SERVICE_CUSTOM_URL`, `AUTH_SERVICE_CUSTOM_MODULE_NAME`, `CUSTOM_AUTH_SHARE_SCOPE`
+|Which auth mechanism, and the remote entry / module name / share scope for a custom auth service.
+|`AuthServiceWrapper` picks `keycloak` (default) or a custom remote.
+|link:{libs}/shell-auth/src/lib/auth-service-wrapper.ts[`AuthServiceWrapper`].
+
+|`ONECX_PORTAL_SEARCH_BUTTONS_REVERSED`
+|Toggle the search button order.
+|UI layout.
+|link:{libs}/angular-accelerator/src/lib/components/search-header/search-header.component.ts[`SearchHeaderComponent`].
+
+|`POLYFILL_SCOPE_MODE`
+|`PERFORMANCE` or `PRECISION`.
+|Scope-polyfill behaviour.
+|Shell / style-isolation consumers (Area 4).
+
+|`TKIT_PORTAL_DEFAULT_THEME`, `TKIT_PORTAL_THEME_SERVER_URL`, `TKIT_PORTAL_ID`, `TKIT_SUPPORTED_LANGUAGES`, `TKIT_SEARCH_BASE_URL`
+|Theme and portal identity keys.
+|Theme resolution, supported languages, search base.
+|Shell (theme/portal initializers); declared in the libs `CONFIG_KEY` enum for cross-repo naming.
+
 |===
 
 The rest of the `CONFIG_KEY` enum — the `ONECX_PORTAL_*_DISABLED` toggles, `TKIT_TOKEN_ROLE_CLAIM_NAME`, `KEYBOARD_FOCUSABLE_SELECTOR` — are consumed by the Shell's own UI and are documented by the Shell. The libs declare them in the enum so an App can read them by name, but the *meaning* is Shell-side.
