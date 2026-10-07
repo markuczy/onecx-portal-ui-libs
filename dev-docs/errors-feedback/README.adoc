@@ -53,13 +53,13 @@ Anything that reaches the `globalError` or `globalLoading` Topic is *page-global
 
 == Units
 
-Read the Units in the order below. Units 1 and 2 are written; Units 3 to 5 are planned and will link once their pages exist.
+Read the Units in the order below.
 
 . Failure taxonomy map — link:./failure-taxonomy.adoc[failure-taxonomy.adoc]
 . Initialization failures & init-error page — link:./initialization-failures.adoc[initialization-failures.adoc]
-. App load failures & global errors — `app-load-failures-and-global-errors.adoc`
-. Global loading — `global-loading.adoc`
-. Portal Messages & Notifications — `portal-messages-and-notifications.adoc`
+. App load failures & global errors — link:./app-load-failures-and-global-errors.adoc[app-load-failures-and-global-errors.adoc]
+. Global loading — link:./global-loading.adoc[global-loading.adoc]
+. Portal Messages & Notifications — link:./portal-messages-and-notifications.adoc[portal-messages-and-notifications.adoc]
 
 == Related Areas
 
