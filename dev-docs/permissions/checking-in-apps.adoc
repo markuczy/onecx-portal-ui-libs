@@ -31,6 +31,23 @@ The contract is a two-method interface in the framework-agnostic `@onecx/angular
 
 `link:{libs}/angular-utils/src/lib/utils/has-permission-checker.ts[AlwaysGrantPermissionChecker]` implements the same interface but `hasPermission` always returns `true`, "basically disabling the permission system on the UI side".
 
+=== The service for code
+
+Recommendation: use `PermissionService` (from `@onecx/angular-utils`) as the canonical API for code- and service-side permission checks. It is the convenience layer components and services should inject and call.
+
+On top of the checker sits `link:{libs}/angular-utils/src/lib/services/permission.service.ts[PermissionService]`, the convenience API an App calls from component code. It injects *both* the optional `UserService` and the optional `HAS_PERMISSION_CHECKER` and keeps `availableHasPermissionChecker = hasPermissionChecker || userService`. If *neither* is available the constructor throws `UserService or HasPermissionChecker have to be provided to check permissions!`. Its behaviour:
+
+* `hasPermission(key | key[]): Observable<boolean>` — resolves the same way the template check does (below) but *caches* the result per `JSON.stringify(key)` in `cachedPermissions`, so repeated checks in a template do not create a new observable every change detection (this is the "avoid infinite re-rendering loops" cache in the source). If the active checker exposes `getPermissions`, it is used to derive the answer; otherwise `hasPermission(key)` is awaited. A missing checker yields a `false` observable.
+* `getPermissions(): Observable<string[] | undefined>` — returns the (cached) `UserService` permission stream, or `of(undefined)` when no `UserService` is present.
+
+The provider `link:{libs}/angular-utils/src/lib/providers/permission-service.providers.ts[providePermissionService()]` simply exposes `[PermissionService]`.
+
+=== The template-based check
+
+Recommendation: use `IfPermissionDirective` (`ocxIfPermission` / `ocxIfNotPermission`) from the Angular accelerator for template checks. This directive is the supported declarative API for showing/hiding UI based on permissions.
+
+The Angular accelerator exposes a declarative permission check built on the same checker resolution described below. Its directive uses the resolved checker to decide whether to show or hide content, but the detailed selector, input and rendering API is outside this Unit's scope. See `link:{libs}/angular-accelerator/src/lib/directives/if-permission.directive.ts[IfPermissionDirective]` for the implementation.
+
 === Resolver, not component
 
 The contract is a concept, not a component API. The App never constructs a checker directly; Angular dependency injection resolves one. The token and the resolution rule live together in `link:{libs}/angular-utils/src/lib/utils/has-permission-checker.ts[has-permission-checker.ts]`:
@@ -59,19 +76,6 @@ flowchart TB
   U -- no --> ADD[add UserService to child providers] --> RES
   RES[resolve HAS_PERMISSION_CHECKER] --> OUT[default = UserService over the push Topic]
 ----
-
-=== The service for code
-
-On top of the checker sits `link:{libs}/angular-utils/src/lib/services/permission.service.ts[PermissionService]`, the convenience API an App calls from component code. It injects *both* the optional `UserService` and the optional `HAS_PERMISSION_CHECKER` and keeps `availableHasPermissionChecker = hasPermissionChecker || userService`. If *neither* is available the constructor throws `UserService or HasPermissionChecker have to be provided to check permissions!`. Its behaviour:
-
-* `hasPermission(key | key[]): Observable<boolean>` — resolves the same way the template check does (below) but *caches* the result per `JSON.stringify(key)` in `cachedPermissions`, so repeated checks in a template do not create a new observable every change detection (this is the "avoid infinite re-rendering loops" cache in the source). If the active checker exposes `getPermissions`, it is used to derive the answer; otherwise `hasPermission(key)` is awaited. A missing checker yields a `false` observable.
-* `getPermissions(): Observable<string[] | undefined>` — returns the (cached) `UserService` permission stream, or `of(undefined)` when no `UserService` is present.
-
-The provider `link:{libs}/angular-utils/src/lib/providers/permission-service.providers.ts[providePermissionService()]` simply exposes `[PermissionService]`.
-
-=== The template-based check
-
-The Angular accelerator exposes a declarative permission check built on the same checker resolution described above. Its directive uses the resolved checker to decide whether to show or hide content, but the detailed selector, input and rendering API is outside this Unit's scope. See `link:{libs}/angular-accelerator/src/lib/directives/if-permission.directive.ts[IfPermissionDirective]` for the implementation.
 
 == Libs side / Shell side
 
