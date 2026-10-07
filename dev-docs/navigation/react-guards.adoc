@@ -33,18 +33,10 @@ So instead of replacing route guards with a wrapper (Angular), React exposes the
 [cols="1.2,1.8,1", options="header"]
 |===
 |Mode |What the wrapper does |Combine
-
-|`INITIAL_ROUTER_SYNC` |Run the own guards for the current route.
-|`combineToBoolean`
-
-|`ROUTER_SYNC` |Run the own guards, then *always* return `true` via `executeRouterSyncGuard()` — the URL has already moved and is agreed, so the outcome cannot veto it.
-|`combineToBoolean`
-
-|`GUARD_CHECK` |Run the own guards for the target route as a check. If the result is `false`, immediately `guardsGatherer?.resolveRoute(futureUrl, false)` — this app vetoes the requesting app. If `true`, the positive verdict is resolved later by the caller (see *Wiring*).
-|`combineToBoolean`
-
-|`NAVIGATION_REQUESTED` |Wait on the `guardCheckPromise` stored on the state (the other apps' verdicts). If it resolves `false`, return `false` and skip the own guards. If it resolves `true`, run the own guards and return their result. A missing promise defaults to `true` (allow).
-|`combineToBoolean`
+|`INITIAL_ROUTER_SYNC` |Run the own guards for the current route. |`combineToBoolean`
+|`ROUTER_SYNC` |Run the own guards, then *always* return `true` via `executeRouterSyncGuard()` — the URL has already moved and is agreed, so the outcome cannot veto it. |`combineToBoolean`
+|`GUARD_CHECK` |Run the own guards for the target route as a check. If the result is `false`, immediately `guardsGatherer?.resolveRoute(futureUrl, false)` — this app vetoes the requesting app. If `true`, the positive verdict is resolved later by the caller (see *Wiring*). |`combineToBoolean`
+|`NAVIGATION_REQUESTED` |Wait on the `guardCheckPromise` stored on the state (the other apps' verdicts). If it resolves `false`, return `false` and skip the own guards. If it resolves `true`, run the own guards and return their result. A missing promise defaults to `true` (allow). |`combineToBoolean`
 |===
 
 Unlike Angular, the React wrappers combine only to a boolean in every mode — the React `GuardResult` is `boolean`, there is no `UrlTree` / `RedirectCommand` pass-through (see link:{libs}/react-utils/src/lib/guards/utils/guard-types.utils.ts[`guard-types.utils.ts`], link:{libs}/react-utils/src/lib/guards/utils/guards-utils.utils.ts[`guards-utils.utils.ts`]).
