@@ -38,7 +38,7 @@ flowchart TD
   E --> E1["Portal Message<br/>(shell-toast)"]
 
   subgraph Loading
-    GL["globalLoading Topic"] --> FLS["full-screen loading spinner"]
+    GL["globalLoading Topic"]
     RL["RoutesService.loadChildren()"] --> RS["RoutesService.showContent$"]
     RS --> PVS["PortalViewport spinner (bound to showContent$)"]
   end
