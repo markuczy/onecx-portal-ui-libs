@@ -43,7 +43,7 @@ flowchart LR
 
 The rule that makes multi-version coexistence work is the **share scope**:
 
-* *Each framework major version gets its own share scope.* The shared-config generator derives the `shareScope` from the app's dependencies — `react_N` when React is ≥19, `angular_N` when `@angular/core` is ≥21, otherwise `default`. The Shell's preloaders load the Angular 18–21 and React 19 loaders each into their own scope (`angular_21`, `react_19`, …), so a page resolves each App's framework singletons from the scope that matches that App's framework version.
+* *Selected framework majors are assigned generated share scopes.* The shared-config generator derives the `shareScope` from the app's dependencies — React 19+ maps to `react_N`, Angular 21+ maps to `angular_N`, and other versions fall back to `default`. The Shell's preloaders load the framework loaders (for example `angular_21`, `react_19`) into their own scopes, so a page resolves an App's framework singletons from the scope that matches that App's framework version when available.
 * *Framework libraries are deliberately *not* forced to be singletons.* The shared-config recommendations set `singleton: false`, `strictVersion: false`, `eager: false` for Angular, OneCX, RxJS, PrimeNG, ngx-translate, ngrx, React and PrimeReact. Each App can therefore run its own framework version while non-singleton sharing still lets a page resolve the right copy per scope.
 
 The concrete entry for a remote — its *name* and *entry URL* — comes from the Workspace data (a route's `remoteEntryUrl`/`exposedModule` for Apps; a `RemoteComponent`'s `remoteEntryUrl`/`exposedModule` for Remote Components), not from any hard-coding.
@@ -76,7 +76,7 @@ The consume path is the same; the *type* and the *expose* differ.
 
 * *Type.* Angular Apps and `WebComponentModule` remotes load as `'module'`; `WebComponent` and `WebComponentScript` load as `'script'`. A `WebComponentScript` remote is a plain script tag that defines its exposed component on a global, so it must be looked up by the MF-configured `remoteName` rather than the usual `productName|appId` (see `getRemoteName`).
 * *Exposing the element.* An Angular App defines its element through `createEntrypoint` (via `createCustomElement`); a React App defines it through `createViteAppWebComponent` (via `@r2wc/react-to-web-component`). Both set the OneCX dataset attributes on connect, but the resulting custom element and its framework wiring differ.
-* *Share scope.* Angular Apps resolve framework singletons from the `angular_N` scope of the matching loader; React Apps from the `react_N` scope. This is why a single page can run an Angular 21 App and a React 19 App simultaneously without a framework collision.
+* *Share scope.* Angular Apps built for Angular 21+ resolve framework singletons from the `angular_N` scope of the matching loader; React Apps built for React 19+ resolve from the `react_N` scope. Apps built against other framework versions fall back to the `default` scope. This is why a single page can run an Angular 21 App and a React 19 App simultaneously without a framework collision, while older or unrecognized versions rely on the `default` fallback.
 
 == Edge cases & pitfalls
 
