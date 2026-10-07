@@ -120,11 +120,11 @@ The values a Theme provides (colors, favicon, logo), how they reach the page, an
 ====
 How the Workspace places Remote Components into Slots. Bootstrap, styles, permissions and translations of Remote Components are covered in Areas 2, 4, 9 and 10.
 
-. Assignment — `slot-assignment.adoc`
-. Slot rendering (two flavours) — `slot-rendering.adoc`
-. Remote Component config & host communication — `host-communication.adoc`
-. Shell Slots catalogue (Slot Groups, legacy name mapping) — `shell-slots-catalogue.adoc`
-. Slot size reporting — `slot-size-reporting.adoc`
+. link:./remote-components/slot-assignment.adoc[Assignment]
+. link:./remote-components/slot-rendering.adoc[Slot rendering (two flavours)]
+. link:./remote-components/host-communication.adoc[Remote Component config & host communication]
+. link:./remote-components/shell-slots-catalogue.adoc[Shell Slots catalogue (Slot Groups, legacy name mapping)]
+. link:./remote-components/slot-size-reporting.adoc[Slot size reporting]
 ====
 
 [#navigation]
