@@ -147,7 +147,7 @@ The libraries' override mechanism is **Angular-only**. PrimeReact theming is dri
 
 == Known issues
 
-* **This Unit supersedes the removed legacy override page.** The former `theming/theme-overrides.adoc` (and the related `theming/primeng.adoc` / `theming/concept.adoc` pages) have been removed; their behaviour is now documented here and in the *Theme → PrimeNG / PrimeReact tokens* Unit. The `CustomUseStyle` and preset code they pointed at moved from `libs/angular-utils/src/lib/…` to `libs/angular-utils/theme/primeng/src/…` (see the v7 migration docs); the behaviour described in those old pages was correct, only the file paths were stale.
+* **This Unit supersedes the removed legacy override page.** The behaviour once documented there is now covered here and in the *Theme → PrimeNG / PrimeReact tokens* Unit.
 
 == Related Units
 
@@ -173,10 +173,9 @@ Code::
 * link:{shell_wrapping_utils}[`src/app/shell/utils/styles/update-required-wrapping-styles.utils.ts`] — wrapping only for `MARKED_FOR_WRAPPING`; `MARKED_AS_WRAPPED` treated as already handled
 
 Verification Sources checked::
-* `dev-docs/theming/theme-overrides.adoc` (legacy page) — matches on the "override `<style>` placed after PrimeNG stylesheets / cascade priority" behaviour; its code-path links are stale (see Known issues).
-* `dev-docs/theming/primeng.adoc` (legacy page) — context for the preset and `onecx` extended section the token channel folds into.
-* `dev-docs/theming/concept.adoc` (legacy page) — the `Theme` / theme-variables background.
-* `dev-docs/styles/primeng-token-variables.adoc` (Styling Area) — the scoped `--p-` prefix rewriting the overrides are written against.
+* `dev-docs/theming/overview.adoc` (current) — area framing and the Unit map for the theming pages.
+* `dev-docs/theming/theme-to-primeng-tokens.adoc` (current) — context for the preset and `onecx` extended section the token channel folds into.
+* `dev-docs/styles/primeng-scoping.adoc` (current) — the Styling Area page for the scoped `--p-` prefix rewriting the overrides are written against.
 * `onecx-shell-ui/src/app/app.module.ts` (`main`) — verified the Shell publishes the theme, filters `Theme.overrides` for `OverrideType.CSS`, creates `<style data-css-overrides data-marked-as-wrapped>`, and appends raw CSS to `document.head`.
 * `onecx-shell-ui/src/app/shell/utils/styles/update-required-wrapping-styles.utils.ts` (`main`) — verified only `data-marked-for-wrapping` styles are wrapped; `data-marked-as-wrapped` is treated as already handled.
 * Draft Outline commit `6108bdff` (topic discovery only) — confirms the "CSS vs PRIMENG + precedence" framing for this Unit.

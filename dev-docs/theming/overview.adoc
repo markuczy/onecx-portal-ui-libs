@@ -87,7 +87,7 @@ The Units of this Area, in reading order. Units that already exist are linked; p
 
 [NOTE]
 ====
-The older pages that once lived in this folder — `theming/concept.adoc` (Theming), `theming/primeng.adoc` (Theming with PrimeNG) and `theming/theme-overrides.adoc` (Theme Overrides) — have been removed. They predated this Area; their content was checked against the Units above and is now superseded by the *Theme → page*, *Theme → PrimeNG/PrimeReact tokens*, *Theme Overrides* and *Icons* / *Images* Units.
+The older pages that once lived in this folder — Theming, Theming with PrimeNG and Theme Overrides — have been removed. They predated this Area; their content was checked against the Units above and is now superseded by the *Theme → page*, *Theme → PrimeNG/PrimeReact tokens*, *Theme Overrides* and *Icons* / *Images* Units.
 ====
 
 [NOTE]

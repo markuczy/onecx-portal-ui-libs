@@ -116,8 +116,8 @@ Code::
 ** link:{shell_viewport}#L81[`src/app/shell/components/portal-viewport/portal-viewport.component.ts`] — favicon from `faviconUrl` (BFF fallback), logo state, app gated on `currentTheme$`.
 
 Verification Sources checked::
-* `dev-docs/theming/concept.adoc` (old) — matches on the theme-as-CSS-variables model and the Shell being responsible for applying variables on `<html>`. Note: it links `libs/portal-layout-styles/src/styles/shell/theme_defaults.scss` for default values, which no longer exists on `main` — default values now live in the library presets (see the tokens Unit); follow-up to update the old page.
-* `dev-docs/theming/primeng.adoc` and `dev-docs/theming/theme-overrides.adoc` (old) — cross-checked for the theme→tokens hand-off described as the second stage.
+* `dev-docs/theming/overview.adoc` (current) — confirms the Area split and the Theme → page / Theme → tokens relationship.
+* `dev-docs/theming/theme-to-primeng-tokens.adoc` (current) — cross-checked for the theme→tokens hand-off described as the second stage.
 * Draft Outline commit `6108bdff` (see below) — cross-checked for the "theme v2" question.
 * `onecx-shell-ui` `main` (read-only clone) — `applyThemeVariables` in `src/app/app.module.ts` and the viewport component confirm the Shell leg documented above (publish + `--<name>` on `<html>` + favicon).
 

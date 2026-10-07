@@ -232,7 +232,7 @@ The following older pages are still in this folder. Each one is removed by the l
 |1. Integration Contract & Topics (debugging parts: 13. Diagnostics)
 
 |`styles/`
-|4. Styling & Style Isolation (`primeng-token-variables.adoc` also feeds 5. Theming & Visual Assets)
+|4. Styling & Style Isolation
 
 |`theming/`
 |5. Theming & Visual Assets

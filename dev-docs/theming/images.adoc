@@ -26,7 +26,7 @@ Some images are not static assets bundled with an application; they come from th
 
 == How it works
 
-The mechanism is a single Topic carrying one value: an `ImageRepositoryInfo`. The Shell builds the map and publishes it; applications read it and look up the URL for a name. Unlike the icon flow (see the sibling Unit), there is no request round trip — an application just asks the repository for the URL of a name it already knows.
+The mechanism is a single Topic carrying one value: an `ImageRepositoryInfo`. The Shell builds the map and publishes it; applications read it and look up the URL for a name. Unlike the icon flow (see the sibling Unit), this is not a per-image-name request/reply exchange — the only request is the Topic's initial `TopicGet`, and the application simply reads the published repository for names it already knows.
 
 [#the-model]
 === The `ImageRepositoryInfo` model
@@ -56,7 +56,7 @@ export class ImageRepositoryTopic extends Topic<ImageRepositoryInfo> {
 }
 ----
 
-It is a Topic named `imageRepository` at version `1`. Unlike the icon Topic, it is constructed with the default `sendGetMessage = true`: a new subscriber sends a `TopicGet`, so it receives the *current* repository as soon as it subscribes. This makes the repository a read-mostly value — the Shell publishes it once per theme, and any late subscriber still gets the latest map.
+It is a Topic named `imageRepository` at version `1`. Unlike the icon Topic, it is constructed with the default `sendGetMessage = true`, so creating the `ImageRepositoryTopic` sends a `TopicGet`. That happens before `getUrl` subscribes with `firstValueFrom(this.imageRepositoryTopic.asObservable())`, which means the repository request is triggered by the lazy Topic construction and the subsequent subscription only waits for the published repository. This makes the repository a read-mostly value — the Shell publishes it once per theme, and any late subscriber still gets the latest map.
 
 [#resolution]
 === Resolving a name to a URL
@@ -84,14 +84,17 @@ The flow:
 [source,mermaid]
 ----
 sequenceDiagram
-  participant Shell as ImageRepositoryService (Shell)
-  participant Topic as ImageRepositoryTopic
   participant App
-  Shell->>Shell: wait first theme, fetch image kinds (BFF), build name->URL map
-  Shell->>Topic: publish ImageRepositoryInfo { images }
-  App->>Topic: subscribe (TopicGet) / firstValueFrom
-  Topic-->>App: current ImageRepositoryInfo
-  App->>App: getUrl(names) -> first matching URL, else fallback
+  participant Service as ImageRepositoryService
+  participant Topic as ImageRepositoryTopic
+  participant Shell
+  App->>Service: getUrl(names, fallbackUrl?)
+  Service->>Topic: imageRepositoryTopic getter creates new ImageRepositoryTopic()
+  Topic->>Shell: TopicGet
+  Service->>Topic: firstValueFrom(asObservable()) subscribes
+  Shell-->>Topic: publish ImageRepositoryInfo { images }
+  Topic-->>Service: current ImageRepositoryInfo
+  Service->>Service: getUrl(names) -> first matching URL, else fallback
 ----
 
 == Libs side / Shell side

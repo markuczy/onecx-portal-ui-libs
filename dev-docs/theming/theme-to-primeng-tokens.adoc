@@ -131,11 +131,11 @@ Code::
 * link:{react_theme_entry}[`react-utils/src/lib/styling/primeReact/styles.ts`] — how the SCSS theme is loaded.
 
 Verification Sources checked::
-* `dev-docs/theming/primeng.adoc` (old) — matches on `provideThemeConfig`, `ThemeConfigService`, `CustomPreset` and the `onecx` extension section. Note: it links `libs/angular-utils/src/lib/theme/…` and `…/src/lib/services/…`, which no longer exist on `main` (the code moved to `libs/angular-utils/theme/primeng/src/…`); follow-up to update the old page.
-* `dev-docs/theming/theme-overrides.adoc` (old) — cross-checked for the overrides mechanism described under Angular.
-* `dev-docs/styles/primeng-token-variables.adoc` (old) — cross-checked for the `--p-*` per-scope replacement (referenced, not repeated, here).
+* `dev-docs/theming/theme-to-page.adoc` (current) — matches on the `Theme` input and the Theme → page / Theme → tokens hand-off.
+* `dev-docs/theming/theme-override-precedence.adoc` (current) — cross-checked for the overrides mechanism described under Angular.
+* `dev-docs/styles/primeng-scoping.adoc` (current) — cross-checked for the `--p-*` per-scope replacement (referenced, not repeated, here).
 * `docs/…/migrations/angular-20/update-primeng-package.adoc` and `docs/…/migrations/angular-19/provide-theme-config.adoc` — confirm the `@onecx/angular-utils/theme/primeng` subpackage layout and `provideThemeConfig` usage.
 
 == Known issues
 
-* **Old pages point at moved paths.** `theming/primeng.adoc` and `theming/theme-overrides.adoc` still reference `libs/angular-utils/src/lib/theme/…` and `libs/angular-utils/src/lib/services/…`, which were moved to `libs/angular-utils/theme/primeng/src/…` (see the v7 migration docs). The per-page rule is not to edit the verification-source pages, so this is recorded as a follow-up rather than fixed here.
+* **Legacy pages have been removed.** Their behaviour is now documented in the current Theming Units above.
