@@ -30,7 +30,7 @@ So instead of replacing route guards with a wrapper (Angular), React exposes the
 
 `link:{libs}/react-utils/src/lib/guards/utils/activate-guards-wrapper.utils.ts[`ActivateGuardsWrapper`]` and link:{libs}/react-utils/src/lib/guards/utils/deactivate-guards-wrapper.utils.ts[`DeactivateGuardsWrapper`]` are plain classes (constructed with the optional gatherer and a `GuardsNavigationStateController`). Each takes a guard list and the `GuardsNavigationState`, reads the mode via `getMode`, and branches on it. Both resolve each guard through `resolveToPromise` (Promise / plain value), defaulting a guard that throws to `true`, and short-circuit to `true` when the guard list is empty. The branch is:
 
-[cols="12,18,10", options="header"]
+[cols="1,2,1", options="header"]
 |===
 |Mode |What the wrapper does |Combine
 |`INITIAL_ROUTER_SYNC` |Run the own guards for the current route. |`combineToBoolean`

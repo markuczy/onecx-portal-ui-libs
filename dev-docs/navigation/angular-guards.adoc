@@ -31,7 +31,7 @@ So after wrapping, the app's *own* route guards are preserved untouched in the `
 
 `link:{libs}/angular-utils/guards/src/utils/activate-guards-wrapper.utils.ts[`ActivateGuardsWrapper`]` and link:{libs}/angular-utils/guards/src/utils/deactivate-guards-wrapper.utils.ts[`DeactivateGuardsWrapper`]` read the mode from `router.getCurrentNavigation().extras.state` via `getMode` and branch on it. Both resolve each saved guard through `resolveToPromise` (Promise / Observable / plain value), defaulting a guard that throws or does not implement the method to `true`. The branch, and how the combined result is produced, is:
 
-[cols="12,18,20", options="header"]
+[cols="1,2,1", options="header"]
 |===
 |Mode |What the wrapper does |Combine function
 |`INITIAL_ROUTER_SYNC` |Run the own guards for the current route. If they fail, the connector publishes `revertNavigation` on `GuardsCheckEnd` (Shell moves the URL back). |`combineToBoolean`
