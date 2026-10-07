@@ -169,7 +169,7 @@ Two columns need a definition before the tables:
 
 === Gatherers
 
-[cols="1,0.7,1.3,1.9,1.4", options="header",autowidth="false"]
+[cols="1,1,2,2,1", options="header"]
 |===
 |Class |Version |Where built |Consumers |Owning Area
 
