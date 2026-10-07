@@ -30,7 +30,7 @@ So instead of replacing route guards with a wrapper (Angular), React exposes the
 
 `link:{libs}/react-utils/src/lib/guards/utils/activate-guards-wrapper.utils.ts[`ActivateGuardsWrapper`]` and link:{libs}/react-utils/src/lib/guards/utils/deactivate-guards-wrapper.utils.ts[`DeactivateGuardsWrapper`]` are plain classes (constructed with the optional gatherer and a `GuardsNavigationStateController`). Each takes a guard list and the `GuardsNavigationState`, reads the mode via `getMode`, and branches on it. Both resolve each guard through `resolveToPromise` (Promise / plain value), defaulting a guard that throws to `true`, and short-circuit to `true` when the guard list is empty. The branch is:
 
-[cols="1.2,1.8,1", options="header"]
+[cols="12,18,10", options="header"]
 |===
 |Mode |What the wrapper does |Combine
 |`INITIAL_ROUTER_SYNC` |Run the own guards for the current route. |`combineToBoolean`
@@ -43,7 +43,7 @@ Unlike Angular, the React wrappers combine only to a boolean in every mode — t
 
 === The fake navigation (`GuardsGatherer`)
 
-link:{libs}/react-utils/src/lib/guards/services/guards-gatherer.ts[`GuardsGatherer`] is a plain class (no `@Injectable`) constructed with the React Router `NavigateFunction` (and, optionally, a controller). When *another* app asks this app to check its guards, the registered gatherer callback (`executeGuardsCallback`) performs a *fake* `navigate(routeUrl, { state: createGuardCheckState(undefined, guardCheckKey), replace: true })` — a `GUARD_CHECK` navigation that runs the target route's guards without committing — and stores a resolver in a `guardsChecks` map keyed by the normalised URL. The wrapper resolves the map with `false` on a veto; the caller resolves it with `true` on success. `gather` / `resolveRoute` normalise the URL (leading `/`, strip a trailing `/`) so a request and its verdict always map to the same key.
+link:{libs}/react-utils/src/lib/guards/services/guards-gatherer.ts[`GuardsGatherer`] is a plain class (no `@Injectable`) constructed with the React Router `NavigateFunction` (and, optionally, a controller). When *another* app asks this app to check its guards, the registered gatherer callback (`executeGuardsCallback`) performs a *fake* `navigate(routeUrl, { state: createGuardCheckState(undefined, guardCheckKey), replace: true })` that updates the active router location while replacing the current history entry, then lets `useGuardCheck` evaluate after that location change. It stores a resolver in a `guardsChecks` map keyed by the normalised URL. The wrapper resolves the map with `false` on a veto; the caller resolves it with `true` on success. `gather` / `resolveRoute` normalise the URL (leading `/`, strip a trailing `/`) so a request and its verdict always map to the same key.
 
 === Wiring it up (the hooks)
 
@@ -85,7 +85,7 @@ The protocol, the four modes, the Gatherer round trip and the `revertNavigation`
 
 == Edge cases & pitfalls
 
-* *The fake navigation must not commit.* The `GUARD_CHECK` navigation is a check, not a navigation — it is triggered with `replace: true` and must be cancelled by the caller after a passing check. A `GUARD_CHECK` that accidentally commits would move the URL without the other apps having consented.
+* *The fake navigation updates the active location.* The `GUARD_CHECK` navigation uses `replace: true`, which replaces the current history entry while changing the active router location; `useGuardCheck` then runs after that location change. The library does not automatically block or roll back that navigation, so consumer integration must handle the verdict and any route recovery.
 * *`guardCheckKey` is what makes same-URL checks repeat.* Because a guard check navigates to a URL that is often already the current one, React stamps each check with a fresh `guardCheckKey`. Code that compares two guard-check navigations on the URL alone will see them as identical and may skip the second one.
 * *A missing `guardCheckPromise` defaults to allow.* In `NAVIGATION_REQUESTED`, if the promise is absent from the state the wrapper logs a warning and uses `Promise.resolve(true)` rather than block.
 * *`ROUTER_SYNC` cannot veto.* In `ROUTER_SYNC` mode the wrapper returns `true` via `executeRouterSyncGuard()` regardless of the guards' outcome — the same behaviour as Angular.
@@ -102,6 +102,7 @@ The protocol, the four modes, the Gatherer round trip and the `revertNavigation`
 == Known issues
 
 * *The documented guard debug switch is inert.* The old `dev-docs/guards/` debug page (now removed) told readers to set `window['@onecx/angular-utils'].guards ??= { debug: true }` to enable guard debug logs. In the current code that flag is never read: the guard loggers are created with `createLoggerFactory` (namespaces `@onecx/angular-utils:guards` and `@onecx/react-utils:guards`) and are controlled by the `debug` package (i.e. `localStorage.debug`), not by that `window` property (link:{libs}/angular-utils/guards/src/utils/logger.utils.ts[`angular logger.utils.ts`], link:{libs}/react-utils/src/lib/guards/utils/logger.utils.ts[`react logger.utils.ts`], link:{libs}/accelerator/src/lib/utils/create-logger.utils.ts[`createLoggerFactory`]). The `window['@onecx/angular-utils'].guards` object is still created as an empty placeholder (link:{libs}/angular-utils/guards/src/declarations.ts[`declarations.ts`]), so the documented command appears to run but has no effect. Documented here as the actual behaviour; enabling guard logs via the switch is a follow-up (PR).
+* *`GUARD_CHECK` is not a non-committing flow yet.* The current `replace: true` navigation updates the active router location and replaces the current history entry, but it still relies on the consumer to decide how to handle the verdict and any route recovery. A genuinely non-committing guard-check flow is a follow-up implementation task.
 
 == Related Units
 
