@@ -41,7 +41,7 @@ The two approaches differ because PrimeNG is configured programmatically through
 
 === Angular
 
-The entry point an application adds is link:{app_config}[`provideThemeConfig`]. It wires the Angular environment so that `ThemeConfigService` runs when the app starts, PrimeNG is provided, and the app's stylesheet gets its PrimeNG variables replaced for scoping (see the old link:../styles/primeng-token-variables.adoc[PrimeNG token variables] page).
+The entry point an application adds is link:{app_config}[`provideThemeConfig`]. It wires the Angular environment so that `ThemeConfigService` runs when the app starts, PrimeNG is provided, and the app's stylesheet gets its PrimeNG variables replaced for scoping (see the Styling & Style Isolation Area, link:../styling/README.adoc[overview]).
 
 link:{theme_config_service}[`ThemeConfigService`] is the actor. On construction it subscribes to `ThemeService.currentTheme$` and, for every theme emitted, calls `applyThemeVariables(theme)`:
 
@@ -58,7 +58,7 @@ The steps in that method:
 [#angular-overrides]
 ==== Theme overrides (advanced)
 
-When `provideThemeConfig` is given `isAdvancedTheming: true` (exposed via the `IS_ADVANCED_THEMING` token), `ThemeConfigService` also folds the theme's `overrides` array (link:{theme_to_page}[Theme → page]) into the preset. Only overrides of type `PRIMENG` are used; their `value` (a JSON string of a token tree) is parsed and deep-merged last, so application overrides beat both the theme and the defaults. See the old link:theme-overrides.adoc[theme overrides] page for how to supply them.
+When `provideThemeConfig` is given `isAdvancedTheming: true` (exposed via the `IS_ADVANCED_THEMING` token), `ThemeConfigService` also folds the theme's `overrides` array (link:{theme_to_page}[Theme → page]) into the preset. Only overrides of type `PRIMENG` are used; their `value` (a JSON string of a token tree) is parsed and deep-merged last, so application overrides beat both the theme and the defaults. See the Theme Overrides Unit, link:theme-override-precedence.adoc[theme overrides], for how to supply them.
 
 link:{default_theme_variables}[`default-theme-variables.ts`] holds the default `font` / `topbar` / `sidebar` / `general` values used to seed `semantic.extend.onecx` before a Workspace theme overrides them.
 
@@ -111,8 +111,8 @@ The rest of the PrimeReact theme reads `var(--app-*)`. So a token's resolved val
 
 * link:{theme_to_page}[Theme → page] — where the `Theme` and its `properties` come from.
 * link:{overview}[Theming & Visual Assets overview] — the Area this Unit belongs to.
-* link:theme-overrides.adoc[Theme Overrides] — how an application overrides the resulting token values (existing page).
-* link:../styles/primeng-token-variables.adoc[PrimeNG token variables] — how the generated `--p-*` variables are scoped per application (existing page).
+* link:theme-override-precedence.adoc[Theme Overrides] — how an application overrides the resulting token values.
+* link:../styling/README.adoc[Styling & Style Isolation (overview)] — the Area that covers how the generated `--p-*` variables are scoped per application.
 
 == Sources
 

@@ -101,7 +101,7 @@ React applications construct a `CurrentThemeTopic` directly and subscribe to it.
 
 * link:{overview}[Theming & Visual Assets overview] — the Area this Unit belongs to.
 * link:{theme_to_tokens}[Theme → PrimeNG/PrimeReact tokens] — the next stage, consuming the same `Theme`.
-* link:theme-overrides.adoc[Theme Overrides] — how an application overrides the resulting token values (existing page).
+* link:theme-override-precedence.adoc[Theme Overrides] — how an application overrides the resulting token values.
 
 == Sources
 

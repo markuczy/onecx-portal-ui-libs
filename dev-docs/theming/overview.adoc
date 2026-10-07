@@ -8,6 +8,8 @@
 :theme_to_page: ./theme-to-page.adoc
 :theme_to_tokens: ./theme-to-primeng-tokens.adoc
 :theme_to_overrides: ./theme-override-precedence.adoc
+:icons: ./icons.adoc
+:images: ./images.adoc
 
 This page is the overview of the **Theming & Visual Assets** Area of the Dev Docs. It explains the problem the Area is about, how the work is split between the OneCX libraries in this repository and the {shell_repo}[OneCX Shell], and lists the Units that belong to the Area in reading order. It does not explain any single mechanism in depth — that is the job of the individual Unit pages, which follow the Unit template.
 
@@ -74,18 +76,18 @@ The Units of this Area, in reading order. Units that already exist are linked; p
 |link:{theme_to_overrides}[theme-override-precedence.adoc]
 |Written
 
-|Icons
-|icons.adoc
-|Planned
+|Icons (how icons are delivered and shared)
+|link:{icons}[icons.adoc]
+|Written
 
-|Images
-|images.adoc
-|Planned
+|Images (how images are delivered via the image repository)
+|link:{images}[images.adoc]
+|Written
 |===
 
 [NOTE]
 ====
-This folder currently also contains the older pages link:concept.adoc[Theming], link:primeng.adoc[Theming with PrimeNG] and link:theme-overrides.adoc[Theme Overrides]. They predate this Area, are the verification sources for the new Units, and will be superseded by the Units above as the Area is completed.
+The older pages that once lived in this folder — `theming/concept.adoc` (Theming), `theming/primeng.adoc` (Theming with PrimeNG) and `theming/theme-overrides.adoc` (Theme Overrides) — have been removed. They predated this Area; their content was checked against the Units above and is now superseded by the *Theme → page*, *Theme → PrimeNG/PrimeReact tokens*, *Theme Overrides* and *Icons* / *Images* Units.
 ====
 
 [NOTE]
