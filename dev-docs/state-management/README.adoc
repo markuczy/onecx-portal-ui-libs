@@ -29,7 +29,8 @@ flowchart TB
   UI -->|createFragmentParamsEffect| Url[URL fragment]
   Url -->|RouterNavigatedAction| UI
   UI -->|persist| LS[(localStorage)]
-  LS -->|lazyLoadingMergeReducer| S
+  LS -->|lazyLoadingMergeReducer| FS[App feature store]
+  FS -->|selectors / reads| UI
 ----
 
 Each box is explained in one Unit; the links are the reading order.

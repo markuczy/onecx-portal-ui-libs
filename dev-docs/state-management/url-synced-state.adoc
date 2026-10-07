@@ -18,15 +18,25 @@ The effect lives in `@onecx/ngrx-accelerator`. The write helper is link:{libs}/n
 
 [source,typescript]
 ----
+// reducer receives a URLSearchParams instance and should return a plain object
 createFragmentParamsEffect(actions$, MyActions.updateSort, router, activatedRoute,
-  (params, action) => ({ ...params, sort: action.sort }))
+  (params: URLSearchParams, action) => {
+    // read existing values from params, update and return a plain object
+    params.set('sort', String(action.sort))
+    return Object.fromEntries(params.entries())
+  })
 ----
 
-When the given action is dispatched, the effect takes the current `activatedRoute.fragment`, parses the part after `?` with `URLSearchParams`, applies the App-supplied reducer to that parameter object, and writes the result back to the URL fragment with `router.navigate([], { relativeTo, fragment, replaceUrl: true, onSameUrlNavigation: 'reload' })`. It returns an effect with `{ dispatch: false }`, so it has no side effect on the store — the store is the *source*, the URL is the *mirror*. The fragment's own `#` prefix is preserved: for `#tab?sort=asc` the reducer is applied to `{ sort: 'asc' }` and the output is re-joined as `tab?…`.
+When the given action is dispatched, the effect reads the current `activatedRoute.fragment`, parses the parameter portion (the part after `?`) into a URLSearchParams instance and *passes that URLSearchParams* to the App-supplied reducer. The reducer is therefore given a URLSearchParams object (not a plain JS object) and may call `get`, `set`, or iterate `entries()`; the helper then formats the reducer's returned plain object into a new fragment and writes it back with `router.navigate([], { relativeTo, fragment, replaceUrl: true, onSameUrlNavigation: 'reload' })`.
+
+It returns an effect with `{ dispatch: false }`, so it has no side effect on the store — the store is the *source*, the URL is the *mirror*. The fragment's `#` prefix and any leading segment before `?` are preserved: for `#tab?sort=asc` the reducer sees a URLSearchParams representing `sort=asc`, may update or remove keys, and the output is merged back into `tab?…`.
 
 The read side is a set of RxJS operators over the `@ngrx/router-store` `RouterNavigatedAction` stream (the Shell's "URL changed" event, see link:../navigation/url-to-every-router.adoc[URL change → every router]):
 
-. link:{libs}/ngrx-accelerator/src/lib/utils/effects/filter-for-fragment-params-changed.ts[`filterOutFragmentParamsHaveNotChanged(router, zodSchema, allowEmpty = false)`] — keeps a navigation action only when the fragment parameters actually changed. It pairs the new action with the previous router state, `safeParse`s both against a Zod schema and compares with `fast-deep-equal`. If either parse fails, or the new params are empty and `allowEmpty` is `false`, the action is dropped.
+. link:{libs}/ngrx-accelerator/src/lib/utils/effects/filter-for-fragment-params-changed.ts[`filterOutFragmentParamsHaveNotChanged(router, zodSchema, allowEmpty = false)`] — keeps a navigation action only when the fragment parameters actually changed. It pairs the new action with the previous router state, `safeParse`s both against a Zod schema and compares with `fast-deep-equal`.
+
+  * Behavior notes: if either parse fails the navigation is dropped. When `allowEmpty = false` a navigation whose new fragment contains no parameters is filtered out (not considered a change). When `allowEmpty = true` the operator also treats an empty params object as a valid change — including allowing an "empty → empty" transition to pass through — so navigation-driven effects that subscribe through this filter may run for empty-to-empty transitions or when parameters became empty.
+
 . link:{libs}/ngrx-accelerator/src/lib/utils/effects/filter-for-only-fragment-params-changed.ts[`filterOutOnlyFragmentParamsChanged(router)`] — keeps an action only when the path *before* the `#` changed, i.e. it filters *out* navigations where only the fragment moved. This is how an effect avoids re-running when the user changes a filter (same route, new fragment).
 . link:{libs}/ngrx-accelerator/src/lib/utils/effects/filter-for-navigated-to.ts[`filterForNavigatedTo(router, component)`] — keeps an action only when the given component is the active route or one of its descendants, so a shared effect only fires for the route that owns it.
 
@@ -74,7 +84,7 @@ The helpers depend on `@angular/router` (`Router`, `ActivatedRoute`) and `@ngrx/
 
 * The fragment is shaped like a *query string* appended after a hash segment: `#tab?sort=asc`. The `?` starts the parameter list, and `createFragmentParamsEffect` re-prepends the segment before the `?`. A fragment with no `?` has no parameters to round-trip.
 * `filterOutFragmentParamsHaveNotChanged` drops an action whenever the Zod `safeParse` of the current or the new parameters fails, so a schema that does not match the real fragment will silently stop the effect. Keep the schema in sync with what the effect writes.
-* With the default `allowEmptyFragmentParamsList = false`, navigating to a URL with *no* fragment parameters is filtered out. Set it to `true` to also treat "params became empty" as a real change.
+* With the default `allowEmptyFragmentParamsList = false`, navigating to a URL with *no* fragment parameters is filtered out. Set it to `true` to treat transitions involving an empty params object as real changes — this includes both "params became empty" and an explicit empty-to-empty transition (both sides parse as empty). When `allowEmpty` is `true` such empty transitions will pass the filter and may trigger navigation-driven effects.
 * Because `createFragmentParamsEffect` uses `onSameUrlNavigation: 'reload'` and `replaceUrl: true`, the same params are rewritten without adding a history entry — do not expect back/forward to step through filter changes made this way.
 
 == Debugging
