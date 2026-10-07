@@ -38,9 +38,13 @@ flowchart TD
   E --> E1["Portal Message<br/>(shell-toast)"]
 
   subgraph Loading
-    L["globalLoading Topic"] --> LS["full-screen loading spinner"]
+    GL["globalLoading Topic"] --> FLS["full-screen loading spinner"]
+    RL["RoutesService.loadChildren()"] --> RS["RoutesService.showContent$"]
+    RS --> PVS["PortalViewport spinner (bound to showContent$)"]
   end
 ----
+
+IMPORTANT: The Shell's route-area spinner (the one rendered by the PortalViewportComponent) is bound to RoutesService.showContent$; RoutesService.loadChildren() updates that signal while route children are loading. This is a distinct signal from the libraries' globalLoading Topic — publishing globalLoading does not, by itself, toggle the PortalViewport spinner.
 
 [NOTE]
 ====
