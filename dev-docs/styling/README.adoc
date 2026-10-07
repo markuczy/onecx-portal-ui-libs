@@ -7,6 +7,8 @@
 :u1: ./why-style-isolation.adoc
 :u2: ./stylesheet-loading.adoc
 :u3: ./scope-model.adoc
+:u4: ./shell-stylesheets.adoc
+:u5: ./angular-component-styles.adoc
 :u8: ./scope-polyfill.adoc
 
 This Area explains where CSS on a OneCX page comes from and how the styles of the many applications that share a single page are kept apart. It is the fourth Area in the link:{dev-docs-index}[Dev Docs index].
@@ -52,22 +54,24 @@ flowchart TD
   slotHost --> slot
 ----
 
-The four pages in this Area so far:
+The six pages in this Area so far:
 
 * *Why isolation & style kinds* (Unit 1) covers why isolation exists and the kinds of stylesheets that exist on a page; Unit 3 carries the detailed `@scope` model.
 * *App/Remote Component stylesheet load & removal* (Unit 2) covers the load-on-demand and remove-on-unuse lifecycle with per-App/Slot usage counting.
 * *`@scope` scoping model* (Unit 3) covers how the `@scope` at-rule binds an application's styles to its content, including nested Remote Components.
+* *Shell's own stylesheets & legacy portal layout* (Unit 4) covers where the Shell's own and the legacy portal-layout stylesheets come from, how `styleInitializer` loads them, and how they are scoped.
+* *Angular component styles* (Unit 5) covers how Angular component styles — already encapsulated by the compiler — fit into style isolation and where the model takes over for their shared variables.
 * *Scope polyfill* (Unit 8) covers how the Shell rewrites scoped stylesheets when the browser does not support `@scope`.
 
 == Unit map
 
-The Units of this Area, in reading order. Units 1, 2, 3, and 8 are written; the rest are planned.
+The Units of this Area, in reading order. Units 1, 2, 3, 4, 5 and 8 are written; the rest are planned.
 
 . *Why isolation & style kinds* — link:{u1}[why-style-isolation.adoc] _(written)_
 . *App/Remote Component stylesheet load & removal (usage counting)* — link:{u2}[stylesheet-loading.adoc] _(written)_
 . *`@scope` scoping model* — link:{u3}[scope-model.adoc] _(written)_
-. *Shell's own stylesheets & legacy portal layout* — `shell-stylesheets.adoc` _(planned)_
-. *Angular component styles* — `angular-component-styles.adoc` _(planned)_
+. *Shell's own stylesheets & legacy portal layout* — link:{u4}[shell-stylesheets.adoc] _(written)_
+. *Angular component styles* — link:{u5}[angular-component-styles.adoc] _(written)_
 . *Dynamic content attribution (trigger element)* — `dynamic-content-attribution.adoc` _(planned)_
 . *Dynamic content wrapping & listeners* — `dynamic-content-wrapping.adoc` _(planned)_
 . *Scope polyfill* — link:{u8}[scope-polyfill.adoc] _(written)_

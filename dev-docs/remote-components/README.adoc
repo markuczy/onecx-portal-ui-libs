@@ -56,15 +56,13 @@ The data the Shell publishes is defined in the libs. A `Slot` maps a slot name t
 
 == Unit map
 
-The Units of this Area are listed in reading order. The slugs and file names below are fixed by the link:../README.adoc[Dev Docs index]; link them from here once the page exists.
+The Units of this Area are listed in reading order. The slugs and file names below are fixed by the link:../README.adoc[Dev Docs index].
 
 . link:slot-assignment.adoc[Assignment] — how the Workspace assigns Remote Components to Slots, and how a slot resolves the components that fill it.
 . link:slot-rendering.adoc[Slot rendering] — the two rendering flavours: the Angular-init path (`ocxInitRemoteComponent`) and the web-component config path (`ocxRemoteComponentConfig`).
-. Remote Component config & host communication — how a rendered Remote Component receives its `RemoteComponentConfig` and talks back to the host. (`host-communication.adoc`, not yet written)
-. Shell Slots catalogue — the Shell's Slot Groups and legacy slot name mapping. (`shell-slots-catalogue.adoc`, not yet written)
-. Slot size reporting — how slot and slot-group size changes are published through the `ResizedEventsTopic`. (`slot-size-reporting.adoc`, not yet written)
-
-Units 3, 4 and 5 are planned but not yet written, so they are not linked.
+. link:host-communication.adoc[Remote Component config & host communication] — how a rendered Remote Component receives its `RemoteComponentConfig` and talks back to the host.
+. link:shell-slots-catalogue.adoc[Shell Slots catalogue] — the Shell's Slot Groups and legacy slot name mapping.
+. link:slot-size-reporting.adoc[Slot size reporting] — how slot and slot-group size changes are published through the `ResizedEventsTopic`.
 
 == Related Areas
 
