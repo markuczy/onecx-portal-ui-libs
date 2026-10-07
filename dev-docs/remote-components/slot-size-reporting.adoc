@@ -144,7 +144,7 @@ Code::
 * link:{libs}/react-remote-components/src/lib/components/slot.tsx[`SlotComponent` (React) — no size reporting]
 
 Usage example (Workspace UI)::
-* link:https://github.com/onecx/onecx-workspace-ui/blob/deef7f41c8f61ef447fdbb2a5de4c5d86ced4a1f/src/app/topbar/topbar-logo.component.ts#L77[onecx/onecx-workspace-ui@deef7f41 — OneCXTopbarLogoComponent (see line 77)]
+* link:https://github.com/onecx/onecx-workspace-ui/blob/deef7f41c8f61ef447fdbb2a5de4c5d86ced4a1f/src/app/remotes/topbar-logo/topbar-logo.component.ts#L77[onecx/onecx-workspace-ui@deef7f41 — OneCXTopbarLogoComponent (see line 77)]
 
 
 Verification Sources checked::
