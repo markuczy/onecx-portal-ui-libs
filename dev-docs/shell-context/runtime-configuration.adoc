@@ -69,10 +69,7 @@ The keys an App in `onecx-portal-ui-libs` (or an App talking to the Shell's back
 
 [cols="1.2,1.2,2,1.5", options="header"]
 |===
-|Key
-|Meaning
-|Used for
-|Read by
+|Key |Meaning |Used for |Read by
 
 |`IS_SHELL`
 |`true` when the current document is the Shell itself.
