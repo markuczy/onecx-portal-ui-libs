@@ -19,7 +19,7 @@ The Angular implementation is a set of wrappers plus one router-event controller
 
 === Wrapping the route's guards (`wrapGuards`)
 
-`link:{libs}/angular-utils/guards/src/utils/wrap-guards.utils.ts[`wrapGuards`]` is called by the connector for every route the router recognises. For a route (and recursively its children) it:
+link:{libs}/angular-utils/guards/src/utils/wrap-guards.utils.ts[`wrapGuards`] is called by the connector for every route the router recognises. For a route (and recursively its children) it:
 
 . *Saves the originals.* `saveOriginalGuards` copies `canActivate` / `canDeactivate` / `canActivateChild` into the route's `canActivateGuardList` / `canDeactivateGuardList` / `canActivateChildGuardList` (the link:{libs}/angular-utils/guards/src/utils/wrap-guards.utils.ts[`OnecxRoute`] extension). Only function guards are kept — deprecated string guards and non-function values are filtered out, and a guard that is already a wrapper is skipped. This is what makes the wrapper idempotent.
 . *Replaces them with a single wrapper.* Each `canActivate` / `canDeactivate` / `canActivateChild` array is swapped for one wrapper function that calls `ActivateGuardsWrapper.canActivate` / `DeactivateGuardsWrapper.canDeactivate` with the saved guard list as an argument. The wrapper is tagged with the `WRAPPED_GUARD_TAG` symbol so a second `wrapGuards` pass over the same route detects it and does not wrap again (`isWrappingRequired`).
@@ -29,7 +29,7 @@ So after wrapping, the app's *own* route guards are preserved untouched in the `
 
 === The mode-aware wrappers
 
-`link:{libs}/angular-utils/guards/src/utils/activate-guards-wrapper.utils.ts[`ActivateGuardsWrapper`]` and link:{libs}/angular-utils/guards/src/utils/deactivate-guards-wrapper.utils.ts[`DeactivateGuardsWrapper`]` read the mode from `router.getCurrentNavigation().extras.state` via `getMode` and branch on it. Both resolve each saved guard through `resolveToPromise` (Promise / Observable / plain value), defaulting a guard that throws or does not implement the method to `true`. The branch, and how the combined result is produced, is:
+link:{libs}/angular-utils/guards/src/utils/activate-guards-wrapper.utils.ts[`ActivateGuardsWrapper`] and link:{libs}/angular-utils/guards/src/utils/deactivate-guards-wrapper.utils.ts[`DeactivateGuardsWrapper`] read the mode from `router.getCurrentNavigation().extras.state` via `getMode` and branch on it. Both resolve each saved guard through `resolveToPromise` (Promise / Observable / plain value), defaulting a guard that throws or does not implement the method to `true`. The branch, and how the combined result is produced, is:
 
 [cols="1,2,1", options="header"]
 |===
@@ -49,9 +49,9 @@ The link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-connector.utils
 . *`RoutesRecognized` → wrap.* `wrapGuardsOnRouteRecognized` walks the recognised route snapshot and calls `wrapGuards` on each `routeConfig` (recursing into children), so the guards are wrapped before any guard check runs.
 . *`GuardsCheckStart` → gather.* `gatherGuardsOnGuardsCheckStart` reads the mode; only in `NAVIGATION_REQUESTED` does it act: it calls `guardsGatherer.gather({ url: event.urlAfterRedirects })`, collapses the returned verdicts with `combineToBoolean`, and stores the promise on the navigation state via `createNavigationRequestedState`. That promise is exactly the `guardCheckPromise` the `NAVIGATION_REQUESTED` wrapper waits on. In `INITIAL_ROUTER_SYNC` / `GUARD_CHECK` / `ROUTER_SYNC` it does nothing (nothing to gather).
 . *`GuardsCheckEnd` → finalise.* `resolveGuardsOnGuardsCheckEnd` branches on the mode:
-  + `INITIAL_ROUTER_SYNC` — if `!event.shouldActivate` (the initial route's guards rejected the navigation), publish `{ type: 'revertNavigation' }` on the link:{libs}/integration-interface/src/lib/topics/events/v1/events-topic.ts[`EventsTopic`] so the Shell moves the shared URL back.
-  + `GUARD_CHECK` — if `event.shouldActivate` (the check passed), the positive verdict has not been sent yet, so the connector calls `guardsGatherer.resolveRoute(event.urlAfterRedirects, true)` and then cancels the fake navigation with `router.navigateByUrl(router.url, { skipLocationChange: true, state: { isRouterSync: true } })` so it does not commit.
-  + `ROUTER_SYNC` / `NAVIGATION_REQUESTED` — nothing to do; the own navigation proceeds or cancels on its own.
+.. `INITIAL_ROUTER_SYNC` — if `!event.shouldActivate` (the initial route's guards rejected the navigation), publish `{ type: 'revertNavigation' }` on the link:{libs}/integration-interface/src/lib/topics/events/v1/events-topic.ts[`EventsTopic`] so the Shell moves the shared URL back.
+.. `GUARD_CHECK` — if `event.shouldActivate` (the check passed), the positive verdict has not been sent yet, so the connector calls `guardsGatherer.resolveRoute(event.urlAfterRedirects, true)` and then cancels the fake navigation with `router.navigateByUrl(router.url, { skipLocationChange: true, state: { isRouterSync: true } })` so it does not commit.
+.. `ROUTER_SYNC` / `NAVIGATION_REQUESTED` — nothing to do; the own navigation proceeds or cancels on its own.
 
 === The fake navigation (`GuardsGatherer`)
 
