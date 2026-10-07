@@ -137,8 +137,8 @@ How a URL change reaches every router on the page, and how the Shell activates t
 . link:./navigation/shell-routes-and-current-app.adoc[Shell routes & Current App activation (including not-found)]
 . link:./navigation/navigation-topics.adoc[Page & workspace Topics during navigation]
 . link:./navigation/why-cross-app-guards.adoc[Why cross-App guards]
-. Angular guards — `angular-guards.adoc`
-. React guards — `react-guards.adoc`
+. link:./navigation/angular-guards.adoc[Angular guards]
+. link:./navigation/react-guards.adoc[React guards]
 ====
 
 [#authentication]
@@ -236,9 +236,6 @@ The following older pages are still in this folder. Each one is removed by the l
 
 |`theming/`
 |5. Theming & Visual Assets
-
-|`guards/`
-|7. Navigation & Routing
 |===
 
 == Other

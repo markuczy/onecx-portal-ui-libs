@@ -90,7 +90,7 @@ Both frameworks follow the same one-way contract, but they follow it differently
 * The Shell logs `🧭 Adding Workspace routes:` during `routesService.init`, which is the point where the Shell's route table — and with it the URL-change wiring — is set up.
 * A `navigationId === -1` warning from the patched history (`Navigation ID is -1, indicating a potential invalid microfrontend initialization.`) means a router published a location with a bad navigation id; the Shell drops that publish rather than broadcasting a stale URL.
 * To see the raw topic traffic (who publishes `currentLocation`, and with what `url`/`isFirst`), enable the accelerator's topic logging (Area 13, Diagnostics — `tracing-communication.adoc`).
-* For the Angular guard side of a blocked sync, the guards debug switch applies (see `dev-docs/guards/debug.adoc`); that is a Unit 4–6 concern.
+* For the guard side of a blocked sync, the guard debug logs (enabled via the `debug` package, e.g. `localStorage.debug = '@onecx/angular-utils:guards*'`) apply — see the *Debugging* sections of link:angular-guards.adoc[Angular guards] and link:react-guards.adoc[React guards]; that is a Unit 4–6 concern.
 
 == Known issues
 
@@ -132,5 +132,5 @@ Verification Sources checked::
 * Unit template (`unit-template.adoc`) — sections, size limit, diagram/source rules.
 * Dev Docs top index (`README.adoc`) — Area 7 slug and reading order.
 * Draft Outline commit (6108bdff) — navigation-routing outline (topics only; the guard deep-dive there maps to Units 4–6).
-* Old Dev Docs `dev-docs/guards/modes.adoc` and `dev-docs/guards/debug.adoc` — `GUARD_MODE` / router-sync semantics, cross-checked against `guard-navigation.model.ts` and `webcomponent-connector.utils.ts`.
+* Old Dev Docs `dev-docs/guards/` (both pages, now removed) — `GUARD_MODE` / router-sync semantics, cross-checked against `guard-navigation.model.ts` and `webcomponent-connector.utils.ts`; the guard detail is superseded by the per-framework Units (link:angular-guards.adoc[Angular guards], link:react-guards.adoc[React guards]).
 * No contradiction found against libs `docs/` or JSDoc; the Shell is linked by file only (read-only for this work).

@@ -60,14 +60,14 @@ Reading it: a real navigation lands on `window.location`; the Shell's patched hi
 
 == Unit map
 
-The Units of this Area, in reading order. Units 1–4 are written; Units 5–6 are planned and listed so their paths are reserved. Each Unit follows the link:{dev-docs-index}[Dev Docs index] slugs and the Unit template.
+The Units of this Area, in reading order. Each Unit follows the link:{dev-docs-index}[Dev Docs index] slugs and the Unit template.
 
 . link:url-to-every-router.adoc[URL change → every router] — how a single URL change is broadcast and every app's router follows it.
 . link:shell-routes-and-current-app.adoc[Shell routes & Current App activation] — how the Shell builds its route table, matches the URL, activates the Current App and renders not-found.
 . link:navigation-topics.adoc[Page & workspace Topics during navigation] — the `current-location` / `current-page` Topics and the route data in depth.
 . link:why-cross-app-guards.adoc[Why cross-App guards] — why following the URL is not enough and cross-app guard checks are needed.
-. `angular-guards.adoc` — the Angular guard wrappers, gatherer and modes.
-. `react-guards.adoc` — the React guard hooks and gatherer.
+. link:angular-guards.adoc[Angular guards] — the Angular guard wrappers, gatherer and modes.
+. link:react-guards.adoc[React guards] — the React guard hooks and gatherer.
 
 Read Units 1 and 2 first: they define the URL contract and the Shell's own use of it. Units 3–6 then add the Topics detail and the guard machinery that decides whether a navigation may proceed at all.
 

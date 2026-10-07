@@ -105,7 +105,7 @@ The per-framework wrappers and hooks are documented in Units 5 and 6; this Unit 
 
 == Debugging
 
-* Enable the guards debug switch — `window['@onecx/angular-utils'].guards ??= { debug: true }` in the console (see `dev-docs/guards/debug.adoc`) — to log the mode and each guard-check callback as it runs.
+* Enable the guard debug logs with the `debug` package (e.g. `localStorage.debug = '@onecx/angular-utils:guards*'` for Angular, `@onecx/react-utils:guards*` for React) — see the *Debugging* sections of link:angular-guards.adoc[Angular guards] and link:react-guards.adoc[React guards] — to log the mode and each guard-check callback as it runs.
 * To see the verdict traffic, watch the `GuardGatherer` Gatherer request/response (Area 13, Diagnostics — `tracing-communication.adoc`): the request is `{ url }`, the response is the `boolean` verdict.
 * A `navigationId === -1` warning from the Shell's history patch (Unit 1) frequently appears around a rejected initial sync.
 
@@ -140,6 +140,5 @@ Verification Sources checked::
 * Unit template (`unit-template.adoc`) — sections, size limit, source-link and diagram rules.
 * Dev Docs top index (`README.adoc`) — Area 7 slug and reading order.
 * Draft Outline commit (6108bdff) — navigation-routing outline (guard section only; no content baseline).
-* Old Dev Docs `dev-docs/guards/modes.adoc` — `GUARD_MODE` flows and the "fake navigation" / gatherer story; the code (fake-navigation via `onSameUrlNavigation: 'reload'`) is the baseline, no contradiction found.
-* Old Dev Docs `dev-docs/guards/debug.adoc` — the console debug switch.
+* Old Dev Docs `dev-docs/guards/` (both pages, now removed) — the `GUARD_MODE` flows, the "fake navigation" / gatherer story and the console debug switch; the modes story is superseded by the per-framework Units (link:angular-guards.adoc[Angular guards], link:react-guards.adoc[React guards]) and the code (fake-navigation via `onSameUrlNavigation: 'reload'`) is the baseline, no contradiction found.
 * No contradiction found against libs `docs/` or JSDoc; the Shell is linked by file only (read-only for this work).
