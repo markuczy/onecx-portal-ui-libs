@@ -56,17 +56,17 @@ Three things to keep straight:
 
 == Unit map
 
-Read the Units in the order below. The first two are written; the remaining three are planned, so their entries are listed but not linked.
+Read the Units in the order below.
 
 . link:./mechanism-selection.adoc[Ownership & mechanism selection (keycloak, custom, disabled, authenticated gating)]
 . link:./keycloak.adoc[Keycloak integration]
-. Custom auth service contract — `custom-auth-service.adoc`
-. How Apps obtain tokens — `obtaining-tokens.adoc`
-. Tokens on HTTP calls — `tokens-on-http-calls.adoc`
+. link:./custom-auth-service.adoc[Custom auth service contract]
+. link:./obtaining-tokens.adoc[How Apps obtain tokens]
+. link:./tokens-on-http-calls.adoc[Tokens on HTTP calls]
 
 == Reading order
 
-Start with link:./mechanism-selection.adoc[Ownership & mechanism selection] to understand who is in charge and how the Shell picks a mechanism. If your deployment uses Keycloak (the default), follow with link:./keycloak.adoc[Keycloak integration] for the concrete login and token-refresh flow. The Units that follow the Keycloak flow describe the App side: the custom-service contract, how Apps obtain tokens, and how tokens are attached to HTTP calls.
+Start with link:./mechanism-selection.adoc[Ownership & mechanism selection] to understand who is in charge and how the Shell picks a mechanism. If your deployment uses Keycloak (the default), follow with link:./keycloak.adoc[Keycloak integration] for the concrete login and token-refresh flow. The Units that follow the Keycloak flow describe the App side: link:./custom-auth-service.adoc[the custom-service contract], link:./obtaining-tokens.adoc[how Apps obtain tokens], and link:./tokens-on-http-calls.adoc[how tokens are attached to HTTP calls].
 
 == Related Areas
 
