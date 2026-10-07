@@ -98,7 +98,7 @@ The rest of the `CONFIG_KEY` enum — the `ONECX_PORTAL_*_DISABLED` toggles, `TK
 * *`skipRemoteConfigLoad` silently disables the remote fetch.* When set, the App gets only the injected defaults. The `📢 TKA001` log line is the only signal; there is no error. A missing key then reads as `undefined`.
 * *Inlined `APP_CONFIG` wins over everything.* If a host sets `window.APP_CONFIG`, the remote `env.json` is never fetched, even if `skipRemoteConfigLoad` is false. Useful for tests; dangerous if set accidentally in production.
 * *Configuration is strings only.* Numeric keys (`KEYCLOAK_TIME_SKEW`, `KEYCLOAK_UPDATE_TOKEN_MIN_VALIDITY`) are read as strings and must be parsed by the consumer; `keycloak-auth.service.ts` does this with `getConfigValueNumberOrUndefined`.
-* *`getProperty` input is typed; runtime still looks up arbitrary keys.* The `CONFIG_KEY` enum is a TypeScript input constraint used by `ConfigurationService.getProperty`'s signature; at runtime the service logs a warning when a key is not a known enum member but still performs the lookup and returns the value (or `undefined`) as usual. `setProperty` accepts string keys, so runtime reads and writes of custom keys are possible even if they are not represented in the enum.
+* *`getProperty` input is typed; runtime still looks up arbitrary keys.* The `CONFIG_KEY` enum is a TypeScript input constraint used by `ConfigurationService.getProperty`'s signature; at runtime the service logs a error when a key is not a known enum member but still performs the lookup and returns the value (or `undefined`) as usual. `setProperty` accepts string keys, so runtime reads and writes of custom keys are possible even if they are not represented in the enum.
 
 == Debugging
 
