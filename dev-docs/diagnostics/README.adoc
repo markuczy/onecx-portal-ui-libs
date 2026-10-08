@@ -71,6 +71,16 @@ This Area is deliberately cross-cutting. It links to the Areas that own the mech
 * link:../authentication/README.adoc[8. Authentication] — link:../authentication/obtaining-tokens.adoc[How Apps obtain tokens] — the `onecxAuth` / `onecxAngularAuth` auth-proxy globals.
 * link:../localization/README.adoc[10. Localization] — link:../localization/app-translations.adoc[App translations], link:../localization/dynamic-translations.adoc[Dynamic translations] — the `onecxTranslations` and `dynamicTranslationsCache` globals.
 
-NOTE: These links intentionally target the fixed Dev Docs index paths; some linked targets may not yet be written and are recorded here as index-backed placeholders.
+NOTE: These links intentionally target the fixed Dev Docs index paths. The links use planned paths fixed by the index and the following linked targets are not yet present on the PR base branch:
+- ../bootstrap/README.adoc
+- ../bootstrap/module-federation.adoc
+- ../bootstrap/preloaders.adoc
+- ../styling/dynamic-content-attribution.adoc
+- ../authentication/obtaining-tokens.adoc
+- ../localization/README.adoc
+- ../localization/app-translations.adoc
+- ../localization/dynamic-translations.adoc
+
+Preserve all existing Related Areas links.
 
 The Dev Docs are written from the current `main` branch of this repository and of the Shell. Where a mechanism is explained in full, this Area links to its owning Unit rather than repeating it.
