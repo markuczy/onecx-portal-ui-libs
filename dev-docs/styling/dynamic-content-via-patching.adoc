@@ -83,6 +83,21 @@ For every other appended element, link:{body_wrap}[`wrapWithStyleData()`] combin
 * *Blacklist exceptions are intentional.* `cdk-overlay-container`, `cdk-visually-hidden`, and `data-onecx-dynamic-container` nodes are excluded so the Shell does not wrap nodes that have dedicated handling already.
 * *Cleanup depends on wrapper removal.* The patching route stays correct only if the Shell removes wrapper elements together with the dynamic child and lets empty wrappers self-delete.
 
+== Debugging
+
+In the devtools:
+
+* Check whether the created semantic node carries temporary `data-intermediate-style-*` attributes before it reaches `document.body`.
+* If the node is appended under `body` but not scoped, inspect whether the Shell created a wrapper `div` or matched one of the blacklist exceptions documented in link:{body_blacklist}[`body-overwrites.utils.ts`].
+* If the wrong app's styles are applied, inspect the current trigger resolution path in link:{trigger_listener}[`onecx-trigger-element.utils.ts`] and whether injector-scoped style data was available first.
+* If wrappers remain after content closes, inspect the wrapper lookup and cleanup helpers in link:{find_wrapper}[`style-data.utils.ts`], link:{observe_wrapper}[`style-data.utils.ts`], and link:{remove_style_data}[`style-data.utils.ts`].
+
+== Related Units
+
+* link:{u7}[Dynamic content via container] — the companion route that scopes content by inserting it into a Shell-created container instead of patching the semantic child directly.
+* link:{u8}[Scope polyfill] — how the scoped CSS blocks that these helpers feed are rewritten on browsers without native {scope_at_rule}.
+* link:{area}[Styling & Style Isolation — Area overview]
+
 == Sources
 
 Code::
