@@ -65,7 +65,7 @@ Enable logging by setting `localStorage.debug` and reloading. All values are nam
 
 [source,js]
 ----
-// Everything, from every library, at every level
+// All logs from @onecx libraries (does not include the Shell's own 'onecxShell' namespace)
 localStorage.debug = '@onecx*'; location.reload();
 
 // One library only
@@ -151,8 +151,8 @@ Start broad, then narrow:
 
 [source,js]
 ----
-localStorage.debug = '@onecx*'; location.reload();          // see everything
-localStorage.debug = '@onecx*:*:error'; location.reload();  // failures only
+localStorage.debug = '@onecx*'; location.reload();          // see everything from @onecx libraries (excludes Shell's 'onecxShell')
+localStorage.debug = '@onecx*:*:error'; location.reload();  // failures only from @onecx libraries
 localStorage.debug = '@onecx/angular-auth:AuthProxyService:*'; // one location
 ----
 

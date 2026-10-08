@@ -106,8 +106,8 @@ The table lists every `window`/`globalThis` key that the current libraries read 
 |1. Integration Contract — Gatherers & RPC
 
 |`@onecx/accelerator.topic.useBroadcastChannel`
-|`@onecx/accelerator` — `declarations.ts` (default `'V2'`)
-|`topic.ts`, `topic-publisher.ts`
+|Writers: `@onecx/accelerator` — link:{libs}/accelerator/src/lib/declarations.ts[`declarations.ts`] (default `'V2'`); runtime assignments in link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`] via `disableBroadcastChannel()` and `disableBroadcastChannelV2()`; fallback assignment in link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`] when BroadcastChannel is unavailable
+|Readers: `topic.ts`, `topic-publisher.ts`
 |1. Integration Contract — Transports & tab scope
 
 |`@onecx/accelerator.topic.initDate`
