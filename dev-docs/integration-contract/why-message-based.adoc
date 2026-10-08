@@ -48,12 +48,7 @@ The Shell is the authoritative publisher of the shared state (workspace, theme, 
 
 == Angular / React
 
-The message contract is identical in both frameworks; only the wrapper differs.
-
-* *Angular:* each shared Topic is wrapped in an `@Injectable` service that owns one `Topic` instance and exposes it as an observable. For example `ConfigurationService` lazily creates the `ConfigurationTopic`, publishes the loaded configuration on `init()`, exposes `isInitialized` as `topic.isInitialized` and reads values with `firstValueFrom` (link:{libs}/angular-integration-interface/src/lib/services/configuration.service.ts[`configuration.service.ts`]).
-* *React:* each shared Topic is wrapped in a Context whose provider uses the `useTopic(valueTopic, TopicClass)` hook. The hook creates a `Topic` lazily only when no external instance is provided and destroys instances it created on unmount (link:{libs}/react-integration-interface/src/lib/utils/use-topic.utils.ts[`use-topic.utils.ts`]); `ConfigurationProvider` subscribes the Topic to React state (link:{libs}/react-integration-interface/src/lib/contexts/configurationContext.tsx[`configurationContext.tsx`]).
-
-Both wrappers delegate all cross-unit traffic to the same framework-agnostic `Topic` underneath.
+The message contract is identical in both frameworks; only the wrapper differs — each shared Topic is exposed as an Angular service or a React context/hook over the same framework-agnostic `Topic`. See link:framework-adapters.adoc[Framework adapters] (Unit 7) for how each wrapper creates, exposes and destroys its `Topic` instance.
 
 == Edge cases & pitfalls
 
@@ -64,13 +59,7 @@ Both wrappers delegate all cross-unit traffic to the same framework-agnostic `To
 
 == Debugging
 
-The accelerator logs every Topic under the `@onecx/accelerator:Topic:<name>` namespace (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). Enable topic traffic from the browser by setting `localStorage.debug` and reloading. Patterns:
-
-* `localStorage.debug = '@onecx/accelerator:Topic:*'` — every topic.
-* `localStorage.debug = '@onecx/accelerator:Topic:<name>'` — one concrete topic.
-* `localStorage.debug = '@onecx/accelerator:Topic:*:error'` — only errors.
-
-Log output uses the usual loglevels (`debug` / `info` / `warn` / `error`). General cross-App tracing is in the planned Unit link:../diagnostics/tracing-communication.adoc[Area 13].
+The accelerator logs every Topic under the `@onecx/accelerator:Topic:<name>` namespace (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]), with the usual loglevels (`debug` / `info` / `warn` / `error`). See the Area's link:README.adoc#debugging-conventions[Debugging conventions] for the `localStorage.debug` patterns.
 
 == Related Units
 
@@ -92,9 +81,6 @@ Code::
 * link:{libs}/integration-interface/src/index.ts[`integration-interface/src/index.ts`]
 * link:{libs}/integration-interface/src/lib/topics/current-workspace/v1/current-workspace.topic.ts[`integration-interface/.../current-workspace.topic.ts`]
 * link:{libs}/integration-interface/src/lib/topics/permissions-rpc/v1/permissions-rpc.topic.ts[`integration-interface/.../permissions-rpc.topic.ts`]
-* link:{libs}/angular-integration-interface/src/lib/services/configuration.service.ts[`angular-integration-interface/.../configuration.service.ts`]
-* link:{libs}/react-integration-interface/src/lib/utils/use-topic.utils.ts[`react-integration-interface/.../use-topic.utils.ts`]
-* link:{libs}/react-integration-interface/src/lib/contexts/configurationContext.tsx[`react-integration-interface/.../configurationContext.tsx`]
 * link:{shell}/src/bootstrap.ts[`bootstrap.ts` (Shell)]
 * link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts` (Shell)]
 
@@ -103,4 +89,4 @@ Verification Sources checked::
 * old `dev-docs/topics/debug.adoc` — debug namespaces and `localStorage.debug` patterns (inlined into Debugging above).
 * link:../general/overview.adoc[old `dev-docs/general/overview.adoc`] — accelerator lib description.
 * in-code JSDoc of `Topic`, `TopicPublisher`, `Gatherer` and the Topic subclasses.
-* Draft Outline (commit `6108bdf`) — for locating this Unit only, not as a content baseline.
+* See the Area's link:README.adoc#verification-note[Verification note] for the Draft Outline caveat.

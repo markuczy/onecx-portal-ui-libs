@@ -39,19 +39,19 @@ An Area ticket may change its Unit split after investigation, for example by spl
 ====
 
 [#integration-contract]
-.1. Integration Contract & Topics — `integration-contract/`
+.1. link:./integration-contract/README.adoc[Integration Contract & Topics] — `integration-contract/`
 [%collapsible]
 ====
 How Apps and the Shell communicate through Topics. This Area covers the messaging mechanism only. The meaning of each concrete Topic is described in the Area that owns it.
 
-. Why a message-based contract — `why-message-based.adoc`
-. Topic message delivery (types, ordering, replay, init/resolve) — `message-delivery.adoc`
-. Transports & tab scope (postMessage, BroadcastChannel v1/V2, tab id, fallback, who selects) — `transports-and-tab-scope.adoc`
-. Topic lifecycle (publisher, destroy, deprecated syncable Topic) — `topic-lifecycle.adoc`
-. Request/response: Gatherers & RPC Topics — `gatherers-and-rpc-topics.adoc`
-. Versioning & Shell capability negotiation — `versioning-and-capabilities.adoc`
-. Framework adapters — `framework-adapters.adoc`
-. Topic & Gatherer catalogue — `topic-catalogue.adoc`
+. link:./integration-contract/why-message-based.adoc[Why a message-based contract] — `why-message-based.adoc`
+. link:./integration-contract/message-delivery.adoc[Topic message delivery (types, ordering, replay, init/resolve)] — `message-delivery.adoc`
+. link:./integration-contract/transports-and-tab-scope.adoc[Transports & tab scope (postMessage, BroadcastChannel v1/V2, tab id, fallback, who selects)] — `transports-and-tab-scope.adoc`
+. link:./integration-contract/topic-lifecycle.adoc[Topic lifecycle (publisher, destroy, deprecated syncable Topic)] — `topic-lifecycle.adoc`
+. link:./integration-contract/gatherers-and-rpc-topics.adoc[Request/response: Gatherers & RPC Topics] — `gatherers-and-rpc-topics.adoc`
+. link:./integration-contract/versioning-and-capabilities.adoc[Versioning & Shell capability negotiation] — `versioning-and-capabilities.adoc`
+. link:./integration-contract/framework-adapters.adoc[Framework adapters] — `framework-adapters.adoc`
+. link:./integration-contract/topic-catalogue.adoc[Topic & Gatherer catalogue] — `topic-catalogue.adoc`
 ====
 
 [#bootstrap]

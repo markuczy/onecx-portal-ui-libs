@@ -41,6 +41,25 @@ All messages are instances of `TopicMessage`, which extends the base `Message` (
 
 Every `Topic` that receives the `TopicResolve` with a matching `resolveId` resolves the promise it stored for it and stops the event's propagation (`handleTopicResolveMessage`, link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). Because the browser processes queued messages in order, the `TopicNext` is always applied before the `TopicResolve` is handled, so `await topic.publish(value)` only resolves once the value has been processed. This is what makes `publish` awaitable and is what `Gatherer` relies on when it awaits a publish before reading the gathered responses (link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]).
 
+[source,mermaid]
+----
+sequenceDiagram
+  participant Publisher as Topic (publisher)
+  participant Browser as Browser message queue
+  participant Subscriber as Topic (subscriber)
+
+  Publisher->>Browser: send TopicNext (id=1)
+  Publisher->>Browser: send TopicResolve (resolveId=1)
+  Note over Publisher: publish() awaits the returned promise
+  Browser-->>Subscriber: TopicNext (id=1)
+  Subscriber->>Subscriber: handleTopicNextMessage -> apply value
+  Browser-->>Publisher: TopicResolve (resolveId=1)
+  Publisher->>Publisher: handleTopicResolveMessage -> resolve promise
+  Note over Publisher: publish() resolves only now
+----
+
+The queue guarantees the `TopicNext` is always processed before its `TopicResolve`, which is why `await publish(...)` only returns once every `Topic` instance in the tab has had the chance to apply the value.
+
 === Ordering by id and timestamp
 
 A subscriber keeps exactly one value, in a `BehaviorSubject` called `data`. On each incoming `TopicNext` it applies `handleTopicNextMessage` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]), which *accepts* the message only when:
@@ -87,13 +106,7 @@ Both rely on the `asObservable()`/`isInit` filter so a component never renders w
 
 == Debugging
 
-Topic delivery is the thing you watch when debugging. Enable the per-topic namespace via `localStorage.debug` and reload — the accelerator logs each received message and the drop/accept decisions (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]):
-
-* `localStorage.debug = '@onecx/accelerator:Topic:*'` — every topic.
-* `localStorage.debug = '@onecx/accelerator:Topic:<name>'` — one concrete topic.
-* `localStorage.debug = '@onecx/accelerator:Topic:*:error'` — only errors.
-
-General cross-App tracing is in the planned Unit link:../diagnostics/tracing-communication.adoc[Area 13].
+Topic delivery is the thing you watch when debugging — the accelerator logs each received message and the drop/accept decisions under its per-topic namespace (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). See the Area's link:README.adoc#debugging-conventions[Debugging conventions] for the `localStorage.debug` patterns.
 
 == Known issues
 
@@ -130,4 +143,4 @@ Verification Sources checked::
 * old `dev-docs/topics/overview.adoc` — message types, the `publish`/resolve sequence and the event-loop ordering argument (matches the code).
 * old `dev-docs/topics/debug.adoc` — debug namespaces and `localStorage.debug` patterns (inlined into Debugging above).
 * in-code JSDoc of `Topic`, `TopicPublisher`, `Message` and the deprecated `SyncableTopic`.
-* Draft Outline (commit `6108bdf`) — for locating this Unit only, not as a content baseline.
+* Draft Outline (commit `6108bdf`) — see the Area's link:README.adoc#verification-note[Verification note].

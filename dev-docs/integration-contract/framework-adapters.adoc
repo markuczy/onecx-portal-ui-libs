@@ -74,7 +74,7 @@ Only the wrapper and the destroy point differ; the underlying `Topic` is identic
 
 === ngrx store connectors
 
-For ngrx apps, the Angular side does not stop at a service: a store connector subscribes the (shared) `Topic` and dispatches a store action, wiring the Shell context and the URL to the app's ngrx store. Each connector is provided by a `provideXStoreConnector()` helper that registers the connector as an environment initializer (link:{libs}/ngrx-integration-interface/src/lib/store-connector/store-connectors/current-workspace-store-connector-service.ts[`current-workspace-store-connector-service.ts`]). For example `CurrentWorkspaceStoreConnectorService` injects `AppStateService`, subscribes `currentWorkspace$` until the service is destroyed, and dispatches `OneCxActions.currentWorkspaceChanged` (link:{libs}/ngrx-integration-interface/src/lib/store-connector/store-connectors/current-workspace-store-connector-service.ts[`current-workspace-store-connector-service.ts`]). The connectors bridge to the owning Areas via the planned `state-management/` slugs (link:../state-management/shell-context-to-store.adoc[Shell context → App ngrx store]).
+For ngrx apps, a further layer subscribes the (shared) `Topic` and dispatches a store action, wiring the Shell context and the URL to the app's ngrx store (`@onecx/ngrx-integration-interface`, link:{libs}/ngrx-integration-interface/src/lib/store-connector/store-connectors/current-workspace-store-connector-service.ts[`current-workspace-store-connector-service.ts`]). This is covered in depth in link:../state-management/shell-context-to-store.adoc[Shell context → App ngrx store] (Area 12).
 
 == Edge cases & pitfalls
 
@@ -85,13 +85,9 @@ For ngrx apps, the Angular side does not stop at a service: a store connector su
 
 == Debugging
 
-Each `Topic` and `TopicPublisher` logs under the `@onecx/accelerator:Topic:<name>` and `:TopicPublisher:<name>` namespaces (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]); a `Gatherer` under `@onecx/accelerator:Gatherer:<name>` (link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]). Enable them with `localStorage.debug` and reload:
+Each `Topic` and `TopicPublisher` logs under `@onecx/accelerator:Topic:<name>` and `:TopicPublisher:<name>`; a `Gatherer` under `@onecx/accelerator:Gatherer:<name>` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]). See the Area's link:README.adoc#debugging-conventions[Debugging conventions] for the `localStorage.debug` patterns.
 
-* `localStorage.debug = '@onecx/accelerator:Topic:*'` — every topic's traffic and drop/accept decisions.
-* `localStorage.debug = '@onecx/accelerator:Topic:<name>'` — one concrete topic.
-* `localStorage.debug = '@onecx/accelerator:Topic:*:error'` — only errors for all topics.
-
-Watch `isInitialized` to confirm the adapter received the value its `TopicGet` requested (the Shell published it), and confirm wrappers only share a `Topic` instance when that same external instance was passed to them. General cross-App tracing is in the planned Unit link:../diagnostics/tracing-communication.adoc[Tracing cross-App communication] (Area 13).
+Watch `isInitialized` to confirm the adapter received the value its `TopicGet` requested (the Shell published it), and confirm wrappers only share a `Topic` instance when that same external instance was passed to them.
 
 == Known issues
 
@@ -128,4 +124,4 @@ Verification Sources checked::
 * old `dev-docs/topics/debug.adoc` — `localStorage.debug` namespaces and patterns (inlined into Debugging above).
 * old `dev-docs/topics/overview.adoc` — the sync model the adapters build on (matches the code).
 * in-code JSDoc of `ConfigurationService`, `AppStateService`, the `useTopic` hook, `configurationContext` and the store connectors.
-* Draft Outline (commit `6108bdf`) — for locating this Unit only, not as a content baseline.
+* Draft Outline (commit `6108bdf`) — see the Area's link:README.adoc#verification-note[Verification note].

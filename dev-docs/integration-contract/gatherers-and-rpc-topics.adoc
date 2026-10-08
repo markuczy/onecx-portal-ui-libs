@@ -105,7 +105,7 @@ Both delegate all cross-unit traffic to the same framework-agnostic `Gatherer`/`
 
 == Debugging
 
-The `Gatherer` logs under the `@onecx/accelerator:Gatherer:<name>` namespace (created per `Gatherer` in link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]). Enable it with `localStorage.debug`, for example `localStorage.debug = '@onecx/accelerator:Gatherer:*'` (or `localStorage.debug = '@onecx/accelerator:Gatherer:<name>'` for one gatherer), then reload — you will see each request received, each answer, and the collected result. The RPC Topics log under their usual per-topic namespace `@onecx/accelerator:Topic:<name>`; add `:error` to a `*` pattern to see only errors. General cross-App tracing is in the planned Unit link:../diagnostics/tracing-communication.adoc[Area 13].
+The `Gatherer` logs under its `@onecx/accelerator:Gatherer:<name>` namespace (created per `Gatherer` in link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]) — you will see each request received, each answer, and the collected result. The RPC Topics log under their usual per-topic namespace `@onecx/accelerator:Topic:<name>`. See the Area's link:README.adoc#debugging-conventions[Debugging conventions] for the `localStorage.debug` patterns.
 
 == Known issues
 
