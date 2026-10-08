@@ -55,15 +55,14 @@ The Shell's responsibilities are intentionally limited: it promotes/remove marke
 
 A small set of Shell helpers and body hooks form the contract implementers must use:
 
-* initializeOnecxTriggerElementListener (Shell) — attach `mouseover` / `focusin` handlers and expose the current trigger element via a Shell accessor.
-* getOnecxTriggerElement (Shell accessor) — returns the current trigger element or a fallback search for a `.onecx-body` descendant with a `data-style-id`.
-* appendIntermediateStyleData / appendStyleData (Shell) — utilities to map a StyleData object onto an element's `data-intermediate-style-*` or `data-style-*` attributes.
-* createWrapper / findStyleDataWrapper / wrapWithDiv (Shell) — create or locate the wrapper the Shell uses to group appended nodes under a `data-style-id` boundary.
-* ensureBodyChangesIncludeStyleData (Shell body hook) — the wrapper/appendChild/removeChild interception that promotes intermediate attributes on append and removes wrappers on removal.
-* observeStyleDataWrapper / removeStyleDataRecursive (Shell) — utilities to observe wrapper lifecycle and clean up stale style sections.
+* initializeOnecxTriggerElementListener (Shell) — attach `mouseover` / `focusin` handlers and expose the current trigger element via a Shell accessor. link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`dynamic-content-initializer.utils.ts`]
+* getOnecxTriggerElement (Shell accessor) — returns the current trigger element or a fallback search for a `.onecx-body` descendant with a `data-style-id`. link:{shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts[`onecx-trigger-element.utils.ts`]
+* appendIntermediateStyleData / appendStyleData (Shell) — utilities to map a StyleData object onto an element's `data-intermediate-style-*` or `data-style-*` attributes. link:{shell}/src/app/shell/utils/styles/style-data.utils.ts[`style-data.utils.ts`]
+* createWrapper / findStyleDataWrapper / wrapWithDiv (Shell) — create or locate the wrapper the Shell uses to group appended nodes under a `data-style-id` boundary. link:{shell}/src/app/shell/utils/styles/style-data.utils.ts[`style-data.utils.ts`], link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`]
+* ensureBodyChangesIncludeStyleData (Shell body hook) — the wrapper/appendChild/removeChild interception that promotes intermediate attributes on append and removes wrappers on removal. link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`]
+* observeStyleDataWrapper / removeStyleDataRecursive (Shell) — utilities to observe wrapper lifecycle and clean up stale style sections. link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`]
 
-Note: small framework-specific helpers (for example, previous PrimeNG/Material-specific creation shims) remain in the codebase for compatibility but are considered deprecated in favor of the single creation-interception helper described above.
-
+Note: small framework-specific helpers (for example, previous PrimeNG/Material-specific creation shims) remain in the codebase for compatibility but are considered deprecated in favor of the single creation-interception helper described above. link:{shell}/src/app/shell/utils/styles/primeng-overwrites.utils.ts[`primeng-overwrites.utils.ts`], link:{shell}/src/app/shell/utils/styles/angular-material-overwrites.utils.ts[`angular-material-overwrites.utils.ts`]
 == Edge cases & pitfalls
 
 * Stale trigger element — the trigger accessor holds the last gesture. Programmatic overlays may be attributed to the wrong app or to none; the Shell fallback narrows this but cannot infer intent for code-driven insertions.
