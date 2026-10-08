@@ -68,7 +68,7 @@ The libraries own the *decision*. The contract — the Topic and its payload —
 Two consumers turn the decision into a stream:
 
 * link:{libs}/angular-integration-interface/src/lib/services/user.service.ts[`UserService`] — an Angular `Injectable` that holds the `UserProfileTopic` and a `BehaviorSubject` `lang$`. In its constructor it pipes `profile$` through `resolveProfileLanguage(profile, DEFAULT_LANG, getNormalizedBrowserLocales)` and subscribes the result to `lang$`.
-* link:{libs}/react-integration-interface/src/lib/contexts/userContext.tsx[`UserProvider`] — the React equivalent, described under link:../localization/react-translations.adoc[React translations]; it builds the same `lang$` from the same `UserProfileTopic` and the same `resolveProfileLanguage` call.
+* link:{libs}/react-integration-interface/src/lib/contexts/userContext.tsx[`UserProvider`] — the React equivalent, described in the planned `react-translations.adoc` Unit; it builds the same `lang$` from the same `UserProfileTopic` and the same `resolveProfileLanguage` call.
 
 Because `lang$` is a `BehaviorSubject` seeded with `determineBrowserLanguage() ?? DEFAULT_LANG`, a framework that reads the stream before the profile arrives still has a sensible language (the browser language, or `'en'`). The profile Topic then upgrades it to the authoritative value once it is published.
 
@@ -82,7 +82,7 @@ The Shell therefore decides *which profile* reaches the page; the libraries deci
 
 The decision is identical on both sides — both call the same `resolveProfileLanguage` with the same `DEFAULT_LANG` and `getNormalizedBrowserLocales`. The difference is the plumbing around it:
 
-* **Angular** — `UserService` subscribes to the Topic in its constructor and is a single `providedIn: 'root'` instance shared across the whole page, so `lang$` is one stream every Angular App observes.
+* **Angular** — `UserService` is `providedIn: 'root'` within each Angular application injector, so an App or `bootstrapRemoteComponent()`-driven Remote Component gets its own root-scoped `UserService`/`lang$` pair. Each instance still derives the same language from the shared profile Topic, so different Apps can observe separate streams that agree on the same value.
 * **React** — `UserProvider` builds the stream inside a `useMemo`/`useEffect` pair so it survives re-renders, and exposes it through `useUserService()`.
 
 Angular also keeps a deprecated helper on `UserService`, `useOldLangSetting(profile)`, which delegates to `resolveLegacyLanguage` and exists only so Apps on the old locale field keep working during migration; new code should read `resolveProfileLanguage`'s output instead.

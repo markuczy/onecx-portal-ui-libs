@@ -39,7 +39,7 @@ flowchart LR
   Trans --> Loader
   Loader --> Cache
   A -->|use language| NgX[ngx-translate]
-  R -->|changeLanguage(lang)| I18N[i18next]
+  R -->|switch language| I18N[i18next]
 ----
 
 Two Units in this Area describe the two halves of that picture in depth:
@@ -47,7 +47,7 @@ Two Units in this Area describe the two halves of that picture in depth:
 * **Profile load & language decision** — the profile Topic and the pure function that turns a profile into the one language every framework must use.
 * **App translations load & sharing** — how per-App and per-library translation files are resolved, deep-merged, and shared page-wide through a global cache.
 
-The remaining planned Units cover the surrounding mechanisms (Remote Component translations, missing-translation fallback, locale & timezone formatting, the React pipeline, dynamic translations). They are not yet written, so their entries below are unlinked.
+The remaining planned Units cover the surrounding mechanisms (Remote Component translations, missing-translation fallback, locale & timezone formatting, the React pipeline, dynamic translations). They are not yet written, so the entries below stay as plain-text planned references.
 
 == Unit map
 
@@ -55,10 +55,10 @@ All planned Units of this Area, in reading order. Units whose page exists are li
 
 . Profile load & language decision — link:./profile-and-language.adoc[`profile-and-language.adoc`]
 . App translations load & sharing — link:./app-translations.adoc[`app-translations.adoc`]
-. Remote Component translations — `remote-component-translations.adoc`
-. Missing-translation fallback — `missing-translation-fallback.adoc`
+. Remote Component translations (planned) — `remote-component-translations.adoc`
+. Missing-translation fallback (planned) — `missing-translation-fallback.adoc`
 . Locale & timezone formatting — `locale-and-timezone-formatting.adoc`
-. React translations — `react-translations.adoc`
+. React translations (planned) — `react-translations.adoc`
 . Dynamic translations — `dynamic-translations.adoc`
 
 == Reading order
@@ -76,7 +76,7 @@ All planned Units of this Area, in reading order. Units whose page exists are li
 
 == Cross-Area links
 
-The Units in this Area link out to the following Units in other Areas. Each path is a fixed slug from the Dev Docs top index; pages that already exist in the repository are linked, and the remaining entries are planned pages kept as fixed slugs so forward links resolve once those pages are written. In-Area links point to the two Units written in this change and to the planned sibling Units (`react-translations.adoc`, `remote-component-translations.adoc`, `missing-translation-fallback.adoc`); those forward links resolve once the corresponding pages exist, which is why the Unit map above lists them unlinked for now.
+The Units in this Area link out to the following Units in other Areas. Each path is a fixed slug from the Dev Docs top index; pages that already exist in the repository are linked, and planned pages stay as plain-text references until they are written. The Unit map above therefore links only the written Units and leaves the planned sibling Units (`react-translations.adoc`, `remote-component-translations.adoc`, `missing-translation-fallback.adoc`) unlinked for now.
 
 |===
 |Link |Target Area — Unit
