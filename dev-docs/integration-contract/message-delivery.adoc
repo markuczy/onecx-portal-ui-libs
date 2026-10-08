@@ -60,6 +60,24 @@ sequenceDiagram
 
 The queue guarantees the `TopicNext` is always processed before its `TopicResolve`, which is why `await publish(...)` only returns once every `Topic` instance in the tab has had the chance to apply the value.
 
+==== Worked example: three live instances
+
+Every `Topic` registers its `window` `message` listener once, in its own constructor (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). A browser dispatches one message event to all of a target's listeners in the order they were added, so for a given incoming message, instances are visited in the order they were *created* — the first `Topic` constructed for a `name`/`version` is always the first to see that message, the second-constructed is next, and so on. Concretely, with three live instances of the same `name`/`version` — `T1` (constructed first), `T2` (constructed second) and `P` (constructed third, and the one about to publish) — a single `P.publish(value)` call plays out as:
+
+1. `P` builds the `TopicNext` (`id=1`) and sends it (`postMessage`/`BroadcastChannel`).
+2. `P` builds the `TopicResolve` (`resolveId=1`), stores a resolver for `id=1` in its own `publishPromiseResolver`, and sends it. `P.publish(...)` now returns a pending promise.
+3. The browser delivers the queued `TopicNext` message, dispatching it to every registered listener in creation order:
+.. `T1.handleTopicNextMessage` runs first and applies the value (it beats `T1`'s stored id/timestamp).
+.. `T2.handleTopicNextMessage` runs next and applies the value.
+.. `P.handleTopicNextMessage` runs last — `P` is itself a subscribing `Topic` instance, so it applies the value to itself too.
+4. Only once *all three* instances have processed the `TopicNext` does the browser deliver the next queued message, the `TopicResolve`, again dispatching it to every listener in the same creation order:
+.. `T1.handleTopicResolveMessage` runs, finds no resolver registered for `resolveId=1` (it never published anything) and does nothing.
+.. `T2.handleTopicResolveMessage` runs, same no-op.
+.. `P.handleTopicResolveMessage` runs, finds its own resolver for `resolveId=1`, resolves it and calls `stopImmediatePropagation` (link:{libs}/accelerator/src/lib/topic/topic.ts[`handleTopicResolveMessage`]).
+5. Only now does `await P.publish(value)` return.
+
+The ordering guarantee is therefore two-layered: within one message, every live instance is given a turn, oldest-created first; across messages, the `TopicNext` is always fully drained by every instance before the matching `TopicResolve` is even looked at.
+
 === Ordering by id and timestamp
 
 A subscriber keeps exactly one value, in a `BehaviorSubject` called `data`. On each incoming `TopicNext` it applies `handleTopicNextMessage` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]), which *accepts* the message only when:
