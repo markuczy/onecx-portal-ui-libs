@@ -71,12 +71,12 @@ All planned Units of this Area, in reading order. Units whose page exists are li
 
 * link:../authentication/obtaining-tokens.adoc[8. Authentication] — the identity that the profile is built from; the Dev Docs index notes that the user profile itself is covered here, in Area 10.
 * link:../shell-context/current-app-and-api-base-url.adoc[3. Shell Context & Runtime Configuration] — where the profile and its settings come from.
-* link:../styling/primeng-style-scoping.adoc[4. Styling & Style Isolation] — the `primeng` translation keys are handed to the PrimeNG configuration on every language change.
+* link:../styles/primeng-scoping.adoc[4. PrimeNG Styles Scoping] — the `primeng` translation keys are handed to the PrimeNG configuration on every language change.
 * link:../diagnostics/logging.adoc[13. Diagnostics] — general tools for observing the Topics and `window` state these Units rely on.
 
 == Cross-Area links
 
-The Units in this Area link out to the following Units in other Areas. Each path is a planned slug fixed by the Dev Docs top index; none of these pages exists in the repository yet, so every one of them is a link to a not-yet-written page and is listed here (as the top-index convention requires) so the links can be verified. In-Area links point to the two Units written in this change and to the planned sibling Units (`react-translations.adoc`, `remote-component-translations.adoc`, `missing-translation-fallback.adoc`); those forward links resolve once the corresponding pages exist, which is why the Unit map above lists them unlinked for now.
+The Units in this Area link out to the following Units in other Areas. Each path is a fixed slug from the Dev Docs top index; pages that already exist in the repository are linked, and the remaining entries are planned pages kept as fixed slugs so forward links resolve once those pages are written. In-Area links point to the two Units written in this change and to the planned sibling Units (`react-translations.adoc`, `remote-component-translations.adoc`, `missing-translation-fallback.adoc`); those forward links resolve once the corresponding pages exist, which is why the Unit map above lists them unlinked for now.
 
 |===
 |Link |Target Area — Unit
@@ -90,8 +90,8 @@ The Units in this Area link out to the following Units in other Areas. Each path
 |link:../shell-context/current-app-and-api-base-url.adoc[`shell-context/current-app-and-api-base-url.adoc`]
 |3. Shell Context & Runtime Configuration — Current App & API base URL resolution
 
-|link:../styling/primeng-style-scoping.adoc[`styling/primeng-style-scoping.adoc`]
-|4. Styling & Style Isolation — PrimeNG/PrimeReact style scoping
+|link:../styles/primeng-scoping.adoc[`styles/primeng-scoping.adoc`]
+|4. PrimeNG Styles Scoping — PrimeNG/PrimeReact style scoping
 
 |link:../authentication/obtaining-tokens.adoc[`authentication/obtaining-tokens.adoc`]
 |8. Authentication — How Apps obtain tokens

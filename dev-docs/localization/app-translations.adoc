@@ -103,7 +103,7 @@ There is no known issue in this Unit as of the current `main` code. The coordina
 * link:./remote-component-translations.adoc[Remote Component translations] — Remote Components register their own `TRANSLATION_PATH` entries.
 * link:./missing-translation-fallback.adoc[Missing-translation fallback] — what happens to a key this Unit could not load.
 * link:./react-translations.adoc[React translations] — the i18next pipeline that sits beside this Angular chain.
-* link:../styling/primeng-style-scoping.adoc[4. Styling & Style Isolation] — the `primeng` keys handed to the PrimeNG configuration on every language change.
+* link:../styles/primeng-scoping.adoc[4. PrimeNG Styles Scoping] — the `primeng` keys handed to the PrimeNG configuration on every language change.
 
 == Sources
 
