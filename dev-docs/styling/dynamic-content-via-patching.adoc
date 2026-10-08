@@ -10,91 +10,99 @@
 :scope_at_rule: https://developer.mozilla.org/en-US/docs/Web/CSS/@scope
 
 == Question answered
-
-How does an overlay or dialog that renders outside the app's scope still pick up the owning app's style data when OneCX intercepts creation, and how are wrapping and cleanup handled once the node reaches `document.body`?
+How does an overlay or dialog that renders outside an app's scoped subtree still pick up that app's style data when OneCX intercepts creation, and how are wrapping and cleanup handled once the node reaches document.body?
 
 == Why it exists
+The {scope_at_rule} model (link:{u8}[Unit 8]) confines an app's rules to the DOM subtree that carries its data-style-id. Overlays and dialogs are frequently created outside that subtree and therefore need attribution and a body-time promotion step so they receive the correct scoped styles.
 
-The {scope_at_rule} model (link:{u8}[Unit 8]) confines an app's rules to the DOM subtree that carries its `data-style-id`. Overlays and dialogs are frequently created outside that subtree and therefore need attribution and a body-time promotion step so they receive the correct scoped styles.
-
-Creation-time interception stamps the element with the resolved app style data before the node is appended; the Shell's append-to-body flow then promotes intermediate markers into a scoped wrapper or removes them on cleanup. This Unit documents the generic, framework-agnostic flow for helper registration, creation-time attribution, body append wrapping/blacklisting, cleanup behavior, and stale-trigger edge cases. The container-based alternative is link:{u7}[Dynamic content via container].
+This Unit documents the framework-agnostic creation-time interception contract, the Libs-side and Shell-side responsibilities, the Shell append-to-body flow (wrapping/blacklisting), cleanup behaviour, and common edge cases. The container-based alternative is link:{u7}[Dynamic content via container].
 
 == How it works
-
 Two responsibilities cooperate:
 
-* Resolve the owning app from the most-recent trigger element and compute the corresponding StyleData.
-* Intercept element creation (at the app/library level) and attach intermediate attributes so the Shell's body hooks can promote or clean up the node when it is appended or removed.
+* Libs-side: resolve the owning app from the current trigger element and stamp intermediate style attributes onto the semantic content node(s) at creation time.
+* Shell-side: observe body mutations, promote intermediate attributes into permanent data-style-* markers or wrappers, and clean up when nodes are removed.
 
-=== The trigger element & closest-ancestor walk
+=== Inventory of document-level helpers
+Several document-scoped helpers exist to provide compatibility or to surface a single creation helper for apps:
 
-The Shell maintains a lightweight trigger-element accessor (document event listeners that record the last hovered/focused element) and a DOM walk that climbs to the nearest element bearing style markers (`data-style-id` or `data-intermediate-style-id`). The walk reads the style-data keys (style id, isolation flags, and optional MFE metadata) and returns a StyleData object or `null` when no scoped ancestor exists.
+* document.createElementFromPrimeNg (deprecated compatibility hook) — used historically by PrimeNG shims. Apps/rewrite rules should no longer rely on it.
+* document.createElementFromMaterial (deprecated compatibility hook) — Angular Material compatibility shim; deprecated in favour of the generic helper.
+* document.createOnecxElement (generic creation helper) — the recommended, framework-agnostic helper apps or lib shims call to stamp data-intermediate-style-* attributes onto newly created semantic nodes before insertion.
+* document.createOnecxDynamicContainer (container helper) — creates a namespaced dynamic container element; related to Unit 7's container flow and not required for patching-based attribution.
 
-This read side is framework-agnostic: any library or app that can obtain the current trigger element and perform the ancestor walk can produce the same StyleData for creation-time attribution.
+(PrimeNG/Material-specific wrappers remain for compatibility; prefer createOnecxElement where possible.)
 
-=== Creation-time interception (framework-agnostic)
+== Libs side (app / library helpers)
+Libs or apps are expected to call a small creation helper at the point where overlays/portals are constructed. Key responsibilities:
 
-At creation time, the app or a library helper may intercept how an overlay/portal is constructed and attach intermediate attributes such as `data-intermediate-style-id` and related keys. The important points for a generic helper are:
+* Resolve the StyleData by reading the current trigger element (Shell accessor) immediately before insertion.
+* Stamp the semantic content node(s) with short-lived data-intermediate-style-* attributes (id, isolation, optional MFE metadata).
+* Only mutate semantic nodes that will be observed by the Shell; avoid touching unrelated portal root containers.
 
-* It must resolve the StyleData from the trigger element (via the Shell accessor) immediately before the node is inserted.
-* It must only stamp the semantic content node(s) that will be observed by the Shell; it should avoid mutating unrelated portal containers.
-* It should use the short-lived `data-intermediate-style-*` attributes so the Shell can promote them atomically when the node reaches the document.
+Example integration note: build-time rewrites (see the reviewed example) adjust library creation calls (PrimeNG/Angular Material) to invoke the Shell-provided creation helper, not to patch arbitrary app code. See the reviewed app-side webpack example for onecx-help-ui for how rewriting is applied. link:docs/modules/onecx-portal-ui-libs/pages/migrations/angular-19/update-webpack-config.adoc[App webpack rewrite example]
 
-Legacy framework-specific creation helpers (PrimeNG/PrimeReact/Angular Material specific wrappers) are deprecated: prefer a single, small creation helper that libraries or app code can call to add intermediate attributes in a consistent way.
+Relevant Libs-side sources (examples of where rewrites or shims call the helper):
+* dev-docs/styling/dynamic-content-via-container.adoc[`dynamic-content-via-container.adoc`] — container-based alternative and examples
 
-=== Shell append-to-body flow and body hooks
+== Shell side (runtime helpers & body hooks)
+The Shell implements the accessor, body hooks, and wrapper utilities. Implementers should call the Shell helpers below (linked to their defining source) when explaining or tracing behaviour.
 
-When a node is appended to `document.body`, the Shell's body hooks inspect the subtree for intermediate markers and then either:
+Shell helpers (linked):
+* initializeOnecxTriggerElementListener — installs `mouseover` / `focusin` handlers and exposes the current trigger element. link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`dynamic-content-initializer.utils.ts`]
+* getOnecxTriggerElement — accessor and fallback logic that resolves the last trigger element or searches for a `.onecx-body` descendant. link:{shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts[`onecx-trigger-element.utils.ts`]
+* appendIntermediateStyleData / appendStyleData — map a StyleData object onto an element's `data-intermediate-style-*` or `data-style-*` attributes. link:{shell}/src/app/shell/utils/styles/style-data.utils.ts[`style-data.utils.ts`]
+* createWrapper / findStyleDataWrapper / wrapWithDiv — wrapper creation and lookup used to group appended nodes under a `data-style-id` boundary. link:{shell}/src/app/shell/utils/styles/style-data.utils.ts[`style-data.utils.ts`], link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`]
+* ensureBodyChangesIncludeStyleData (body hook) — appendChild/removeChild interception that promotes intermediate markers on append and removes wrappers on removal. link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`]
+* observeStyleDataWrapper / removeStyleDataRecursive — observe wrapper lifecycle and remove stale style sections. link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`]
+* dynamicContentInitializer / dynamicContentUtils — initializer and small utilities coordinating trigger/listener startup and helper wiring. link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`dynamic-content-initializer.utils.ts`], link:{shell}/src/app/shell/utils/styles/dynamic-content.utils.ts[`dynamic-content.utils.ts`]
 
-* Promote intermediate attributes to permanent `data-style-*` markers and, when appropriate, create a scoped wrapper element that carries `data-style-id`/`data-style-isolation` so the appended content participates in that app's scope; or
-* Respect a configured blacklist (for nodes that must remain untouched) and leave them unwrapped.
+Shell compatibility shims (deprecated):
+* primeng-overwrites.utils.ts — PrimeNG-specific compatibility helpers. link:{shell}/src/app/shell/utils/styles/primeng-overwrites.utils.ts[`primeng-overwrites.utils.ts`]
+* angular-material-overwrites.utils.ts — Angular Material-specific compatibility helpers. link:{shell}/src/app/shell/utils/styles/angular-material-overwrites.utils.ts[`angular-material-overwrites.utils.ts`]
 
-The Shell's responsibilities are intentionally limited: it promotes/remove markers, creates or finds wrapper containers, and observes removals to clean up wrappers and scoped sections so no orphaned style sections remain after overlays are removed.
+== Body append/blacklist & CDK overlays
+The Shell body hook inspects nodes appended to document.body and either:
 
-== Helper registration and lifecycle
+* Promotes intermediate attributes to permanent data-style-* markers and wraps the node in a scoped wrapper when required; or
+* Leaves nodes untouched when they match a configured blacklist (elements that must not be wrapped). The blacklist includes known host nodes for non-UI runtime code and may be extended conservatively.
 
-A small set of Shell helpers and body hooks form the contract implementers must use:
+Note: when using CDK overlays (Angular CDK), the same creation-time stamping applies; the build-time rewrite ensures CDK overlay creation calls are rewritten to the Shell helper in reviewed app configurations.
 
-* initializeOnecxTriggerElementListener (Shell) — attach `mouseover` / `focusin` handlers and expose the current trigger element via a Shell accessor. link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`dynamic-content-initializer.utils.ts`]
-* getOnecxTriggerElement (Shell accessor) — returns the current trigger element or a fallback search for a `.onecx-body` descendant with a `data-style-id`. link:{shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts[`onecx-trigger-element.utils.ts`]
-* appendIntermediateStyleData / appendStyleData (Shell) — utilities to map a StyleData object onto an element's `data-intermediate-style-*` or `data-style-*` attributes. link:{shell}/src/app/shell/utils/styles/style-data.utils.ts[`style-data.utils.ts`]
-* createWrapper / findStyleDataWrapper / wrapWithDiv (Shell) — create or locate the wrapper the Shell uses to group appended nodes under a `data-style-id` boundary. link:{shell}/src/app/shell/utils/styles/style-data.utils.ts[`style-data.utils.ts`], link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`]
-* ensureBodyChangesIncludeStyleData (Shell body hook) — the wrapper/appendChild/removeChild interception that promotes intermediate attributes on append and removes wrappers on removal. link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`]
-* observeStyleDataWrapper / removeStyleDataRecursive (Shell) — utilities to observe wrapper lifecycle and clean up stale style sections. link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`]
-
-Note: small framework-specific helpers (for example, previous PrimeNG/Material-specific creation shims) remain in the codebase for compatibility but are considered deprecated in favor of the single creation-interception helper described above. link:{shell}/src/app/shell/utils/styles/primeng-overwrites.utils.ts[`primeng-overwrites.utils.ts`], link:{shell}/src/app/shell/utils/styles/angular-material-overwrites.utils.ts[`angular-material-overwrites.utils.ts`]
 == Edge cases & pitfalls
+* Stale trigger element — programmatic or delayed insertions risk attribution to an outdated trigger. Libs should resolve the trigger immediately before insertion.
+* No scoped ancestor — when no resolved StyleData exists the overlay remains unattributed.
+* Over-stamping — avoid stamping parent portal roots; only stamp the semantic content nodes.
+* Cleanup — Shell must remove wrappers on removeChild to prevent orphaned style sections.
 
-* Stale trigger element — the trigger accessor holds the last gesture. Programmatic overlays may be attributed to the wrong app or to none; the Shell fallback narrows this but cannot infer intent for code-driven insertions.
-* Trigger outside any scope — when no scoped ancestor exists the walk yields `null` and the overlay remains unattributed.
-* Helper granularity — creation helpers should stamp the semantic content node(s) only; mutating unrelated portal containers or broad ancestry increases the risk of incorrect wrapping.
-* Cleanup — the Shell must remove wrappers on `removeChild` so unmounted overlays do not leave dangling scope sections.
-
-== Debugging
-
-* Inspect the trigger accessor in the console (Shell exposes it via the initializer): it should point at the last hovered or focused element for gesture-driven overlays.
-* Inspect an overlay node before and after insertion: intermediate `data-intermediate-style-*` attributes should appear when creation helpers run and be promoted to `data-style-*` after the Shell body hook runs.
-* Inspect wrappers: the wrapper element should carry `data-style-id` and `data-style-isolation` when the Shell promoted the attribution.
-
-== Related Units
-
-* link:{u7}[Dynamic content via container] — the companion option that keeps dynamic content inside an app-owned container instead of patching the portal child.
-* link:{u8}[Scope polyfill] — how the `@scope` blocks fed by this option are rewritten on browsers without native {scope_at_rule}.
-* link:{area}[Styling & Style Isolation — Area overview]
-
-== Sources
-
+== Code and verification sources (updated)
 Code::
-* link:{shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts[`onecx-trigger-element.utils.ts`] — trigger listener and accessor
-* link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`dynamic-content-initializer.utils.ts`] — initializer that starts trigger listeners and body guards
-* link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`] — append/remove wrappers and appendChild interception
-* link:{shell}/src/app/shell/utils/styles/style-data.utils.ts[`style-data.utils.ts`] — `appendIntermediateStyleData`, `appendStyleData`, wrapper utilities
-* link:{shell}/src/scope-polyfill/polyfill.ts[`scope-polyfill/polyfill.ts`] — `updateStyleSheets` for precision-mode fallbacks
-* dev-docs/styling/dynamic-content-via-container.adoc[`dynamic-content-via-container.adoc`] — companion container-based option
-* docs/modules/onecx-portal-ui-libs/pages/migrations/angular-19/update-webpack-config.adoc[`update-webpack-config.adoc`] — example of app-side webpack changes used in the reviewed onecx-help-ui configuration
+* link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`dynamic-content-initializer.utils.ts`]
+* link:{shell}/src/app/shell/utils/styles/dynamic-content.utils.ts[`dynamic-content.utils.ts`]
+* link:{shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts[`onecx-trigger-element.utils.ts`]
+* link:{shell}/src/app/shell/utils/styles/style-data.utils.ts[`style-data.utils.ts`]
+* link:{shell}/src/app/shell/utils/styles/body-overwrites.utils.ts[`body-overwrites.utils.ts`]
+* link:{shell}/src/app/shell/utils/styles/primeng-overwrites.utils.ts[`primeng-overwrites.utils.ts`] — compatibility shim (deprecated)
+* link:{shell}/src/app/shell/utils/styles/angular-material-overwrites.utils.ts[`angular-material-overwrites.utils.ts`] — compatibility shim (deprecated)
+* dev-docs/styling/dynamic-content-via-container.adoc[`dynamic-content-via-container.adoc`]
+* docs/modules/onecx-portal-ui-libs/pages/migrations/angular-19/update-webpack-config.adoc[`update-webpack-config.adoc`] — reviewed app-side webpack rewrite example
 
-Verification Sources checked::
-* `dev-docs/styles/concept.adoc` and `dev-docs/styles/style-types.adoc`
-* `dev-docs/styles/scoping.adoc`
-* `dev-docs/styling/angular-component-styles.adoc`
-* `dev-docs/styles/scope-polyfill.adoc`
+Verification sources checked::
+* dev-docs/styles/concept.adoc
+* dev-docs/styles/style-types.adoc
+* dev-docs/styles/scoping.adoc
+* dev-docs/styling/angular-component-styles.adoc
+* dev-docs/styles/scope-polyfill.adoc
+
+== Local link checks
+A follow-up checklist for reviewers: ensure all link:{u7}[Unit 7] and link:{u8}[Unit 8] links resolve locally and the dev-docs references above exist.
+
+== Notes & follow-ups
+* The broader global style-utilities catalogue is intentionally out of scope for this Unit; record a separate follow-up to add those catalogue entries to the docs.
+
+== Traceability
+Active review thread: 4218781786
+Resolved thread: 4217761492 (patching/container split)
+
+
+
