@@ -9,7 +9,7 @@ This Unit covers Unit 6 of the link:README.adoc[Integration Contract & Topics] A
 
 == Question answered
 
-How are Topics versioned, how does the Shell advertise the capabilities it provides and how do Apps and Remote Components check them, and what is the per-library version used for — in short, how does a unit tell which Shell it is running against?
+How are Topics versioned, how does the Shell advertise the capabilities it provides and how do Apps and Remote Components check them — in short, how does a unit tell which Shell it is running against?
 
 == Why it exists
 
@@ -19,8 +19,6 @@ Two independent, composable mechanisms address this, and they answer different q
 
 * *Topic version* answers *"will this message be delivered at all?"* It is a per-Topic contract that gates which instances can talk to which.
 * *Shell capability* answers *"does this Shell provide the feature I want to use?"* It is a per-Shell declaration that a consumer checks before deciding whether to subscribe, publish or make an RPC call.
-
-A third, smaller notion — the *per-library version* — lets each library identify itself and is used for self-description, not for cross-unit negotiation.
 
 == How it works
 
@@ -51,17 +49,11 @@ The write/read/check helpers live in the framework-agnostic `@onecx/integration-
 
 An App or Remote Component uses `hasShellCapability` to pick a path at runtime. The clearest example is parameters: the Angular `ParametersService.get(key, defaultValue, …)` returns `defaultValue` when the `PARAMETERS_TOPIC` capability is absent, and only otherwise reads the `ParametersTopic` (link:{libs}/angular-integration-interface/src/lib/services/parameters.service.ts[`parameters.service.ts`]). The JSDoc is explicit about why the default exists: *"if the shell is not yet providing the parameters because it is too old."* The same check gates the `CURRENT_LOCATION_TOPIC` fallback (Unit: Angular / React below) and the dynamic-translations path.
 
-=== Per-library version
-
-Each library in this repository ships a `src/version.ts` exporting `LIB_NAME` and `LIB_VERSION` (link:{libs}/accelerator/src/version.ts[`accelerator/src/version.ts`], link:{libs}/integration-interface/src/version.ts[`integration-interface/src/version.ts`]). In source, `LIB_VERSION` is the placeholder `'0.0.0-PLACEHOLDER'`; the release step rewrites `version.ts` (and `package.json`) with the real version for every library before publishing (link:../../release-script.sh[`release-script.sh`]).
-
-This is *self-identification*, not cross-unit negotiation. It is used to register a multi-language identifier — `provideMultiLanguageIdentifier(LIB_NAME, LIB_VERSION, 'lib')` — and to namespace the shared dynamic-translations cache on `globalThis` under the library's own name (link:{libs}/integration-interface/src/lib/services/dynamic-translation.service.ts[`dynamic-translation.service.ts`], link:{libs}/angular-utils/src/lib/providers/translation-path.providers.ts[`translation-path.providers.ts`]). It tells the page *which version of this library* is loaded; it is not something an App reads to decide whether a Shell feature exists.
-
 == Libs side / Shell side
 
 === Libs side
 
-`@onecx/integration-interface` defines the `ShellCapability` enum, the window-key helpers and the per-library `version.ts` (link:{libs}/integration-interface/src/lib/models/shell-capability.model.ts[`shell-capability.model.ts`], link:{libs}/integration-interface/src/lib/utils/shell-capability.utils.ts[`shell-capability.utils.ts`], link:{libs}/integration-interface/src/version.ts[`version.ts`]). The Angular and React adapters expose the check through a service and a hook respectively (see Angular / React below), and the library code is where the capability checks actually happen: parameters, the current-location fallback and dynamic translations all branch on `hasShellCapability`.
+`@onecx/integration-interface` defines the `ShellCapability` enum and the window-key helpers (link:{libs}/integration-interface/src/lib/models/shell-capability.model.ts[`shell-capability.model.ts`], link:{libs}/integration-interface/src/lib/utils/shell-capability.utils.ts[`shell-capability.utils.ts`]). The Angular and React adapters expose the check through a service and a hook respectively (see Angular / React below), and the library code is where the capability checks actually happen: parameters, the current-location fallback and dynamic translations all branch on `hasShellCapability`.
 
 === Shell side
 
@@ -85,7 +77,7 @@ Both delegate to the same `hasShellCapability` underneath; the capability key it
 
 == Debugging
 
-Inspect the capability list directly in the browser console: `globalThis['onecx-shell-capabilities']` (equivalently `window['onecx-shell-capabilities']`). It returns the array of advertised `ShellCapability` strings, or `undefined` if the Shell has not set it yet. To see which library version is loaded, look at that library's `version.ts` (`LIB_NAME`/`LIB_VERSION`) or the multi-language identifier it registers. General cross-App observation is in link:../diagnostics/tracing-communication.adoc[Area 13].
+Inspect the capability list directly in the browser console: `globalThis['onecx-shell-capabilities']` (equivalently `window['onecx-shell-capabilities']`). It returns the array of advertised `ShellCapability` strings, or `undefined` if the Shell has not set it yet. General cross-App observation is in link:../diagnostics/tracing-communication.adoc[Area 13].
 
 == Known issues
 
@@ -108,25 +100,20 @@ Code::
 * link:{libs}/accelerator/src/lib/topic/topic.ts[`accelerator/src/lib/topic/topic.ts`]
 * link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`accelerator/src/lib/topic/topic-publisher.ts`]
 * link:{libs}/accelerator/src/lib/topic/topic-message.ts[`accelerator/src/lib/topic/topic-message.ts`]
-* link:{libs}/accelerator/src/version.ts[`accelerator/src/version.ts`]
 * link:{libs}/integration-interface/src/lib/models/shell-capability.model.ts[`integration-interface/.../shell-capability.model.ts`]
 * link:{libs}/integration-interface/src/lib/utils/shell-capability.utils.ts[`integration-interface/.../shell-capability.utils.ts`]
-* link:{libs}/integration-interface/src/version.ts[`integration-interface/src/version.ts`]
 * link:{libs}/integration-interface/src/lib/services/dynamic-translation.service.ts[`integration-interface/.../dynamic-translation.service.ts`]
 * link:{libs}/integration-interface/src/lib/topics/current-workspace/v1/current-workspace.topic.ts[`integration-interface/.../current-workspace.topic.ts`]
 * link:{libs}/angular-utils/src/lib/services/translation-cache.service.ts[`angular-utils/.../translation-cache.service.ts`]
 * link:{libs}/angular-integration-interface/src/lib/services/shell-capability.service.ts[`angular-integration-interface/.../shell-capability.service.ts`]
 * link:{libs}/angular-integration-interface/src/lib/services/parameters.service.ts[`angular-integration-interface/.../parameters.service.ts`]
-* link:{libs}/angular-utils/src/lib/providers/translation-path.providers.ts[`angular-utils/.../translation-path.providers.ts`]
 * link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-connector.utils.ts[`angular-webcomponents/.../webcomponent-connector.utils.ts`]
 * link:{libs}/ngrx-integration-interface/src/lib/store-connector/store-connectors/navigated-event-store-connector-service.ts[`ngrx-integration-interface/.../navigated-event-store-connector-service.ts`]
 * link:{libs}/react-integration-interface/src/lib/contexts/shellCapability.ts[`react-integration-interface/.../shellCapability.ts`]
 * link:{libs}/react-integration-interface/src/lib/contexts/parametersContext.tsx[`react-integration-interface/.../parametersContext.tsx`]
-* link:../../release-script.sh[`release-script.sh`]
 * link:{shell}/src/bootstrap.ts[`bootstrap.ts` (Shell)]
 
 Verification Sources checked::
 * old `dev-docs/topics/overview.adoc` — the name/version matching rule for message delivery (matches the code).
-* link:../general/overview.adoc[old `dev-docs/general/overview.adoc`] — the list of libraries each of which carries its own `version.ts`.
 * in-code JSDoc of `ShellCapability`, the `shell-capability.utils.ts` helpers and `ParametersService.get`.
-* Draft Outline (commit `6108bdf`) — for locating the versioning/capability topics only, not as a content baseline.
+* Draft Outline (commit `6108bdf`) — see the Area's link:README.adoc#verification-note[Verification note].

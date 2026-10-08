@@ -41,6 +41,43 @@ All messages are instances of `TopicMessage`, which extends the base `Message` (
 
 Every `Topic` that receives the `TopicResolve` with a matching `resolveId` resolves the promise it stored for it and stops the event's propagation (`handleTopicResolveMessage`, link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). Because the browser processes queued messages in order, the `TopicNext` is always applied before the `TopicResolve` is handled, so `await topic.publish(value)` only resolves once the value has been processed. This is what makes `publish` awaitable and is what `Gatherer` relies on when it awaits a publish before reading the gathered responses (link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]).
 
+[source,mermaid]
+----
+sequenceDiagram
+  participant Publisher as Topic (publisher)
+  participant Browser as Browser message queue
+  participant Subscriber as Topic (subscriber)
+
+  Publisher->>Browser: send TopicNext (id=1)
+  Publisher->>Browser: send TopicResolve (resolveId=1)
+  Note over Publisher: publish() awaits the returned promise
+  Browser-->>Subscriber: TopicNext (id=1)
+  Subscriber->>Subscriber: handleTopicNextMessage -> apply value
+  Browser-->>Publisher: TopicResolve (resolveId=1)
+  Publisher->>Publisher: handleTopicResolveMessage -> resolve promise
+  Note over Publisher: publish() resolves only now
+----
+
+The queue guarantees the `TopicNext` is always processed before its `TopicResolve`, which is why `await publish(...)` only returns once every `Topic` instance in the tab has had the chance to apply the value.
+
+==== Worked example: three live instances
+
+Every `Topic` registers its `window` `message` listener once, in its own constructor (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). A browser dispatches one message event to all of a target's listeners in the order they were added, so for a given incoming message, instances are visited in the order they were *created* — the first `Topic` constructed for a `name`/`version` is always the first to see that message, the second-constructed is next, and so on. Concretely, with three live instances of the same `name`/`version` — `T1` (constructed first), `T2` (constructed second) and `P` (constructed third, and the one about to publish) — a single `P.publish(value)` call plays out as:
+
+1. `P` builds the `TopicNext` (`id=1`) and sends it (`postMessage`/`BroadcastChannel`).
+2. `P` builds the `TopicResolve` (`resolveId=1`), stores a resolver for `id=1` in its own `publishPromiseResolver`, and sends it. `P.publish(...)` now returns a pending promise.
+3. The browser delivers the queued `TopicNext` message, dispatching it to every registered listener in creation order:
+.. `T1.handleTopicNextMessage` runs first and applies the value (it beats `T1`'s stored id/timestamp).
+.. `T2.handleTopicNextMessage` runs next and applies the value.
+.. `P.handleTopicNextMessage` runs last — `P` is itself a subscribing `Topic` instance, so it applies the value to itself too.
+4. Only once *all three* instances have processed the `TopicNext` does the browser deliver the next queued message, the `TopicResolve`, again dispatching it to every listener in the same creation order:
+.. `T1.handleTopicResolveMessage` runs, finds no resolver registered for `resolveId=1` (it never published anything) and does nothing.
+.. `T2.handleTopicResolveMessage` runs, same no-op.
+.. `P.handleTopicResolveMessage` runs, finds its own resolver for `resolveId=1`, resolves it and calls `stopImmediatePropagation` (link:{libs}/accelerator/src/lib/topic/topic.ts[`handleTopicResolveMessage`]).
+5. Only now does `await P.publish(value)` return.
+
+The ordering guarantee is therefore two-layered: within one message, every live instance is given a turn, oldest-created first; across messages, the `TopicNext` is always fully drained by every instance before the matching `TopicResolve` is even looked at.
+
 === Ordering by id and timestamp
 
 A subscriber keeps exactly one value, in a `BehaviorSubject` called `data`. On each incoming `TopicNext` it applies `handleTopicNextMessage` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]), which *accepts* the message only when:
@@ -87,13 +124,7 @@ Both rely on the `asObservable()`/`isInit` filter so a component never renders w
 
 == Debugging
 
-Topic delivery is the thing you watch when debugging. Enable the per-topic namespace via `localStorage.debug` and reload — the accelerator logs each received message and the drop/accept decisions (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]):
-
-* `localStorage.debug = '@onecx/accelerator:Topic:*'` — every topic.
-* `localStorage.debug = '@onecx/accelerator:Topic:<name>'` — one concrete topic.
-* `localStorage.debug = '@onecx/accelerator:Topic:*:error'` — only errors.
-
-General cross-App tracing is in the planned Unit link:../diagnostics/tracing-communication.adoc[Area 13].
+Topic delivery is the thing you watch when debugging — the accelerator logs each received message and the drop/accept decisions under its per-topic namespace (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). See the Area's link:README.adoc#debugging-conventions[Debugging conventions] for the `localStorage.debug` patterns.
 
 == Known issues
 
@@ -130,4 +161,4 @@ Verification Sources checked::
 * old `dev-docs/topics/overview.adoc` — message types, the `publish`/resolve sequence and the event-loop ordering argument (matches the code).
 * old `dev-docs/topics/debug.adoc` — debug namespaces and `localStorage.debug` patterns (inlined into Debugging above).
 * in-code JSDoc of `Topic`, `TopicPublisher`, `Message` and the deprecated `SyncableTopic`.
-* Draft Outline (commit `6108bdf`) — for locating this Unit only, not as a content baseline.
+* Draft Outline (commit `6108bdf`) — see the Area's link:README.adoc#verification-note[Verification note].

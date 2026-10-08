@@ -52,3 +52,18 @@ The full set of Units of this Area, in reading order:
 
 * Areas 2–12 of the link:{dev-docs-index}[Dev Docs index] each describe concrete Topics and state flows on top of the contract described here.
 * link:../diagnostics/tracing-communication.adoc[Tracing cross-App communication] (Area 13) explains how to observe Topic traffic at runtime.
+
+[#debugging-conventions]
+== Debugging conventions
+
+Every Unit in this Area logs under `@onecx/accelerator:Topic:<name>` (or `:Gatherer:<name>` for a `Gatherer`), enabled via `localStorage.debug` and a page reload:
+
+* `localStorage.debug = '@onecx/accelerator:Topic:*'` (or `:Gatherer:*`) — every topic/gatherer.
+* `localStorage.debug = '@onecx/accelerator:Topic:<name>'` (or `:Gatherer:<name>`) — one concrete instance.
+* `localStorage.debug = '@onecx/accelerator:Topic:*:error'` — only errors.
+
+Each Unit's *Debugging* section only adds what is specific to it; general cross-App tracing is link:../diagnostics/tracing-communication.adoc[Area 13] (also listed under each Unit's Related Units).
+
+== Verification note
+
+Every Unit in this Area was checked against the old `dev-docs/topics/` and `dev-docs/gatherer/` pages, in-code JSDoc, and the https://github.com/markuczy/onecx-portal-ui-libs/commit/6108bdff79ea8dce5a15df5fd0b6b1e48dc7edca[Draft Outline] (commit `6108bdf`). The Draft Outline was used only to locate topics to document, never as a content baseline — the code wins. Each Unit's *Sources* list records the sources actually checked.

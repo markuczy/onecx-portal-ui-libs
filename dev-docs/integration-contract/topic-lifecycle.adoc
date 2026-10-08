@@ -15,6 +15,8 @@ How is a Topic created and how does it publish, what does `destroy` release and 
 
 A `Topic` is not a value but a *subscription*: at construction it registers a `window` `message` listener and opens one or two `BroadcastChannel` handles (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). Those resources are held for the life of the instance. On a OneCX page the units that own `Topic` instances (App routes, Remote Components, React components) load and unload all the time. If a destroyed unit keeps holding listeners and open channels, each unload leaks a little: more idle listeners on `window`, more open `BroadcastChannel`s, and Topics that keep reacting to traffic after the code that created them is gone. This Unit describes the contract for creating and cleaning those up, and points out where the current code leaks.
 
+This is not just a memory concern. Every message sent on a Topic's channel is delivered to *every* listener still attached to that channel, and every delivery runs `handleTopicNextMessage`/`handleTopicGetMessage` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]) even for an instance nobody reads from anymore. If a route is visited repeatedly and its `Topic` is never destroyed, the number of live listeners for that Topic only grows across the session; each later publish then does proportionally more work — one JavaScript callback invocation per surviving instance — even though only the current instance's value matters. Destroying a `Topic` when its owner is torn down keeps the per-publish cost bounded to the instances actually in use, which is why the lifecycle discipline below matters for performance, not only for tidiness.
+
 == How it works
 
 === Creation
@@ -89,7 +91,7 @@ The underlying `Topic.destroy` it triggers is the same in both cases.
 == Debugging
 
 * *Count instances.* With stats enabled, `globalThis['@onecx/accelerator'].topic.stats.instancesCreated` shows how many `Topic` instances have been created per topic name (link:{libs}/accelerator/src/lib/utils/logs.utils.ts[`logs.utils.ts`]). A growing count for a topic that should be singletons per tab is the first symptom of a leak.
-* *Watch the lifecycle logs.* `Topic` and `TopicPublisher` log at the `@onecx/accelerator:Topic:<name>` / `:TopicPublisher:<name>` namespaces; `Gatherer` logs at `@onecx/accelerator:Gatherer:<name>` including its `created`/`destroyed` milestones. Enable them with `localStorage.debug` and reload — `localStorage.debug = '@onecx/accelerator:Topic:*'` for every topic, `localStorage.debug = '@onecx/accelerator:Gatherer:*'` for every gatherer, `localStorage.debug = '@onecx/accelerator:Topic:<name>'` (or `:Gatherer:<name>`) for one concrete instance, and add `:error` to a `*` pattern to see only errors.
+* *Watch the lifecycle logs.* `Topic` and `TopicPublisher` log at `@onecx/accelerator:Topic:<name>` / `:TopicPublisher:<name>`; `Gatherer` logs at `@onecx/accelerator:Gatherer:<name>` including its `created`/`destroyed` milestones. See the Area's link:README.adoc#debugging-conventions[Debugging conventions] for the `localStorage.debug` patterns.
 
 == Known issues
 
@@ -126,4 +128,4 @@ Verification Sources checked::
 * old `dev-docs/topics/debug.adoc` — debug namespaces and `localStorage.debug` patterns (inlined into Debugging above).
 * old `dev-docs/gatherer/debug.adoc` — `Gatherer` debug namespaces.
 * in-code JSDoc of `Topic`, `TopicPublisher`, `Gatherer` and the deprecated `SyncableTopic`.
-* Draft Outline (commit `6108bdf`) — for locating this Unit only, not as a content baseline.
+* Draft Outline (commit `6108bdf`) — see the Area's link:README.adoc#verification-note[Verification note].
