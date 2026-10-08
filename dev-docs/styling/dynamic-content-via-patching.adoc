@@ -8,27 +8,27 @@
 :u7: ./dynamic-content-via-container.adoc
 :u8: ./scope-polyfill.adoc
 :scope_at_rule: https://developer.mozilla.org/en-US/docs/Web/CSS/@scope
-:dynamic_content_initializer: {shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts#L9-L18
-:ensure_create_onecx_element: {shell}/src/app/shell/utils/styles/dynamic-content.utils.ts#L15-L30
-:ensure_create_onecx_dynamic_container: {shell}/src/app/shell/utils/styles/dynamic-content.utils.ts#L37-L58
-:primeng_overwrites: {shell}/src/app/shell/utils/styles/primeng-overwrites.utils.ts#L10-L24
-:material_overwrites: {shell}/src/app/shell/utils/styles/angular-material-overwrites.utils.ts#L10-L22
-:trigger_listener: {shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts#L15-L24
-:trigger_accessor: {shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts#L33-L47
-:body_blacklist: {shell}/src/app/shell/utils/styles/body-overwrites.utils.ts#L21-L42
-:body_hooks: {shell}/src/app/shell/utils/styles/body-overwrites.utils.ts#L45-L79
-:body_wrap: {shell}/src/app/shell/utils/styles/body-overwrites.utils.ts#L83-L119
-:cdk_overlay_hook: {shell}/src/app/shell/utils/styles/body-overwrites.utils.ts#L121-L152
-:wrap_with_div: {shell}/src/app/shell/utils/styles/style-data.utils.ts#L33-L39
-:create_wrapper: {shell}/src/app/shell/utils/styles/style-data.utils.ts#L46-L52
-:observe_wrapper: {shell}/src/app/shell/utils/styles/style-data.utils.ts#L61-L75
-:find_wrapper: {shell}/src/app/shell/utils/styles/style-data.utils.ts#L79-L88
-:remove_style_data: {shell}/src/app/shell/utils/styles/style-data.utils.ts#L94-L110
-:append_style_data: {shell}/src/app/shell/utils/styles/style-data.utils.ts#L117-L129
-:append_intermediate_style_data: {shell}/src/app/shell/utils/styles/style-data.utils.ts#L136-L148
+:dynamic_content_initializer: {shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts
+:ensure_create_onecx_element: {shell}/src/app/shell/utils/styles/dynamic-content.utils.ts
+:ensure_create_onecx_dynamic_container: {shell}/src/app/shell/utils/styles/dynamic-content.utils.ts
+:primeng_overwrites: {shell}/src/app/shell/utils/styles/primeng-overwrites.utils.ts
+:material_overwrites: {shell}/src/app/shell/utils/styles/angular-material-overwrites.utils.ts
+:trigger_listener: {shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts
+:trigger_accessor: {shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts
+:body_blacklist: {shell}/src/app/shell/utils/styles/body-overwrites.utils.ts
+:body_hooks: {shell}/src/app/shell/utils/styles/body-overwrites.utils.ts
+:body_wrap: {shell}/src/app/shell/utils/styles/body-overwrites.utils.ts
+:cdk_overlay_hook: {shell}/src/app/shell/utils/styles/body-overwrites.utils.ts
+:wrap_with_div: {shell}/src/app/shell/utils/styles/style-data.utils.ts
+:create_wrapper: {shell}/src/app/shell/utils/styles/style-data.utils.ts
+:observe_wrapper: {shell}/src/app/shell/utils/styles/style-data.utils.ts
+:find_wrapper: {shell}/src/app/shell/utils/styles/style-data.utils.ts
+:remove_style_data: {shell}/src/app/shell/utils/styles/style-data.utils.ts
+:append_style_data: {shell}/src/app/shell/utils/styles/style-data.utils.ts
+:append_intermediate_style_data: {shell}/src/app/shell/utils/styles/style-data.utils.ts
 :primeng_plugin_guide: ../../docs/modules/onecx-portal-ui-libs/pages/migrations/angular-19/add-required-plugin-to-primeng.adoc
 :material_plugin_guide: ../../docs/modules/onecx-portal-ui-libs/pages/migrations/angular-19/add-angular-material-plugin.adoc
-:help_ui_webpack: https://github.com/onecx/onecx-help-ui/blob/3a7dd5d26dcc23b473a4a79a1054fe373a6ab658/webpack.config.js#L39-L71
+:help_ui_webpack: https://github.com/onecx/onecx-help-ui/blob/3a7dd5d26dcc23b473a4a79a1054fe373a6ab658/webpack.config.js
 
 == Question answered
 
@@ -115,5 +115,5 @@ Verification Sources checked::
 * `dev-docs/styling/dynamic-content-via-container.adoc`
 * `../../docs/modules/onecx-portal-ui-libs/pages/migrations/angular-19/add-required-plugin-to-primeng.adoc`
 * `../../docs/modules/onecx-portal-ui-libs/pages/migrations/angular-19/add-angular-material-plugin.adoc`
-* `https://github.com/onecx/onecx-help-ui/blob/3a7dd5d26dcc23b473a4a79a1054fe373a6ab658/webpack.config.js#L39-L71`
+* `https://github.com/onecx/onecx-help-ui/blob/3a7dd5d26dcc23b473a4a79a1054fe373a6ab658/webpack.config.js`
 * the linked Shell source files above
