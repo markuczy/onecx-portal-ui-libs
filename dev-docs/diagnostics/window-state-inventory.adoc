@@ -176,7 +176,7 @@ The table lists every `window`/`globalThis` key that the current libraries read 
 |3. Shell Context (capability negotiation)
 
 |`onecxTriggerElement`
-|Shell (build / runtime initialisation)
+|Shell — link:{shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts[`onecx-trigger-element.utils.ts`], link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`dynamic-content-initializer.utils.ts`]
 |`@onecx/react-utils` — link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/onecx-trigger-element.ts[`onecx-trigger-element.ts`]
 |4. Styling — Dynamic content attribution
 
@@ -240,7 +240,6 @@ To see *why* a key has a given value, enable link:logging.adoc[logging] and foll
 == Known issues
 
 * *The Shell does not advertise or answer the dynamic-translations capability.* `link:{shell}/src/bootstrap.ts[bootstrap.ts]` calls `setShellCapabilities([PARAMETERS_TOPIC, CURRENT_LOCATION_TOPIC, ACTIVENESS_AWARE_MENUS])` but does *not* include `DYNAMIC_TRANSLATIONS_TOPIC`, even though link:{libs}/integration-interface/src/lib/services/dynamic-translation.service.ts[`dynamic-translation.service.ts`] checks `hasShellCapability(ShellCapability.DYNAMIC_TRANSLATIONS_TOPIC)` before using the dynamic-translations Topic. The global cache `@onecx/integration-interface.dynamicTranslationsCache` is still created, but the capability the libs look for is absent on `main`. Follow-up: either the Shell advertises and answers the Topic, or the lib check is removed. (Owned by *10. Localization*.)
-* *`onecxTriggerElement` has no writer in the libs.* It is declared and read by `@onecx/react-utils` but its value is produced by the Shell's build/runtime initialisation, not by code in `src/`. This Unit records it as a Shell-written key; the exact Shell source that sets it should be confirmed against the Shell's current `main`.
 
 == Related Units
 
@@ -270,6 +269,8 @@ Code::
 * link:{libs}/react-remote-components/src/lib/utils/getShellMfInstance.ts[`react-remote-components/src/lib/utils/getShellMfInstance.ts`] — `__FEDERATION__.__INSTANCES__` reader.
 * link:{shell}/src/main.ts[`src/main.ts` (Shell)] — `onecxFederationInstance`, `onecxPreloaders` writers.
 * link:{shell}/src/bootstrap.ts[`src/bootstrap.ts` (Shell)] — `setShellCapabilities(...)` writer.
+* link:{shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts[`src/app/shell/utils/styles/onecx-trigger-element.utils.ts`] — assigns `globalThis.onecxTriggerElement` from UI event handlers.
+* link:{shell}/src/app/shell/utils/styles/dynamic-content-initializer.utils.ts[`src/app/shell/utils/styles/dynamic-content-initializer.utils.ts`] — initializer that wires the event handlers that set `onecxTriggerElement`.
 
 Verification Sources checked::
 * link:{shell}/src/index.html[`src/index.html` (Shell)] — seeds `localStorage.debug` and `localStorage.onecxLanguage` inline; Shell `onecxShell` logger namespace.

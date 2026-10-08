@@ -81,6 +81,5 @@ NOTE: These links intentionally target the fixed Dev Docs index paths. The links
 - ../localization/app-translations.adoc
 - ../localization/dynamic-translations.adoc
 
-Preserve all existing Related Areas links.
 
 The Dev Docs are written from the current `main` branch of this repository and of the Shell. Where a mechanism is explained in full, this Area links to its owning Unit rather than repeating it.
