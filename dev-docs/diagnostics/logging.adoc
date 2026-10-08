@@ -77,7 +77,7 @@ localStorage.debug = '@onecx/angular-auth:AuthProxyService:*'; location.reload()
 // Only errors across all OneCX libraries
 localStorage.debug = '@onecx*:*:error'; location.reload();
 
-// Everything except the chatty Topic and Gatherer streams
+// All @onecx library logs except the Topic and Gatherer streams
 localStorage.debug = '@onecx*,-@onecx*:Topic:*,-@onecx*:Gatherer:*'; location.reload();
 ----
 
