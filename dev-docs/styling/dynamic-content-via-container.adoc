@@ -136,7 +136,7 @@ Code::
 
 Verification Sources checked::
 * `dev-docs/styles/scoping.adoc` (the attribute model this container feeds)
-* `dev-docs/styles/dynamic-content-via-patching.adoc` (the companion option and comparison point)
+* `dev-docs/styling/dynamic-content-via-patching.adoc` (the companion option and comparison point)
 * `dev-docs/styles/concept.adoc` and `dev-docs/styles/style-types.adoc` (the isolation framing and attribute table)
 * `docs/modules/onecx-portal-ui-libs/pages/libraries/angular-utils/cdk.adoc` (the public Angular CDK API docs for the container classes)
 * the in-code source for `get-dynamic-container.utils.ts`, `onecx-overlay-container.ts`, `onecx-fullscreen-overlay-container.ts`, and `scope.utils.ts`

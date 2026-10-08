@@ -27,7 +27,7 @@ Two pieces work together: a trigger-element lookup that resolves the app's style
 
 The trigger element is the element under the pointer or under focus. The Shell tracks it continuously: `initializeOnecxTriggerElementListener` in link:{shell}/src/app/shell/utils/styles/onecx-trigger-element.utils.ts[`onecx-trigger-element.utils.ts`] attaches `mouseover` and `focusin` handlers to `document`; on each event it stores `event.target` on the page-global `window.onecxTriggerElement`. A plain read of that global is the accessor on the React side — `getOnecxTriggerElement` in link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/onecx-trigger-element.ts[`onecx-trigger-element.ts`] returns `globalThis.onecxTriggerElement`, typed by `onecxTriggerElement: EventTarget | null` in link:{libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/functions/declarations.ts[`declarations.ts`].
 
-Because `window.onecxTriggerElement` is a single page-global, attribution always reflects the most recent interaction. That is deliberate: the overlay opens in response to a user gesture, so the last hovered or focused element is the right owner.
+Because `window.onecxTriggerElement` is a single page-global, attribution always reflects the most recent interaction. That is deliberate: the overlay opens in response to a user gesture, so the last hovered or focused element is the best available owner for gesture-driven overlays.
 
 === The closest-ancestor walk
 
@@ -38,7 +38,7 @@ From the trigger element, the mechanism climbs the DOM to the nearest ancestor t
 
 The marker keys are the ones listed in link:{libs}/react-utils/src/lib/utils/styleAttributes.ts[`styleAttributes.ts`] (React) and link:{libs}/angular-utils/src/lib/utils/scope.utils.ts[`scope.utils.ts`] (Angular): `data-style-id` opens the scope section for a `productName|appId`, and the `data-intermediate-style-id` family is the short-lived marker an element carries while it is being placed.
 
-The result of the walk is what gets written onto the overlay's content so the eventual wrapper or patched node can participate in the owning app's scope. The attributes, the `@scope` blocks they feed, and the `to ([data-style-isolation])` boundary are all described in link:{u8}[Unit 8]; this page only recovers the id.
+The result of the walk is what gets written onto the overlay's content so the eventual wrapper or patched node can participate in the owning app's scope. The attribute model, the `@scope` blocks they feed, and the `to ([data-style-isolation])` boundary are described in link:{u3}[Unit 3]; this page covers how that attribution is applied at creation time, while the Shell's body wrapper handles the eventual patch/body-wrapper path.
 
 === Creation-time patching
 
@@ -131,7 +131,7 @@ Code::
 Verification Sources checked::
 * `dev-docs/styles/concept.adoc` and `dev-docs/styles/style-types.adoc` (the isolation framing and the attribute table)
 * `dev-docs/styles/scoping.adoc` (the trigger-element and intermediate-attribute dynamic-content notes, plus the container route used as a comparison point)
-* `dev-docs/styles/angular-component-styles.adoc` (Angular component encapsulation and Shell-side PrimeNG prefixing)
+* `dev-docs/styling/angular-component-styles.adoc` (Angular component encapsulation and Shell-side PrimeNG prefixing)
 * `dev-docs/styles/scope-polyfill.adoc` (the fallback these blocks rely on)
 * Draft Outline (https://github.com/markuczy/onecx-portal-ui-libs/commit/6108bdff79ea8dce5a15df5fd0b6b1e48dc7edca[6108bdff])
 * in-code JSDoc of `style-data.utils.ts`, `body-overwrites.utils.ts`, `scopingFunctionality/index.ts` and `dynamicScoping/index.ts`
