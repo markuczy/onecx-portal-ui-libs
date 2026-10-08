@@ -98,5 +98,3 @@ Verification Sources checked::
 * `dev-docs/styles/scoping.adoc`
 * `dev-docs/styling/angular-component-styles.adoc`
 * `dev-docs/styles/scope-polyfill.adoc`
-
-
