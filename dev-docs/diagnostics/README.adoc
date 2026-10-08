@@ -64,13 +64,13 @@ All Units of this Area, in reading order. Every Unit follows the Unit template.
 
 This Area is deliberately cross-cutting. It links to the Areas that own the mechanisms it helps you observe, and it is linked back from their `Debugging` sections.
 
-* *1. Integration Contract & Topics* — the `Topic`/`TopicPublisher` classes and the message contract that this Area's tracing unit observes.
-* *2. Application Bootstrap* — Module Federation and preloaders, which own the `__FEDERATION__` / `onecxFederationInstance` globals.
-* *3. Shell Context & Runtime Configuration* — where the Shell capability flags come from.
-* *4. Styling & Style Isolation* — dynamic content attribution and the `onecxTriggerElement` global.
-* *8. Authentication* — the `onecxAuth` / `onecxAngularAuth` auth-proxy globals.
-* *10. Localization* — the `onecxTranslations` and `dynamicTranslationsCache` globals.
+* link:../integration-contract/README.adoc[1. Integration Contract & Topics] — link:../integration-contract/topic-lifecycle.adoc[Topic lifecycle], link:../integration-contract/transports-and-tab-scope.adoc[Transports & tab scope] — the `Topic`/`TopicPublisher` classes and the message contract that this Area's tracing unit observes.
+* link:../bootstrap/README.adoc[2. Application Bootstrap] — link:../bootstrap/module-federation.adoc[Module Federation], link:../bootstrap/preloaders.adoc[Preloaders] — Module Federation and preloaders, which own the `__FEDERATION__` / `onecxFederationInstance` globals.
+* link:../shell-context/README.adoc[3. Shell Context & Runtime Configuration] — link:../shell-context/runtime-configuration.adoc[Runtime configuration] — where the Shell capability flags come from.
+* link:../styling/README.adoc[4. Styling & Style Isolation] — link:../styling/dynamic-content-attribution.adoc[Dynamic content attribution] — dynamic content attribution and the `onecxTriggerElement` global.
+* link:../authentication/README.adoc[8. Authentication] — link:../authentication/obtaining-tokens.adoc[How Apps obtain tokens] — the `onecxAuth` / `onecxAngularAuth` auth-proxy globals.
+* link:../localization/README.adoc[10. Localization] — link:../localization/app-translations.adoc[App translations], link:../localization/dynamic-translations.adoc[Dynamic translations] — the `onecxTranslations` and `dynamicTranslationsCache` globals.
 
-NOTE: The Related Areas listed above are named but not yet linked. Their Area overview pages and most Units have not been written yet, so the paths are not in the Dev Docs index and linking them would 404. Each is recorded here so the link can be added from the Dev Docs index once the owning ticket lands.
+NOTE: These links intentionally target the fixed Dev Docs index paths; some linked targets may not yet be written and are recorded here as index-backed placeholders.
 
 The Dev Docs are written from the current `main` branch of this repository and of the Shell. Where a mechanism is explained in full, this Area links to its owning Unit rather than repeating it.
