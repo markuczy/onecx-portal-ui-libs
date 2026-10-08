@@ -11,17 +11,17 @@ How the token headers produced by the Shell's auth service are actually attached
 
 == Why it exists
 
-An App that needs a valid token on every backend call should not have to remember to fetch headers and set them by hand in each request. Both framework libraries therefore ship an HTTP-level hook (an Angular `HttpInterceptor`, a React axios interceptor) that transparently: (1) waits until authentication has finished, (2) makes sure the token is still fresh, and (3) sets the auth headers on the request. The Apps get authentication "for free" on every call, and the Shell is the only place that ever holds or refreshes the token.
+An App that needs a valid token on every backend call should not have to remember to fetch headers and set them by hand in each request. Both framework libraries therefore ship an HTTP-level hook (an Angular `HttpInterceptor`, a React axios interceptor) that transparently: (1) makes sure the token is still fresh, and (2) sets the auth headers on the request. In Angular the interceptor also explicitly waits until authentication has finished; in React the axios interceptor performs refresh and header attachment without explicitly awaiting the Shell's readiness gate. React Apps that require guaranteed readiness should gate outgoing requests themselves. The Apps get authentication "for free" on every call when the app is using the gating semantics appropriate for its framework, and the Shell is the only place that ever holds or refreshes the token.
 
 == How it works
 
-The core, framework-agnostic flow is the same in both implementations:
+The core steps are similar across both implementations, but the frameworks differ in how they handle Shell readiness:
 
 . *Skip whitelisted requests.* Static assets are excluded — they are public and must not carry (or wait for) auth headers.
 . *Refresh the token if needed.* Call the proxy's `updateTokenIfNeeded()`.
 . *Attach the headers.* Call `getHeaderValues()` and set each returned header on the outgoing request.
 
-Before any of that, an App should only be sending requests once the Shell has finished authenticating. Angular enforces this explicitly by awaiting `link:{libs}/angular-integration-interface/src/lib/services/app-state.service.ts[AppStateService.isAuthenticated$.isInitialized]`; React relies on the fact that the proxy is only usable once the Shell has mounted it (the `updateTokenIfNeeded()` call fails against a too-old Shell — see the Angular / React table below).
+Before any of that, note the frameworks differ: Angular-based Apps should only send requests once the Shell has finished authenticating and the Angular interceptor explicitly enforces this by awaiting `link:{libs}/angular-integration-interface/src/lib/services/app-state.service.ts[AppStateService.isAuthenticated$.isInitialized]`. React's axios interceptor does not await the Shell readiness gate; it calls `updateTokenIfNeeded()` and `getHeaderValues()` without explicitly waiting for `isAuthenticated$`. Because the Shell may mount the proxy before authentication completes, React consumers should gate requests themselves when they require guaranteed auth readiness (otherwise the interceptor may proceed without headers or degrade gracefully against an older Shell).
 
 [source,mermaid]
 ----
@@ -74,18 +74,18 @@ await api.get('/some/protected/endpoint')
 * `link:{libs}/angular-auth/src/lib/auth-proxy.service.ts[auth-proxy.service.ts]` — the Angular proxy reader the interceptor uses.
 * `link:{libs}/react-auth/src/lib/axios.ts[axios.ts]` — the React `axiosFactory` (refresh → header attach, no explicit gate; `WHITELIST = ['/assets/']`; `AuthenticatedAxiosInstance`).
 * `link:{libs}/react-auth/src/lib/auth-proxy-service.ts[auth-proxy-service.ts]` — the React proxy reader and `MISSING_PROXY_ERROR`.
-* `link:{libs}/angular-integration-interface/src/lib/services/app-state.service.ts[app-state.service.ts]` — the `isAuthenticated$` gate both implementations await (Angular directly; React transitively, since the proxy only resolves once the Shell has mounted it).
+* `link:{libs}/angular-integration-interface/src/lib/services/app-state.service.ts[app-state.service.ts]` — the `isAuthenticated$` gate is explicitly awaited by Angular; React does not await it directly and instead performs refresh/header calls without waiting for the gate.
 
 === Shell side
 
-The Shell is what makes this work: it authenticates (publishing `isAuthenticated$`) and it mounts the `window` proxy the interceptors read (see link:./obtaining-tokens.adoc[How Apps obtain tokens]). The interceptors themselves run in the *App*, not the Shell — the Shell's own initialisers also await `isAuthenticated$.isInitialized`, but that gating is the Shell's concern and is covered by the link:./mechanism-selection.adoc[Ownership & mechanism selection] Unit. No Shell code is modified by this mechanism; the Shell repository is read-only here.
+The Shell is what makes this work: it authenticates (publishing `isAuthenticated$`) and it mounts the `window` proxy the interceptors read (see link:./obtaining-tokens.adoc[How Apps obtain tokens]). The Shell may mount the proxy before `isAuthenticated$` has completed; interceptors themselves run in the *App*, not the Shell, so their behavior depends on the framework implementation. The Shell's own initialisers also await `isAuthenticated$.isInitialized`, but that gating is the Shell's concern and is covered by the link:./mechanism-selection.adoc[Ownership & mechanism selection] Unit. No Shell code is modified by this mechanism; the Shell repository is read-only here. React consumers should be aware the proxy's presence does not guarantee auth initialization is complete and should gate requests themselves when necessary.
 
 == Angular / React
 
 |===
 | | Angular `TokenInterceptor` | React `axiosFactory`
 | Whitelist | URL contains `'assets'` | URL contains `'/assets/'`
-| Gate | Awaits `isAuthenticated$.isInitialized` explicitly | Does not await it directly — relies on the proxy
+| Gate | Awaits `isAuthenticated$.isInitialized` explicitly | Does not await the readiness gate; performs refresh/header calls without waiting. Apps that need guaranteed readiness should gate themselves.
 | Missing proxy | Error propagates (request fails) | `MISSING_PROXY_ERROR` swallowed; other errors re-thrown
 | Header attach | Sets every header returned, including empty values | Sets only *truthy* header values
 | Extras | — | Returns an `AuthenticatedAxiosInstance` with `tokens.sessionExpired`
@@ -102,7 +102,7 @@ The Shell is what makes this work: it authenticates (publishing `isAuthenticated
 == Debugging
 
 * Log the request headers just before they hit the network to confirm `Authorization` / `apm-principal-token` (or the custom provider's headers) were attached.
-* In Angular, a request that hangs is usually the `isAuthenticated$` gate; confirm it resolved. In React, a request sent with no auth headers against a healthy Shell usually means `getHeaderValues()` returned empty — check the Shell's auth mechanism.
+* In Angular, a request that hangs is usually the `isAuthenticated$` gate; confirm it resolved. In React, a request sent with no auth headers against a healthy Shell can mean `getHeaderValues()` returned empty or that the Shell mounted the proxy before authentication completed — verify the Shell's auth mechanism and whether the App gated requests where required.
 * Enable `@onecx/angular-auth:*` / `@onecx/react-auth:*` (prefixes in the respective `logger.utils.ts`) to see `Error updating token:` when a refresh rejects. General tooling lives in Area 13 (Diagnostics).
 
 == Related Units
