@@ -4,21 +4,21 @@
 :dev-docs-index: ../README.adoc
 :shell: https://github.com/onecx/onecx-shell-ui/blob/main
 
-This Area answers how Apps, Remote Components and the Shell actually talk to each other at runtime: not by calling each other's code, but by exchanging *Topics*. It is Area 1 in the link:{dev-docs-index}[Dev Docs] because every other Area builds on the messaging contract described here. The meaning of each concrete Topic (workspace, theme, permissions, …) belongs to the Area that owns it; this Area covers the messaging mechanism only.
+Apps, Remote Components and the Shell talk at runtime by exchanging *Topics*, not by calling each other's code. Every other Area builds on this messaging contract, so it is Area 1 of the link:{dev-docs-index}[Dev Docs]. This Area covers the mechanism only; the meaning of each concrete Topic (workspace, theme, permissions, …) belongs to its owning Area.
 
 == Problem
 
-A OneCX page hosts several independent units of code at once: one Shell, the currently routed App and any Remote Components it hosts. They are built separately, released separately and written in different frameworks (Angular and React). There is no shared object graph, no common DI container and no guarantee that two of them load at the same time.
+A OneCX page hosts one Shell, the currently routed App and any Remote Components it hosts. These units are released separately, use Angular or React, share no object graph or DI container, and may load at different times.
 
-Despite that, they must stay in sync: the Shell owns the workspace, the theme, the route and the user profile, and Apps and Remote Components all need to read and react to those values. The contract this Area describes is the only channel between them. Understanding *why* the contract is message-based, and *how* a single message reaches every subscriber in order, is the prerequisite for understanding every other mechanism the Dev Docs cover.
+They must still stay in sync: the Shell owns the workspace, theme, route and user profile, and Apps and Remote Components react to them. The Topic contract is their only channel, so every other Dev Docs mechanism depends on it.
 
 == Big picture
 
-The libraries in this repository define the vocabulary and the machinery. The Shell typically publishes shared state and answers requests for Shell-owned data; Apps and Remote Components subscribe to that state and may also publish or answer Topic requests where needed, including between Apps.
+The libraries in this repository define the vocabulary and machinery; the Shell and Apps use them:
 
-* *Libraries* (`@onecx/accelerator`, `@onecx/integration-interface` and the Angular/React adapters) provide the `Topic` and `Gatherer` primitives, the concrete shared Topics, the request/response (RPC) Topics and the per-framework services/contexts that wrap them.
-* *Shell* advertises which capabilities it provides, publishes shared state for Apps and Remote Components, and answers requests for Shell-owned data.
-* *Apps / Remote Components* subscribe to the state they need and may publish Topics or answer Topic requests where needed, including between Apps.
+* *Libraries* (`@onecx/accelerator`, `@onecx/integration-interface` and the Angular/React adapters) provide the `Topic` and `Gatherer` primitives, the concrete shared and request/response (RPC) Topics, and the per-framework services and contexts that wrap them.
+* *Shell* advertises its capabilities, publishes shared state and answers requests for Shell-owned data.
+* *Apps / Remote Components* subscribe to the state they need. Where needed, they also publish Topics or answer Topic requests, including between Apps.
 
 [source,mermaid]
 ----
@@ -37,29 +37,29 @@ sequenceDiagram
 
 == Unit map
 
-The full set of Units of this Area, in reading order:
+Units in reading order:
 
-. link:why-message-based.adoc[Why a message-based contract] — why the units communicate only through Topics, and what that forbids.
-. link:message-delivery.adoc[Topic message delivery] — the message types, how messages are ordered by id and timestamp, how a late subscriber is replayed, and the init/resolve handshake.
-. link:transports-and-tab-scope.adoc[Transports & tab scope] — postMessage vs BroadcastChannel v1/V2, the per-tab `tabId`, the fallback between them and who selects the transport.
-. link:topic-lifecycle.adoc[Topic lifecycle] — how a Topic is created and publishes, what `destroy` releases and what it leaves behind, where the adapters destroy, and the deprecated syncable Topic.
-. link:gatherers-and-rpc-topics.adoc[Request/response: Gatherers & RPC Topics] — how request/response is built on Topics (the `Gatherer` scatter/gather and the RPC Topics) and when to use it instead of a plain Topic.
-. link:versioning-and-capabilities.adoc[Versioning & Shell capability negotiation] — Topic versions, how the Shell advertises the capabilities it provides and how Apps and Remote Components check them to adapt to older or newer Shells.
-. link:framework-adapters.adoc[Framework adapters] — how the Angular services, React contexts and ngrx store connectors wrap the framework-agnostic `Topic`, who owns and destroys each `Topic` instance, and how a Topic value reaches the ngrx store.
-. link:topic-catalogue.adoc[Topic & Gatherer catalogue] — the reference table of every shared `Topic` and `Gatherer` the libraries define, with its version, publisher, consumers and owning Area.
+. link:why-message-based.adoc[Why a message-based contract] — why units communicate only through Topics, and what that forbids.
+. link:message-delivery.adoc[Topic message delivery] — message types, ordering by id and timestamp, late-subscriber replay and the init/resolve handshake.
+. link:transports-and-tab-scope.adoc[Transports & tab scope] — postMessage vs BroadcastChannel v1/V2, the per-tab `tabId`, fallback between transports and who selects one.
+. link:topic-lifecycle.adoc[Topic lifecycle] — Topic creation and publishing, what `destroy` releases and leaves behind, where the adapters destroy, and the deprecated syncable Topic.
+. link:gatherers-and-rpc-topics.adoc[Request/response: Gatherers & RPC Topics] — the `Gatherer` scatter/gather and the RPC Topics, and when to use them instead of a plain Topic.
+. link:versioning-and-capabilities.adoc[Versioning & Shell capability negotiation] — Topic versions, how the Shell advertises its capabilities and how Apps and Remote Components check them to adapt to older or newer Shells.
+. link:framework-adapters.adoc[Framework adapters] — how Angular services, React contexts and ngrx store connectors wrap the `Topic`, who owns and destroys each instance, and how a Topic value reaches the ngrx store.
+. link:topic-catalogue.adoc[Topic & Gatherer catalogue] — every shared `Topic` and `Gatherer` the libraries define, with version, publisher, consumers and owning Area.
 
 == Related Areas
 
-* Areas 2–12 of the link:{dev-docs-index}[Dev Docs index] each describe concrete Topics and state flows on top of the contract described here.
-* link:../diagnostics/tracing-communication.adoc[Tracing cross-App communication] (Area 13) explains how to observe Topic traffic at runtime.
+* Areas 2–12 of the link:{dev-docs-index}[Dev Docs index] describe concrete Topics and state flows built on this contract.
+* link:../diagnostics/tracing-communication.adoc[Tracing cross-App communication] (Area 13) shows how to observe Topic traffic at runtime.
 
 [#debugging-conventions]
 == Debugging conventions
 
-Every Unit in this Area logs under `@onecx/accelerator:Topic:<name>` (or `:Gatherer:<name>` for a `Gatherer`), enabled via `localStorage.debug` and a page reload:
+All Topics log under `@onecx/accelerator:Topic:<name>` and all Gatherers under `@onecx/accelerator:Gatherer:<name>`. Set `localStorage.debug` and reload the page:
 
-* `localStorage.debug = '@onecx/accelerator:Topic:*'` (or `:Gatherer:*`) — every topic/gatherer.
+* `localStorage.debug = '@onecx/accelerator:Topic:*'` (or `:Gatherer:*`) — every Topic or Gatherer.
 * `localStorage.debug = '@onecx/accelerator:Topic:<name>'` (or `:Gatherer:<name>`) — one concrete instance.
-* `localStorage.debug = '@onecx/accelerator:Topic:*:error'` — only errors.
+* `localStorage.debug = '@onecx/accelerator:Topic:*:error'` — errors only.
 
-Each Unit's *Debugging* section only adds what is specific to it; general cross-App tracing is link:../diagnostics/tracing-communication.adoc[Area 13] (also listed under each Unit's Related Units).
+Each Unit's *Debugging* section adds only what is specific to it. For general cross-App tracing, see link:../diagnostics/tracing-communication.adoc[Area 13], also listed under each Unit's Related Units.

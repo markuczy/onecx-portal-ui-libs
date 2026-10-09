@@ -5,26 +5,26 @@
 :libs: ../../libs
 :shell: https://github.com/onecx/onecx-shell-ui/blob/main
 
-This Unit covers Unit 3 of the link:README.adoc[Integration Contract & Topics] Area. Unit 2 (link:message-delivery.adoc[Topic message delivery]) explains *what* a Topic message is and *how a message reaches every subscriber*; this Unit explains *where the message travels and why normal traffic stays inside one tab*.
+Unit 3 of the link:README.adoc[Integration Contract & Topics] Area. Unit 2 (link:message-delivery.adoc[Topic message delivery]) covers *what* a Topic message is and *how* it reaches subscribers. This Unit covers *where* it travels and *why* normal traffic stays inside one tab.
 
 == Question answered
 
-Which browser channel does a Topic send its messages over, how is a tab id used to scope that channel, how does the transport fall back between `postMessage` and BroadcastChannel v1/v2, and who selects the transport?
+How does the accelerator pick the browser channel for a Topic's messages: tab-scoped BroadcastChannel v2 (keyed by a tab id), broad v1, or `window.postMessage`?
 
 == Why it exists
 
-A OneCX page is usually one *tab* that hosts the Shell, the routed App and any Remote Components together (link:why-message-based.adoc[Unit 1]). They must sync with each other, but they must not necessarily sync with *other tabs*. Two constraints drive the transport choice:
+One OneCX tab hosts the Shell, the routed App and any Remote Components (link:why-message-based.adoc[Unit 1]). They must sync with each other, but not necessarily with other tabs. Two constraints follow:
 
-* *Same tab, many independent units.* The Shell, the App and Remote Components are separate bundles but share one `window`. They need a channel that reaches every other unit *in this tab* without leaking into other tabs of the same site (e.g. the Shell and an App open in two tabs are independent instances and should not share state by default).
-* *Compatibility.* A page may contain a unit that was built against an *older* version of the libraries that only knew a single, broader BroadcastChannel, or that only used `window.postMessage`. The transport has to degrade gracefully so a new (v2) instance can still talk to those legacy peers.
+* *Same tab, many independent units.* The units are separate bundles sharing one `window`. Their channel must reach every unit in the tab without leaking into other tabs of the site. A Shell and App open in two tabs are independent instances and share no state by default.
+* *Compatibility.* A unit built against an older library may know only one broad BroadcastChannel, or only `window.postMessage`. A new (v2) instance must still talk to it.
 
-The design below uses a tab-scoped channel by default and switches the shared send transport when messages arrive on legacy channels.
+So the default channel is tab-scoped, and the shared send transport switches when messages arrive on legacy channels.
 
 == How it works
 
 === The three transports
 
-Every Topic has three possible send channels. The channel is selected from a single shared state flag, `useBroadcastChannel` (link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`sendMessage`]):
+A shared state flag, `useBroadcastChannel`, selects one of three send channels (link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`sendMessage`]):
 
 [cols="1,1,2", options="header"]
 |===
@@ -43,72 +43,85 @@ Every Topic has three possible send channels. The channel is selected from a sin
 |the page's `message` event (no dedicated channel)
 |===
 
-The **v2** channel name carries a `tabId` suffix; the **v1** name does not. Because `BroadcastChannel` is per-tab *per name*, two units in the same tab that agree on the name can talk, while two *tabs* with different `tabId`s do not share a v2 channel. The v1 channel, with no `tabId`, has the same name in every tab and therefore crosses tabs — which is exactly why it is the *legacy* transport and not the default.
+A `BroadcastChannel` connects only listeners with the same name. The v2 name ends in the `tabId`, so it stays inside one tab. The v1 name has no `tabId`, so it crosses tabs; that is why v1 is legacy, not the default.
 
 === Why the channel name encodes the Topic (context)
 
-The channel name is not just `name|version` by accident — it is also *how the browser itself filters traffic before any JavaScript runs*. Per context given by the team running this audit (not traced to a specific commit or diff, unlike the rest of this Unit): an earlier version of the accelerator used a single, shared channel for every Topic, so every `Topic` instance on the page received every message regardless of its own `name`/`version` and had to deserialize the message and check `name`/`version` in JavaScript before deciding to drop it — on a page with many Topics and instances, every publish fanned out to every instance's JavaScript handler, which scaled badly as that count grew. Folding `name|version` (and, for v2, `tabId`) into the `BroadcastChannel` name moves that filtering down to the browser: a `BroadcastChannel` only delivers to listeners that opened the *same* channel name, so an instance of a different Topic is never even woken up for a message it would have discarded. The v1 broad channel is kept only for backward compatibility with peers that have not upgraded; v2 is the fix.
+Encoding `name|version` in the channel name lets the browser filter traffic before any JavaScript runs. Unlike the rest of this Unit, this rationale comes from the audit team and is not traced to a commit or diff.
+
+* *Before:* an earlier accelerator used one channel for all Topics. Every `Topic` instance deserialized every message and checked `name`/`version` in JavaScript before dropping it, which scaled badly with many Topics and instances.
+* *Now (v2):* the name includes `name|version` and `tabId`, so the browser never wakes an instance of a different Topic. The broad v1 channel survives only for peers that have not upgraded.
 
 === Shared state and fallback scenarios
 
-A single tab shares one accelerator state object: `globalThis['@onecx/accelerator'].topic`. Key defaults (set lazily on first load) are:
+All units in a tab share one state object, `globalThis['@onecx/accelerator'].topic`. The first library to load sets its defaults lazily:
 
-* `useBroadcastChannel` — defaults to `'V2'`.
-* `tabId` — defaults to `Math.ceil(performance.now())`.
-* `initDate` — defaults to `Date.now()`.
+* `useBroadcastChannel` — `'V2'`.
+* `tabId` — `Math.ceil(performance.now())`.
+* `initDate` — `Date.now()`.
 
-Because the state is tab-wide, the first library that loads establishes these defaults for the whole tab and the `useBroadcastChannel` flag may change later as messages arrive. Arrival order matters: the flag can move `'V2'` → `true` → `false` and back again depending on which messages arrive.
+Only the accelerator changes `useBroadcastChannel`, demoting it as messages arrive, so arrival order matters. A v2 message leaves the flag unchanged.
 
-*Who selects the transport.* Nobody in the app or the Shell chooses it at runtime. The accelerator sets the default to `'V2'` and updates the shared flag when it detects legacy v1 BroadcastChannel or window messages. The Shell only advertises which *Topics* it provides; it does not choose the transport.
+*Example 1 — Mixed library generations.* App A (current, v2), App B (legacy v1-only) and App C (`postMessage`-only) share a tab:
 
-*Example 1 — Mixed library generations.* Apps A (current v2-capable), B (legacy v1-only) and C (postMessage-only) share a tab. A's traffic starts on the tab-scoped v2 channel (`'V2'`). B sending on the broad v1 channel demotes the shared flag to `true`, so subsequent sends — including A's — move to the broad v1 channel. C then sending via `window.postMessage` demotes the flag further to `false`, moving subsequent sends to `postMessage`. A later v1 or window message can flip the flag again, since read channels stay open throughout.
+. A sends on the tab-scoped v2 channel (`'V2'`).
+. B sends on v1. The flag drops to `true`, so all later sends, including A's, use v1.
+. C sends via `window.postMessage`. The flag drops to `false`, so later sends use `postMessage`.
+. Read channels stay open, so a later v1 or window message flips the flag again (a v1 message sets it back to `true`).
 
-*Example 2 — No `BroadcastChannel` in the browser.* All apps use the current library, but the browser lacks the API. The first `Topic` constructed detects this and sets `useBroadcastChannel = false` before any channel opens; every later `Topic` observes that and sends via `window.postMessage` instead. The publisher also guards each send: it checks for `BroadcastChannel` and falls back to `postMessage` when absent.
+*Example 2 — No `BroadcastChannel` in the browser.* The first `Topic` constructed sets `useBroadcastChannel = false` before any channel opens, so every later `Topic` sends via `window.postMessage`. The publisher also checks for `BroadcastChannel` before each send and falls back to `postMessage`.
 
-The send choice uses the shared flag, while receivers continue listening on every channel opened at construction. A message on the v2 read channel leaves the flag unchanged; messages on the v1 or window channels demote it as shown above. Delivery stays correct across channels because a subscriber accepts only the latest value by id/timestamp (link:message-delivery.adoc[Unit 2]).
+Delivery stays correct across channels because a subscriber accepts only the latest value by id/timestamp (link:message-delivery.adoc[Unit 2]).
 
 === Selecting the channel to send on
 
-`TopicPublisher.sendMessage` builds the publish channel lazily (`createBroadcastChannel`) and then picks the send path (link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`]):
+`TopicPublisher.sendMessage` builds the publish channels lazily (`createBroadcastChannel`) and then picks the send path (link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`]):
 
 * `useBroadcastChannel === 'V2'` → post on the v2 (tab-scoped) publish channel.
 * `useBroadcastChannel` is truthy (`true`) → post on the broad v1 publish channel.
 * otherwise → `window.postMessage(message, '*')`.
 
-Receiving is always done on every channel the Topic opened when it was constructed: a `Topic` adds a `window` `message` listener *and*, if `useBroadcastChannel` is truthy, opens *both* a v1 and a v2 *read* channel (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). The v1 read channel is opened even in v2 mode so the page can *detect* a legacy v1 peer and demote.
+Receiving uses every channel the constructor opened (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]): always a `window` `message` listener and, if `useBroadcastChannel` is truthy, both a v1 and a v2 *read* channel. The v1 read channel opens even in v2 mode so the page can detect a legacy peer and demote.
 
 == Libs side / Shell side
 
 === Libs side
 
-The whole mechanism is in the framework-agnostic `@onecx/accelerator`. The shared state and its defaults live in link:{libs}/accelerator/src/lib/declarations.ts[`declarations.ts`]; channel names, the send selection and the demotion handlers live in link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`] and link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`]. No App code or configuration chooses the transport — the `tabId`, the default `'V2'` and the fallbacks are all internal.
+The whole mechanism lives in the framework-agnostic `@onecx/accelerator`:
+
+* link:{libs}/accelerator/src/lib/declarations.ts[`declarations.ts`] holds the shared state and its defaults.
+* link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`] and link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`] hold the channel names, the send selection and the demotion handlers.
+
+No App code or configuration chooses the transport; the `tabId`, the default `'V2'` and the fallbacks are internal.
 
 === Shell side
 
-The Shell does not participate in transport selection. Before it bootstraps the module it advertises which *Topics* it provides (for example `PARAMETERS_TOPIC` and `CURRENT_LOCATION_TOPIC`) via `ShellCapabilityService.setCapabilities(…)` (link:{shell}/src/bootstrap.ts[`bootstrap.ts`]); that is the capability list covered in Unit 6, not a transport choice. At runtime the Shell is simply another set of `Topic` instances in the tab: it publishes the shared state and answers its RPC Topics (for example link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts`], link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`]) and is subject to exactly the same tab scoping and fallback as an App's Topics.
+The Shell does not select the transport. Before bootstrapping the module, it advertises which *Topics* it provides (for example `PARAMETERS_TOPIC`, `CURRENT_LOCATION_TOPIC`) via `ShellCapabilityService.setCapabilities(…)` (link:{shell}/src/bootstrap.ts[`bootstrap.ts`]). That is the Unit 6 capability list, not a transport choice.
+
+At runtime the Shell is just more `Topic` instances in the tab, with the same tab scoping and fallback as an App's. It publishes shared state and answers its RPC Topics (for example link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts`] and link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`]).
 
 == Angular / React
 
-There is no framework difference in transport selection or tab scoping: both the Angular services and the React contexts wrap the same framework-agnostic `Topic` (see link:framework-adapters.adoc[Framework adapters]). Neither the Angular adapter (link:{libs}/angular-integration-interface/src/lib/services/configuration.service.ts[`configuration.service.ts`]) nor the React adapter (link:{libs}/react-integration-interface/src/lib/contexts/configurationContext.tsx[`configurationContext.tsx`]) touches `useBroadcastChannel`, the `tabId` or the channels — that is entirely the accelerator's job.
+There are no framework differences: Angular services and React contexts wrap the same `Topic` (link:framework-adapters.adoc[Framework adapters]). Neither the Angular adapter (link:{libs}/angular-integration-interface/src/lib/services/configuration.service.ts[`configuration.service.ts`]) nor the React adapter (link:{libs}/react-integration-interface/src/lib/contexts/configurationContext.tsx[`configurationContext.tsx`]) touches `useBroadcastChannel`, the `tabId` or the channels.
 
 == Edge cases & pitfalls
 
-* *Tab scoping is a heuristic.* `tabId` is `Math.ceil(performance.now())` at first accelerator load, not a server-assigned unique id. Two tabs of the same site normally differ, but the value is not guaranteed globally unique; do not rely on it as an identity.
-* *v1 is not the default cross-tab contract.* The broad v1 channel (`Topic-…`) shares its name across tabs and is reached only as a *fallback* when a legacy peer is detected. Treating it as the normal cross-tab bridge is a misunderstanding of the design (link:why-message-based.adoc[Unit 1]).
-* *A transport change affects the send direction for the whole tab.* Setting `useBroadcastChannel` writes shared state, so one topic's received message changes which channel later sends in the tab use until the flag changes again.
-* *Receivers keep listening on all opened channels.* The v1/v2 *read* channels are opened in the constructor and are only closed by `destroy`. After a demotion to `postMessage` a topic still listens on the v1/v2 channels it opened; that is harmless (stale-channel messages are filtered by id/timestamp) but means the read side does not shrink.
-* *Mixed environments.* Messages from a unit that only uses `postMessage` set the shared send flag to `false`; a later v1 BroadcastChannel message can set it back to `true`. Do not assume that the transport stays on `postMessage` after the first window message.
+* *Tab scoping is a heuristic.* `tabId` is `Math.ceil(performance.now())` at first accelerator load, not a server-assigned id. Two tabs normally differ, but the value is not globally unique. Do not use it as an identity.
+* *v1 is not the default cross-tab contract.* The broad v1 channel (`Topic-…`) has the same name in every tab and is used only as a fallback after a legacy peer is detected. Do not treat it as the normal cross-tab bridge (link:why-message-based.adoc[Unit 1]).
+* *A transport change affects sends for the whole tab.* `useBroadcastChannel` is shared, so a message received by one Topic switches all later sends in the tab until the flag changes again.
+* *Receivers keep listening on all opened channels.* Only `destroy` closes the v1/v2 read channels, so a Topic demoted to `postMessage` still listens on them. This is harmless (id/timestamp filtering drops stale messages), but the read side never shrinks.
+* *Mixed environments.* A message from a `postMessage`-only unit sets the send flag to `false`, and a later v1 BroadcastChannel message can set it back to `true`. Do not assume the transport stays on `postMessage` after the first window message.
 
 == Debugging
 
-The transport is observable at two levels (see the Area's link:README.adoc#debugging-conventions[Debugging conventions] for the general `localStorage.debug` patterns):
+Observe the transport at two levels (general `localStorage.debug` patterns: link:README.adoc#debugging-conventions[Debugging conventions]):
 
-* *Which channel a message used.* Each `Topic` logs at its `@onecx/accelerator:Topic:<name>` namespace whether it received a message "via window" or via a BroadcastChannel (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]); the demotion handlers also log at `info` when they switch the shared flag.
-* *The current transport for the tab.* Inspect the shared state directly in the console: `globalThis['@onecx/accelerator'].topic.useBroadcastChannel` (`'V2'` / `true` / `false`) and `.tabId`. A value of `false` means the tab has fallen back to `postMessage`.
+* *Which channel a message used.* Each `Topic` logs at its `@onecx/accelerator:Topic:<name>` namespace whether a message arrived "via window" or via a BroadcastChannel (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). The demotion handlers log at `info` when they switch the shared flag.
+* *The current transport for the tab.* In the console, inspect `globalThis['@onecx/accelerator'].topic.useBroadcastChannel` (`'V2'` / `true` / `false`) and `.tabId`. A value of `false` means the tab has fallen back to `postMessage`.
 
 == Known issues
 
-* *Read channels are not closed on demotion.* `disableBroadcastChannel`/`disableBroadcastChannelV2` only flip the send flag; the v1/v2 *read* channels opened in the constructor stay open until `destroy` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). This is documented behaviour rather than a defect (delivery is de-duplicated by id/timestamp), but it is easy to misread as a resource leak. See link:topic-lifecycle.adoc[Topic lifecycle] for what `destroy` actually releases.
+* *Read channels are not closed on demotion.* `disableBroadcastChannel`/`disableBroadcastChannelV2` only flip the send flag. The v1/v2 read channels opened in the constructor stay open until `destroy` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). This is intended, since delivery is de-duplicated by id/timestamp, but easy to misread as a resource leak. See link:topic-lifecycle.adoc[Topic lifecycle] for what `destroy` releases.
 
 == Related Units
 
