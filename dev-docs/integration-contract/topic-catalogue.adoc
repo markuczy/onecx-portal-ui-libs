@@ -29,7 +29,7 @@ Two columns need a definition before the tables:
 
 === Topics
 
-[cols="1.2,2,0.5,1.1,1.3,1.1", options="header",autowidth="false"]
+[cols="1.2,2,0.5,1.1,1.3,1.1", options="header"]
 |===
 |Class |Purpose |Version |Publisher |Consumers (adapters) |Owning Area
 
@@ -187,6 +187,7 @@ Two columns need a definition before the tables:
 |angular `TranslationCacheService`
 |Area 10 — Localization
 |===
+
 `IconTopic`, `PermissionsRpcTopic`, `DynamicTranslationsTopic`, `ResizedEventsTopic` and `EventsTopic` are built with `sendGetMessage = false`, so they carry requests rather than replayed shared state (link:message-delivery.adoc[Unit 2]). The `ResizedEventsTopic` is consumed as a `Topic` while a sibling `ResizedEventsPublisher` (a `TopicPublisher`, link:{libs}/integration-interface/src/lib/topics/resized-events/v1/resized-events.topic.ts[`resized-events.topic.ts`]) is what publishes on it — one entry, two classes.
 
 === Gatherers
@@ -196,7 +197,6 @@ Two columns need a definition before the tables:
 |Class |Purpose |Version |Where built |Consumers |Owning Area
 
 |`GuardGatherer` (not a named class) |Collects cross-App route guard results so the Shell can decide navigation. |1 |link:{libs}/angular-utils/guards/src/services/guards-gatherer.service.ts[Angular `GuardsGathererService`], link:{libs}/react-utils/src/lib/guards/services/guards-gatherer.ts[React `GuardsGatherer`] |the cross-App guards machinery (one instance per app on the page) |Area 7 — Navigation
-
 |===
 
 The guards build a plain `Gatherer('GuardGatherer', 1, callback)` rather than a named subclass (link:gatherers-and-rpc-topics.adoc[Unit 5]). The AI gatherers `AiCompletionGatherer` (`'aiCompletion', 1`) and `AiContextGatherer` (`'aiContext', 1`) exist in `@onecx/integration-interface` (link:{libs}/integration-interface/src/lib/gatherers/ai-completion/v1/ai-completion.gatherer.ts[`ai-completion.gatherer.ts`], link:{libs}/integration-interface/src/lib/gatherers/ai-context/v1/ai-context.gatherer.ts[`ai-context.gatherer.ts`]) but are *deliberately out of scope* for this catalogue.
