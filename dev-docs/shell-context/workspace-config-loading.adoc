@@ -23,13 +23,13 @@ sequenceDiagram
   participant Boot as Shell bootstrap
   participant BFF as WorkspaceConfig BFF
   participant WS as current-workspace
-  participant PAR as parameters
+  participant PARAMS as parameters
   participant CFG as configuration
   Boot->>CFG: configurationService.init() (env)
   Boot->>BFF: loadWorkspaceConfig(path)
   BFF-->>Boot: Workspace + routes + i18n
   Boot->>WS: publish(workspace)
-  Boot->>PAR: parametersService.initialize() -> publish
+  Boot->>PARAMS: parametersService.initialize() -> publish
 ----
 
 * *Runtime configuration* is resolved by `ConfigurationService.init()` (or the React `ConfigurationProvider`) via the shared `resolveConfigPayload()` helper, which prefers inlined `APP_CONFIG`, then the injected default, then a remote `env.json` fetch. The result is published to the `configuration` Topic.
