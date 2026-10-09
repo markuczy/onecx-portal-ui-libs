@@ -10,6 +10,7 @@
 :u4: ./preloaders.adoc
 :u5: ./loading-matched-remote.adoc
 :u6: ./web-component-bootstrap.adoc
+:u7: ./multiple-routers.adoc
 
 This Area explains how a OneCX page goes from the Shell's `index.html` to a running App or Remote Component: what the libraries provide to bootstrap an application, and how the Shell uses it to start the one application that owns the current URL. It is the second Area in the link:{dev-docs-index}[Dev Docs index].
 
@@ -48,7 +49,7 @@ flowchart TD
   sync --> remote
 ----
 
-The six pages written so far:
+The seven pages written so far:
 
 * *index.html → first App timeline* (Unit 1) is the end-to-end startup sequence, ordered: `main.ts` loads the framework preloaders, `bootstrap.ts` starts the Shell module, the app initializers fetch the Workspace and build the route table, the matched route loads the App's remote, and the first App renders.
 * *Module Federation in OneCX* (Unit 2) is the mechanism that makes the timeline possible: how an App or Remote Component is exposed as a federated remote, how it is registered and loaded at runtime, and how the per-framework share scope lets several framework versions run on one page.
@@ -56,10 +57,11 @@ The six pages written so far:
 * *Preloaders (build time and runtime)* (Unit 4) is the loader remotes Unit 1's barrier waits on: the five framework loaders, how they populate the `default` / `angular_21` / `react_19` scopes, the `Promise.all` barrier, and the `window.onecxPreloaders` failure handling.
 * *Loading the matched remote* (Unit 5) is the focused deep-dive on the step Unit 1 marks "load the matched App's remote": the route's `loadChildren` — `registerRemotes` + `loadRemote` of the matched App into the preloaded scope, the Angular-module vs `WebcomponentLoader` mount split, and the failure path that routes to `remote-loading-error-page`. Route matching itself stays with Navigation.
 * *App bootstrap as web component* (Unit 6) is how the loaded module becomes a running web component: the Angular platform/`NgZone` reconciliation on `window`, `DynamicAppId`, the dynamic container, the legacy NgModule (`bootstrapModule`) vs standalone (`createApplication`) split, and the React element wrapper.
+* *Multiple-router problem & router wiring* (Unit 7) is why every App has its own router and how that router is wired at startup to follow the shared URL scoped to the app's `baseHref` slice — the Angular `initializeRouter` initializer, `WebcomponentConnector`, and the React `withSyncedRouter`/`RouterSync` wrapper — deferring the runtime URL fan-out to Navigation.
 
 == Unit map
 
-The Units of this Area, in reading order. Units 1 through 6 are written; the rest are planned.
+The Units of this Area, in reading order. All seven are written.
 
 . *index.html → first App timeline* — link:{u1}[startup-timeline.adoc] _(written)_
 . *Module Federation in OneCX* — link:{u2}[module-federation.adoc] _(written)_
@@ -67,7 +69,7 @@ The Units of this Area, in reading order. Units 1 through 6 are written; the res
 . *Preloaders (build time and runtime)* — link:{u4}[preloaders.adoc] _(written)_
 . *Loading the matched remote* — link:{u5}[loading-matched-remote.adoc] _(written)_
 . *App bootstrap as web component (Angular/React, legacy module Apps)* — link:{u6}[web-component-bootstrap.adoc] _(written)_
-. *Multiple-router problem & router wiring* — `multiple-routers.adoc` _(planned)_
+. *Multiple-router problem & router wiring* — link:{u7}[multiple-routers.adoc] _(written)_
 
 == Reading order
 
