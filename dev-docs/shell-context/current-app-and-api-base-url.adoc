@@ -105,10 +105,3 @@ Code::
 * link:{shell}/src/app/not-found/components/not-found-page/not-found-page.component.ts[`not-found-page.component.ts`] (blank `currentMfe$` publish) (Shell)
 * link:{shell}/src/app/app.module.ts[`app.module.ts`] (`BASE_PATH: './shell-bff'`) (Shell)
 * link:{shell}/src/assets/env.json[`env.json`] (Shell)
-
-Verification Sources checked::
-* Unit template (`unit-template.adoc`) — sections, size limit, Known-issues rule.
-* Dev Docs top index (`README.adoc`) — slugs and reading order for this Area.
-* Sibling Units 1 and 2 (`context-readiness.adoc`, `workspace-config-loading.adoc`) — `PortalApiConfiguration` accessor quirks and the readiness contract, cross-checked against the code.
-* Draft Outline commit (6108bdff) — topic map only; no content baseline.
-* JSDoc in `portal-api-configuration.utils.ts` and the `MfeInfo` model. Shell code read from `onecx-shell-ui` `main` and linked by file only (read-only for this work).

@@ -114,10 +114,3 @@ Code::
 * link:{libs}/react-integration-interface/src/lib/utils/use-topic.utils.ts[`useTopic`]
 * link:{libs}/angular-standalone-shell/src/lib/utils/expose-standalone.utils.ts[`provideStandaloneProviders`]
 * link:{shell}/src/app/app.module.ts[`app.module.ts`] (`workspaceConfigInitializer`, `configurationServiceInitializer`) (Shell)
-
-Verification Sources checked::
-* Unit template (`unit-template.adoc`) — sections, size limit, diagram/source rules.
-* Dev Docs top index (`README.adoc`) — slugs and reading order for this Area.
-* Topic message types (`TopicNext`/`TopicGet`/`TopicResolve`) and scheduling — cross-checked against the Topic base class code (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]).
-* Draft Outline commit (6108bdff) — topic map only; no content baseline.
-* No contradiction found against libs `docs/` or JSDoc; the Shell is linked by file only (read-only for this work).

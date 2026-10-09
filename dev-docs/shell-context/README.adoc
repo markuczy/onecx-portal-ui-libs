@@ -58,6 +58,16 @@ flowchart LR
 
 The same Topics exist in both repositories. The Shell *publishes* them; an App *subscribes* to them. An App never writes Shell context itself — reading a Topic before the Shell has published it is the main failure mode this Area documents.
 
+Startup order of what the Shell publishes:
+
+. `configurationServiceInitializer` resolves `env.json` / `APP_CONFIG` and publishes the `configuration` Topic.
+. `workspaceConfigInitializer` waits for authentication, then loads the Workspace configuration from the BFF.
+. It publishes `current-workspace`, builds the Shell's route table, and applies the theme and Remote Component registrations.
+. `parametersService.initialize()` publishes the `parameters` Topic as the last step.
+. When the router activates the route that owns the URL, the Shell publishes `current-mfe` (the Current App) and its permissions.
+
+Routing is split in the same way: the Shell router owns the top-level path and mounts the Current App; the App's own router handles everything below its mount path (see link:shell-responsibilities.adoc[Shell responsibilities & routing boundary]).
+
 == Unit map
 
 The Units of this Area, in reading order. Each Unit follows the link:{dev-docs-index}[Dev Docs index] slugs and the Unit template.
@@ -69,8 +79,9 @@ The Units of this Area, in reading order. Each Unit follows the link:{dev-docs-i
 . link:configuration-kinds.adoc[Configuration vs App Config vs Parameter] — the three kinds of settings, who owns each and where it comes from.
 . link:runtime-configuration.adoc[Runtime configuration] — env.json placeholders, the configuration Topic, cross-repo keys, and the Shell's nginx/BFF serving.
 . link:parameters.adoc[Parameters] — how Parameters are loaded and delivered to Apps.
+. link:shell-responsibilities.adoc[Shell responsibilities & routing boundary] — what the Shell does for every App, what must not break, and where its routing responsibility stops.
 
-Read Units 1 and 2 first. They define the readiness and distribution mechanisms that the later Units (configuration kinds, runtime configuration, parameters) take for granted. Units 3 and 4 build directly on the Workspace and the `currentMfe$` that Units 1 and 2 load and distribute.
+Read Units 1 and 2 first. They define the readiness and distribution mechanisms that the later Units (configuration kinds, runtime configuration, parameters) take for granted. Units 3 and 4 build directly on the Workspace and the `currentMfe$` that Units 1 and 2 load and distribute. Unit 8 summarizes the Shell's duties and is a good checklist before changing Shell code.
 
 == Related Areas
 

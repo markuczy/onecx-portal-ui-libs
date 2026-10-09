@@ -18,10 +18,10 @@ An App often needs to deep-link into a *different* product running in the same W
 The Workspace is published on the link:{libs}/integration-interface/src/lib/topics/current-workspace/v1/current-workspace.topic.ts[`current-workspace` Topic] (registered with the raw name `currentPortal`, version 1). Its value is the link:{libs}/integration-interface/src/lib/topics/current-workspace/v1/workspace.model.ts[`Workspace`] model:
 
 * `baseUrl` — the Workspace root (used as the fallback base when a route has none).
-* `workspaceName` / `portalName` — the name of the Workspace (`portalName` is `@deprecated will be renamed to workspaceName`).
+* `workspaceName` / `portalName` — the name of the Workspace (`portalName` is the deprecated predecessor of `workspaceName`).
 * `routes` — an array of link:{libs}/integration-interface/src/lib/topics/current-workspace/v1/route.model.ts[`Route`]. Each `Route` identifies one product/app entry point: `appId`, `productName`, `baseUrl`, `url`, `remoteEntryUrl`, `exposedModule`, `pathMatch`, … and `endpoints`.
 * `endpoints` — per route, an array of link:{libs}/integration-interface/src/lib/topics/current-workspace/v1/endpoint.model.ts[`Endpoint`] of shape `{ name?, path? }`.
-* `homePage`, `i18n`, `displayName`, and a large `@deprecated` tail (see Edge cases).
+* `homePage`, `i18n`, `displayName`, and a tail of deprecated fields (see Edge cases).
 
 Everything about *building a URL* is a pure function in link:{libs}/integration-interface/src/lib/utils/workspace.utils.ts[`workspace.utils.ts`], shared by both frameworks:
 
@@ -78,7 +78,7 @@ Both read the workspace from `currentWorkspace$`, so both inherit the readiness 
 * *Ambiguous product/app.* If two routes share the same `appId` + `productName`, `filterRouteFromList` warns ("more than one route. First route has been used.") and silently uses the first.
 * *Missing route / endpoint / parameter.* Each missing piece degrades gracefully: no route → the Workspace `baseUrl` (or `''` if the Workspace has no `baseUrl`); no endpoint or empty `endpoint.path` → the route base URL; a `{param}` with no value → the endpoint path is dropped and the route base URL is returned. Nothing throws.
 * *`[[alias]]` chains.* `dissolveEndpoint` follows aliases until it reaches a concrete endpoint. A malformed alias (missing closing `]]` or a self/unknown reference) resolves to `undefined`, which degrades to the route base URL with a warning.
-* *Most `Workspace` fields are `@deprecated will be removed`.* New code should rely on `baseUrl`, `workspaceName`, `routes`, `homePage` and `i18n` and treat the rest (`id`, `themeId`/`themeName`, `footerLabel`, `companyName`, `imageUrls`, `address`, `logoUrl`, …) as transitional. `portalName` specifically is slated to be *renamed* to `workspaceName`.
+* *Other `Workspace` fields are deprecated.* Use `baseUrl`, `workspaceName`, `routes`, `homePage` and `i18n`.
 * *The Topic is named `currentPortal`.* `CurrentWorkspaceTopic` registers under the raw name `currentPortal` (v1). An App/Shell mismatch on this name or version means an App never receives the model — see Unit 1 for the readiness mechanics.
 
 == Debugging
@@ -111,10 +111,3 @@ Code::
 * link:{libs}/react-integration-interface/src/lib/contexts/useWorkspace.ts[`useWorkspace`]
 * link:{shell}/src/app/app.module.ts[`app.module.ts`] (`publishCurrentWorkspace`, `workspaceConfigInitializer`) (Shell)
 * link:{shell}/src/app/shell/services/routes.service.ts[`routes.service.ts`] (`init`, `convertToRoute`) (Shell)
-
-Verification Sources checked::
-* Unit template (`unit-template.adoc`) — sections, size limit, diagram/source rules.
-* Dev Docs top index (`README.adoc`) — slugs and reading order for this Area.
-* Sibling Units 1 and 2 (`context-readiness.adoc`, `workspace-config-loading.adoc`) — model field names and Shell publish fields cross-checked against the code.
-* Draft Outline commit (6108bdff) — topic map only; no content baseline.
-* JSDoc in `workspace.utils.ts` and the model files. Shell code read from `onecx-shell-ui` `main` and linked by file only (read-only for this work).

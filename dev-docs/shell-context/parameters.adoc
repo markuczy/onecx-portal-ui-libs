@@ -107,10 +107,3 @@ Code::
 * link:{libs}/react-integration-interface/src/lib/contexts/parametersContext.tsx[`ParametersProvider` / `useParameters`] (React)
 * link:{shell}/src/app/shell/services/parameters.service.ts[`ParametersService`] (Shell)
 * link:{shell}/src/app/app.module.ts[`app.module.ts`] (`workspaceConfigInitializer`) (Shell)
-
-Verification Sources checked::
-* Unit template (`unit-template.adoc`) — sections, size limit, Known-issues rule.
-* Dev Docs top index (`README.adoc`) — slugs and reading order for this Area.
-* `dev-docs/shell-context/context-readiness.adoc` and `workspace-config-loading.adoc` — the same `parameters` Topic and Shell `ParametersService` described there.
-* Draft Outline commit (6108bdff) — topic map only; no content baseline.
-* No contradiction found against libs `docs/` or JSDoc; the Shell is linked by file only (read-only for this work).

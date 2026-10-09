@@ -178,11 +178,3 @@ Code::
 * link:{shell}/src/assets/env.json[`env.json`] (Shell)
 * link:{shell}/src/environments/environment.ts[`environment.ts`] (Shell)
 * link:{shell}/nginx/locations.conf[`nginx/locations.conf`] (Shell)
-
-Verification Sources checked::
-* Unit template (`unit-template.adoc`) — sections, size limit, diagram/source rules.
-* Dev Docs top index (`README.adoc`) — slugs and reading order for this Area.
-* `dev-docs/shell-context/context-readiness.adoc` and `workspace-config-loading.adoc` — the same `configuration` Topic and `resolveConfigPayload` described there.
-* `CONFIG_KEY` consumers in `onecx-portal-ui-libs` `main` — each table row cross-checked against a concrete consumer file.
-* Draft Outline commit (6108bdff) — topic map only; no content baseline.
-* No contradiction found against libs `docs/` or JSDoc; the Shell is linked by file only (read-only for this work).

@@ -121,9 +121,3 @@ Code::
 * link:{shell}/src/app/shell/services/parameters.service.ts[`ParametersService`] (Shell)
 * link:{shell}/src/assets/env.json[`env.json`] (Shell)
 * link:{shell}/src/environments/environment.ts[`environment.ts`] (Shell)
-
-Verification Sources checked::
-* Unit template (`unit-template.adoc`) — sections, size limit, Known-issues rule.
-* Dev Docs top index (`README.adoc`) — slugs and reading order for this Area.
-* Draft Outline commit (6108bdff) — topic map only; no content baseline.
-* No contradiction found against libs `docs/` or JSDoc; Shell linked by file only (read-only for this work).
