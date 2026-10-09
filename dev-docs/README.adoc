@@ -196,14 +196,14 @@ The kinds of failure, where each one ends up, and how the user is informed.
 ====
 
 [#state-management]
-.12. State Management — `state-management/`
+.12. link:./state-management/README.adoc[State Management] — `state-management/`
 [%collapsible]
 ====
 How the Shell context and the URL connect to an App's ngrx store. Covers ngrx only.
 
-. Shell context → App ngrx store — `shell-context-to-store.adoc`
-. URL-synced state (fragment parameters) — `url-synced-state.adoc`
-. Persisting state across reloads with lazy feature slices — `persisting-state.adoc`
+. link:./state-management/shell-context-to-store.adoc[Shell context → App ngrx store] — `shell-context-to-store.adoc`
+. link:./state-management/url-synced-state.adoc[URL-synced state (fragment parameters)] — `url-synced-state.adoc`
+. link:./state-management/persisting-state.adoc[Persisting state across reloads with lazy feature slices] — `persisting-state.adoc`
 ====
 
 [#diagnostics]
