@@ -156,9 +156,3 @@ Code::
 * link:{libs}/react-integration-interface/src/lib/contexts/configurationContext.tsx[`react-integration-interface/.../configurationContext.tsx`]
 * link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts` (Shell)]
 * link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts` (Shell)]
-
-Verification Sources checked::
-* old `dev-docs/topics/overview.adoc` — message types, the `publish`/resolve sequence and the event-loop ordering argument (matches the code).
-* old `dev-docs/topics/debug.adoc` — debug namespaces and `localStorage.debug` patterns (inlined into Debugging above).
-* in-code JSDoc of `Topic`, `TopicPublisher`, `Message` and the deprecated `SyncableTopic`.
-* Draft Outline (commit `6108bdf`) — see the Area's link:README.adoc#verification-note[Verification note].

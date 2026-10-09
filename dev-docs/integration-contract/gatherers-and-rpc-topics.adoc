@@ -140,10 +140,3 @@ Code::
 * link:{libs}/react-integration-interface/src/lib/contexts/parametersContext.tsx[`react-integration-interface/.../parametersContext.tsx`]
 * link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts` (Shell)]
 * link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts` (Shell)]
-
-Verification Sources checked::
-* old `dev-docs/topics/overview.adoc` — the `publish`/resolve sequence and the "why awaiting the promise works" argument (matches `gatherer.ts`; the old page documents only the plain Topic, not the `Gatherer`).
-* old `dev-docs/gatherer/debug.adoc` — the `Gatherer` debug namespace (matches the code; inlined into Debugging above).
-* old `dev-docs/topics/debug.adoc` — the `Topic` debug namespace.
-* in-code JSDoc of `Gatherer`, the `AiCompletion`/`AiContext` gatherers and the `PermissionService`.
-* Draft Outline (commit `6108bdf`, `dev-docs/gatherer/index.adoc`) — scatter/gather phasing and self-identification (matches the code; its cross-tab wording is recorded under Known issues).

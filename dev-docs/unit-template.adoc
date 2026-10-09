@@ -52,7 +52,7 @@ A Unit uses the sections below in this order. Sections marked _optional_ are lef
 |Links to Units in this and other Areas that the reader is likely to need next.
 
 |Sources
-|Two lists: *Code* (every file the Unit is based on) and *Verification Sources checked* (existing documentation compared against the Unit). See <<verification>>.
+|*Code*: every file the Unit is based on. Do not list verification sources (old documentation compared against the Unit).
 |===
 
 == Copyable skeleton
@@ -114,9 +114,6 @@ Copy this skeleton into a new Unit and replace the placeholders.
 Code::
 * link:{libs}/<path>[`<path>`]
 * link:{shell}/<path>[`<path>` (Shell)]
-
-Verification Sources checked::
-* <Old Dev Docs page, Draft Outline, libs docs/, Shell docs/, docs-guides-ui, JSDoc/README>
 ....
 
 == Rules
@@ -202,10 +199,9 @@ The overview page links to Units; it does not explain mechanisms itself.
 [#verification]
 == Verification before merge
 
-The Dev Docs have no automated tests. Each Unit is checked at three points, and the pull request records the result:
+The Dev Docs have no automated tests. Each Unit is checked at two points, and the pull request records the result:
 
 . *Code:* every claim traces to a file on `main` in this repository or in the Shell repository. That file is listed under *Sources*.
-. *Verification Sources:* the Unit is compared with the old Dev Docs pages, the https://github.com/markuczy/onecx-portal-ui-libs/commit/6108bdff79ea8dce5a15df5fd0b6b1e48dc7edca[Draft Outline] (for finding topics only, not as a content baseline), libs `docs/`, Shell `docs/`, docs-guides-ui and JSDoc/READMEs. Missing content and contradictions are listed in the pull request as follow-ups. The code wins.
 . *Rendering:* the page renders on GitHub, and all cross-references, Shell links and diagrams resolve.
 
 The pull request also records:
