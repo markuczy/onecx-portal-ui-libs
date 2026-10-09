@@ -11,7 +11,7 @@ How the token headers produced by the Shell's auth service are actually attached
 
 == Why it exists
 
-An App that needs a valid token on every backend call should not have to remember to fetch headers and set them by hand in each request. Both framework libraries therefore ship an HTTP-level hook (an Angular `HttpInterceptor`, a React axios interceptor) that transparently: (1) makes sure the token is still fresh, and (2) sets the auth headers on the request. In Angular the interceptor also explicitly waits until authentication has finished; in React the axios interceptor performs refresh and header attachment without explicitly awaiting the Shell's readiness gate. React Apps that require guaranteed readiness should gate outgoing requests themselves. The Apps get authentication "for free" on every call when the app is using the gating semantics appropriate for its framework, and the Shell is the only place that ever holds or refreshes the token.
+An App that needs a valid token on every backend call should not have to fetch headers and set them by hand in each request. Both framework libraries therefore ship an HTTP-level hook — an Angular `HttpInterceptor`, a React axios interceptor — that transparently makes sure the token is still fresh and sets the auth headers on the request. The Shell is the only place that ever holds or refreshes the token.
 
 == How it works
 
@@ -110,7 +110,7 @@ The Shell is what makes this work: it authenticates (publishing `isAuthenticated
 * link:./obtaining-tokens.adoc[How Apps obtain tokens]
 * link:./keycloak.adoc[Keycloak integration]
 * link:./mechanism-selection.adoc[Ownership & mechanism selection (keycloak, custom, disabled, authenticated gating)]
-* 1. Integration Contract & Topics (cross-Area, on the Dev Docs top index — linked once it lands) — `isAuthenticated$` is a plain Topic; its delivery semantics belong to that Area.
+* link:../README.adoc#integration-contract[1. Integration Contract & Topics] — `isAuthenticated$` is a plain Topic; its delivery semantics belong to that Area.
 
 == Sources
 
@@ -122,7 +122,3 @@ Code::
 * link:{libs}/react-auth/src/lib/auth-proxy-service.ts[`react-auth/src/lib/auth-proxy-service.ts`]
 * link:{libs}/react-auth/src/lib/utils/logger.utils.ts[`react-auth/src/lib/utils/logger.utils.ts`]
 * link:{libs}/angular-integration-interface/src/lib/services/app-state.service.ts[`angular-integration-interface/src/lib/services/app-state.service.ts`]
-
-Verification Sources checked::
-* Dev Docs Draft Outline, `dev-docs/authentication/index.adoc` (commit `6108bdff`) — its "HTTP Interceptors" / "Angular" / "React (Axios)" sections match this Unit; no contradictions found.
-* In-code JSDoc / README: `react-auth/README.md` (`axiosFactory` usage).
