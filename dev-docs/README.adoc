@@ -174,10 +174,10 @@ How permissions reach Apps and Remote Components and how they are checked.
 ====
 User profile, language choice, translations and formatting.
 
-. Profile load & language decision — `profile-and-language.adoc`
-. App translations load & sharing — `app-translations.adoc`
-. Remote Component translations — `remote-component-translations.adoc`
-. Missing-translation fallback — `missing-translation-fallback.adoc`
+. link:./localization/profile-and-language.adoc[Profile load & language decision] — `profile-and-language.adoc`
+. link:./localization/app-translations.adoc[App translations load & sharing] — `app-translations.adoc`
+. link:./localization/remote-component-translations.adoc[Remote Component translations] — `remote-component-translations.adoc`
+. link:./localization/missing-translation-fallback.adoc[Missing-translation fallback] — `missing-translation-fallback.adoc`
 . Locale & timezone formatting — `locale-and-timezone-formatting.adoc`
 . React translations — `react-translations.adoc`
 . Dynamic translations — `dynamic-translations.adoc`
