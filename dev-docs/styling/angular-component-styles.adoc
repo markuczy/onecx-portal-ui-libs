@@ -8,6 +8,7 @@
 :u2: ./stylesheet-loading.adoc
 :u3: ./scope-model.adoc
 :u8: ./scope-polyfill.adoc
+:u9: ./primeng-style-scoping.adoc
 :scope_at_rule: https://developer.mozilla.org/en-US/docs/Web/CSS/@scope
 
 == Question answered
@@ -102,7 +103,7 @@ General runtime inspection is covered by the *Diagnostics* Area.
 * link:{u3}[The @scope scoping model] — the boundary and the shared-variable rules the component styles render against.
 * link:{u8}[Scope polyfill] — the fallback for browsers without native {scope_at_rule}, including the React `@scope` gap.
 * link:{area}[Styling & Style Isolation — Area overview]
-* `primeng-style-scoping.adoc` (PrimeNG/PrimeReact variable scoping — planned) — the detailed treatment of the variables these styles read.
+* link:{u9}[PrimeNG/PrimeReact style scoping] — the detailed treatment of the variables these styles read.
 * *Remote Components & Slots* (the Slot that opens a nested scope) and *Theming & Visual Assets* (the theme variables the scoped variables carry) — other Areas.
 
 == Sources

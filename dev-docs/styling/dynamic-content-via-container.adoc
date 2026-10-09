@@ -6,6 +6,7 @@
 :area: ./README.adoc
 :u6: ./dynamic-content-via-patching.adoc
 :u8: ./scope-polyfill.adoc
+:u9: ./primeng-style-scoping.adoc
 :scope_at_rule: https://developer.mozilla.org/en-US/docs/Web/CSS/@scope
 :dynamic_content_utils: {shell}/src/app/shell/utils/styles/dynamic-content.utils.ts
 :react_dynamic_scoping: {libs}/react-utils/src/lib/styling/primeReact/dynamicScoping/index.ts
@@ -123,7 +124,7 @@ General runtime inspection is covered by the *Diagnostics* Area.
 * link:{u6}[Dynamic content via patching] — the companion option that stamps the portal child directly instead of reusing a container.
 * link:{u8}[Scope polyfill] — how the `@scope` blocks that this container feeds are rewritten on browsers without native {scope_at_rule}.
 * link:{area}[Styling & Style Isolation — Area overview]
-* `primeng-style-scoping.adoc` (PrimeNG/PrimeReact style scoping — planned).
+* link:{u9}[PrimeNG/PrimeReact style scoping].
 * *Angular component styles* — the separate Unit that covers framework-encapsulated component CSS.
 
 == Sources

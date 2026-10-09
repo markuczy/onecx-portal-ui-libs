@@ -5,6 +5,7 @@
 :shell: https://github.com/onecx/onecx-shell-ui/blob/main
 :area: ./README.adoc
 :u1: ./why-style-isolation.adoc
+:u9: ./primeng-style-scoping.adoc
 
 == Question answered
 
@@ -126,7 +127,7 @@ The libs log under `fetch-app-css` on fetch failure and `scope.utils` when a sco
 
 * link:{u1}[Why isolation & style kinds]
 * link:{area}[Styling & Style Isolation — Area overview]
-* `primeng-style-scoping.adoc` (PrimeNG/PrimeReact style scoping — planned)
+* link:{u9}[PrimeNG/PrimeReact style scoping]
 * *Remote Components & Slots* (the Slot that triggers the RC side) and *Bootstrap* (the navigation that triggers the MFE side) — other Areas.
 
 == Sources

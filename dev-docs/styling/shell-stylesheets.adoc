@@ -8,6 +8,7 @@
 :u2: ./stylesheet-loading.adoc
 :u3: ./scope-model.adoc
 :u8: ./scope-polyfill.adoc
+:u9: ./primeng-style-scoping.adoc
 :scope_at_rule: https://developer.mozilla.org/en-US/docs/Web/CSS/@scope
 
 == Question answered
@@ -146,7 +147,7 @@ Whether a sheet is being re-scoped by the fallback (and how) is a link:{u8}[Unit
 * link:{u3}[The @scope scoping model] — the `@scope` blocks and `data-style-*` attributes these sheets target.
 * link:{u8}[Scope polyfill] — how these `@supports (@scope(...))` blocks are rewritten when the rule is unsupported.
 * link:{area}[Styling & Style Isolation — Area overview]
-* `primeng-style-scoping.adoc` (PrimeNG/PrimeReact style scoping — planned) and the *Dynamic content* Units (the `style-data.utils.ts` wrappers feed them) — other Units of this Area.
+* link:{u9}[PrimeNG/PrimeReact style scoping] and the *Dynamic content* Units (the `style-data.utils.ts` wrappers feed them) — other Units of this Area.
 * *Theming & Visual Assets* (the global theme sheets) and *Bootstrap* (when the authenticated workspace that gates this load is established) — other Areas.
 
 == Sources
