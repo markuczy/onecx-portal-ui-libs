@@ -64,8 +64,8 @@ From the Shell's `index.html` to a running App or Remote Component.
 . link:./bootstrap/module-federation.adoc[Module Federation in OneCX] — `module-federation.adoc`
 . link:./bootstrap/shared-dependencies.adoc[Shared dependency config & mismatch] — `shared-dependencies.adoc`
 . link:./bootstrap/preloaders.adoc[Preloaders (build time and runtime)] — `preloaders.adoc`
-. Loading the matched remote — `loading-matched-remote.adoc`
-. App bootstrap as web component (Angular/React, legacy module Apps) — `web-component-bootstrap.adoc`
+. link:./bootstrap/loading-matched-remote.adoc[Loading the matched remote] — `loading-matched-remote.adoc`
+. link:./bootstrap/web-component-bootstrap.adoc[App bootstrap as web component (Angular/React, legacy module Apps)] — `web-component-bootstrap.adoc`
 . Multiple-router problem & router wiring — `multiple-routers.adoc`
 ====
 
