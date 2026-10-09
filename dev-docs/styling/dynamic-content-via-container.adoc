@@ -68,7 +68,9 @@ In other words, the app chooses the target, and the target is the Shell-created 
 
 === Libs side
 
+* link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-bootstrap.utils.ts[`webcomponent-bootstrap.utils.ts`] — bootstrap helpers that add the dynamic-container providers (`addDynamicContainerProvider`) and bind the proxy per entrypoint (`createEntrypoint`).
 * link:{libs}/angular-webcomponents/src/lib/utils/get-dynamic-container.utils.ts[`get-dynamic-container.utils.ts`] — `getDynamicContainer` and `removeDynamicContainer`.
+* link:{libs}/angular-integration-interface/src/lib/api/injection-tokens.ts[`injection-tokens.ts`] — `DYNAMIC_CONTAINER` token declaration.
 * link:{libs}/angular-utils/cdk/src/lib/onecx-overlay-container.ts[`onecx-overlay-container.ts`] — `OnecxOverlayContainer`, the optional `DYNAMIC_CONTAINER` replacement for the CDK overlay container.
 * link:{libs}/angular-utils/cdk/src/lib/onecx-fullscreen-overlay-container.ts[`onecx-fullscreen-overlay-container.ts`] — `OnecxFullscreenOverlayContainer`, the fullscreen variant.
 * link:{libs}/angular-utils/src/lib/utils/scope.utils.ts[`scope.utils.ts`] — `data-onecx-dynamic-container` and the shared `data-style-*` keys used on the container.
@@ -84,7 +86,9 @@ In other words, the app chooses the target, and the target is the Shell-created 
 
 === Angular
 
-Angular CDK and Angular Material are the primary consumers of this path. The app provides `DYNAMIC_CONTAINER`, the custom overlay container class resolves that callback, and the overlay ends up mounted under the app's dynamic container.
+Angular CDK and Angular Material are the primary consumers of this path. When a webcomponent is bootstrapped the bootstrap helpers add providers that supply `DYNAMIC_CONTAINER` (see libs/angular-webcomponents/src/lib/utils/webcomponent-bootstrap.utils.ts). During bootstrap `DYNAMIC_CONTAINER` is initially provided via a proxy token (`DYNAMIC_CONTAINER_PROXY`) and `createEntrypoint` binds the proxy callback per entrypoint. The `DYNAMIC_CONTAINER` token therefore resolves to a callback that delegates through that proxy and is shared for the same app / remote-component entrypoint rather than requiring manual app wiring.
+
+Consumers that need the app's dynamic container should inject `DYNAMIC_CONTAINER` (or rely on existing integration points). `OnecxOverlayContainer` and Angular Material/CDK overlay containers already consume this token — `OnecxOverlayContainer` injects it optionally — so applications using the webcomponent bootstrap path do not need to provide the token themselves.
 
 Because the container itself already carries the scope attributes, overlays inserted into it inherit the app's scope without needing an extra wrapper `div`.
 
@@ -125,7 +129,9 @@ General runtime inspection is covered by the *Diagnostics* Area.
 == Sources
 
 Code::
+* link:{libs}/angular-webcomponents/src/lib/utils/webcomponent-bootstrap.utils.ts[`webcomponent-bootstrap.utils.ts`] — bootstrap helpers that add the dynamic-container providers (`addDynamicContainerProvider`) and bind the proxy per entrypoint (`createEntrypoint`).
 * link:{libs}/angular-webcomponents/src/lib/utils/get-dynamic-container.utils.ts[`get-dynamic-container.utils.ts`] — `getDynamicContainer`, `removeDynamicContainer`
+* link:{libs}/angular-integration-interface/src/lib/api/injection-tokens.ts[`injection-tokens.ts`] — `DYNAMIC_CONTAINER` token declaration
 * link:{libs}/angular-utils/cdk/src/lib/onecx-overlay-container.ts[`onecx-overlay-container.ts`] — `OnecxOverlayContainer`
 * link:{libs}/angular-utils/cdk/src/lib/onecx-fullscreen-overlay-container.ts[`onecx-fullscreen-overlay-container.ts`] — `OnecxFullscreenOverlayContainer`
 * link:{libs}/angular-utils/src/lib/utils/scope.utils.ts[`scope.utils.ts`] — `data-onecx-dynamic-container`, shared `data-style-*` keys
