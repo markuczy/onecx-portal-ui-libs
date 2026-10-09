@@ -120,7 +120,7 @@ sequenceDiagram
 
 === Shell side
 
-The Shell owns two responsibilities here. First, it is the *host* of the Module Federation instance the wrapper pulls via `getShellMfInstance()` — without a running Shell MF instance the custom load fails (`Shell module federation instance not found`). Second, it distributes the `AUTH_SERVICE_CUSTOM_*` configuration keys through the `ConfigurationService` so the wrapper can resolve the remote. The *provider* module itself (`CustomAuth` or the configured exposed module) is written by the deployment team and deployed as a separate Module Federation remote — it is not part of the Shell repository, and this documentation is read-only with respect to both.
+The Shell owns two responsibilities here. First, it hosts the Module Federation instance the wrapper pulls via `getShellMfInstance()` — without it the custom load fails (`Shell module federation instance not found`). Second, it distributes the `AUTH_SERVICE_CUSTOM_*` keys through the `ConfigurationService` so the wrapper can resolve the remote. The *provider* module itself (`CustomAuth` or the configured exposed module) is written and deployed by the deployment team as a separate Module Federation remote; it is not part of the Shell repository, and this documentation is read-only with respect to both.
 
 The Shell's `link:{shell}/src/app/app.module.ts[app.module.ts]` imports `provideAuthService()` from `@onecx/shell-auth`, which runs the wrapper's initialiser at startup; the custom path is taken whenever `AUTH_SERVICE=custom` is configured.
 
