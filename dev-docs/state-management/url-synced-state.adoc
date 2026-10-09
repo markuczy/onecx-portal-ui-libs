@@ -63,7 +63,7 @@ The reason for the switch is the property the query string does not have in a On
 * collide with the query parameters the Shell or the backend relies on, and
 * leak across MFEs that share the same address bar.
 
-The fragment addresses the server-leak concern because it is not sent to the server, but it is still part of the shared client-side URL: the Shell and other MFEs can read and modify the fragment, so it is not inherently "app-private". Apps should namespace fragment parameter keys to avoid collisions. The current writer preserves any existing anchor prefix when it writes back, but it parses with `new URLSearchParams(fragment)` before stripping named anchors, so named-anchor fragments are not a supported pattern. The libraries reflect the trade-off by deprecating the query-params helpers and promoting the fragment variants as the current API.
+The fragment addresses the server-leak concern because it is not sent to the server, but it is still part of the shared client-side URL: the Shell and other MFEs can read and modify the fragment, so it is not inherently "app-private". Apps should namespace fragment parameter keys to avoid collisions. The current writer preserves any existing anchor prefix when it writes back, but it parses the full fragment without stripping a named-anchor prefix, so named-anchor fragments are unsupported and unreliable. The libraries reflect the trade-off by deprecating the query-params helpers and promoting the fragment variants as the current API.
 
 == Libs side / Shell side
 
