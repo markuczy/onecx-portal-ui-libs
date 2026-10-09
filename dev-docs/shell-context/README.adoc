@@ -8,22 +8,20 @@
 :shell: https://github.com/onecx/onecx-shell-ui/blob/main
 :dev-docs-index: ../README.adoc
 
-This Area explains the data the Shell provides to Apps and where that data comes from: what "context" the Shell puts into the page, when it becomes ready for Apps to read, and how the Workspace configuration is loaded and distributed to the Topics and services that every App depends on.
+This Area covers the context the Shell provides to Apps: what it is, when Apps can read it, and how the Workspace configuration reaches the Topics and services every App depends on.
 
 toc::[]
 
 == Problem
 
-An App does not know which Workspace (portal) it is running in, which routes and endpoints exist, which configuration keys apply, or which parameters the Shell wants it to honour. None of this is compiled into the App. The Shell owns the answer to all of it and has to hand it over at runtime, through the Topic contract of Area 1 (Integration Contract & Topics). This Area covers two things that every other Area builds on:
+An App does not know at build time which Workspace (portal) it runs in, which routes and endpoints exist, which configuration keys apply, or which parameters to honour. The Shell owns these answers and hands them over at runtime through the Topic contract of Area 1 (Integration Contract & Topics). Every other Area builds on two parts of this:
 
-* *readiness* — which Topics hold the Shell's context, and how an App can tell when a given piece of context has actually arrived
+* *readiness* — which Topics hold the Shell's context, and how an App knows a piece of it has arrived
 * *distribution* — how the Workspace configuration is loaded on the Shell side and fanned out to the `current-workspace`, `configuration` and `parameters` Topics and the services that read them.
-
-The libraries only *carry* this data; they do not produce it. The Shell is the single producer.
 
 == Big picture
 
-The Shell is the only source of Shell context. It loads its runtime configuration and the Workspace configuration during bootstrap, then publishes the results onto Topics. Apps (Angular or React) get the same Topics through the libs, which wrap them in services or hooks. The split of work is shown below.
+The Shell is the single producer of Shell context; the libs only carry it. The Shell loads its runtime and Workspace configuration during bootstrap and publishes the results on Topics. Apps (Angular or React) read the same Topics through libs services or hooks.
 
 [source,mermaid]
 ----
@@ -56,7 +54,7 @@ flowchart LR
   MFE --> S3
 ----
 
-The same Topics exist in both repositories. The Shell *publishes* them; an App *subscribes* to them. An App never writes Shell context itself — reading a Topic before the Shell has published it is the main failure mode this Area documents.
+The Shell *publishes* these Topics; an App only *subscribes*. The main failure mode is an App reading a Topic before the Shell has published it.
 
 Startup order of what the Shell publishes:
 
@@ -66,11 +64,11 @@ Startup order of what the Shell publishes:
 . `parametersService.initialize()` publishes the `parameters` Topic as the last step.
 . When the router activates the route that owns the URL, the Shell publishes `current-mfe` (the Current App) and its permissions.
 
-Routing is split in the same way: the Shell router owns the top-level path and mounts the Current App; the App's own router handles everything below its mount path (see link:shell-responsibilities.adoc[Shell responsibilities & routing boundary]).
+Routing is split the same way: the Shell router owns the top-level path and mounts the Current App; the App's router handles everything below its mount path (see link:shell-responsibilities.adoc[Shell responsibilities & routing boundary]).
 
 == Unit map
 
-The Units of this Area, in reading order. Each Unit follows the link:{dev-docs-index}[Dev Docs index] slugs and the Unit template.
+The Units in reading order, using the link:{dev-docs-index}[Dev Docs index] slugs:
 
 . link:context-readiness.adoc[Context overview & readiness] — what context the Shell provides and how an App knows it is ready.
 . link:workspace-config-loading.adoc[Workspace config load & distribution] — how the Workspace configuration is loaded and fanned out to Topics/services.
@@ -81,11 +79,11 @@ The Units of this Area, in reading order. Each Unit follows the link:{dev-docs-i
 . link:parameters.adoc[Parameters] — how Parameters are loaded and delivered to Apps.
 . link:shell-responsibilities.adoc[Shell responsibilities & routing boundary] — what the Shell does for every App, what must not break, and where its routing responsibility stops.
 
-Read Units 1 and 2 first. They define the readiness and distribution mechanisms that the later Units (configuration kinds, runtime configuration, parameters) take for granted. Units 3 and 4 build directly on the Workspace and the `currentMfe$` that Units 1 and 2 load and distribute. Unit 8 summarizes the Shell's duties and is a good checklist before changing Shell code.
+Read Units 1 and 2 first: Units 5–7 assume their readiness and distribution mechanisms, and Units 3 and 4 build on the Workspace and `currentMfe$` they deliver. Use Unit 8 as a checklist before changing Shell code.
 
 == Related Areas
 
-This Area depends on the Topic contract and is consumed by the Areas below.
+This Area depends on the Topic contract and is used by the Areas below.
 
 * link:{dev-docs-index}[Dev Docs index] — the Area and Unit slug map.
 * Area 1, Integration Contract & Topics — the Topic mechanism these contexts are carried on (message delivery, transports, lifecycle).
