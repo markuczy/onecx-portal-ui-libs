@@ -149,6 +149,7 @@ Code::
 * link:{libs}/accelerator/src/lib/declarations.ts[`accelerator/src/lib/declarations.ts`]
 * link:{libs}/accelerator/src/lib/topic/topic.ts[`accelerator/src/lib/topic/topic.ts`]
 * link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`accelerator/src/lib/topic/topic-publisher.ts`]
+* link:{libs}/integration-interface/src/index.ts[`integration-interface/src/index.ts`]
 * link:{libs}/integration-interface/src/lib/gatherers/ai-completion/v1/ai-completion.gatherer.ts[`integration-interface/.../ai-completion.gatherer.ts`]
 * link:{libs}/integration-interface/src/lib/gatherers/ai-context/v1/ai-context.gatherer.ts[`integration-interface/.../ai-context.gatherer.ts`]
 * link:{libs}/integration-interface/src/lib/topics/permissions-rpc/v1/permissions-rpc.topic.ts[`integration-interface/.../permissions-rpc.topic.ts`]
