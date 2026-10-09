@@ -9,6 +9,8 @@
 :u3: ./scope-model.adoc
 :u4: ./shell-stylesheets.adoc
 :u5: ./angular-component-styles.adoc
+:u6: ./dynamic-content-via-patching.adoc
+:u7: ./dynamic-content-via-container.adoc
 :u8: ./scope-polyfill.adoc
 
 This Area explains where CSS on a OneCX page comes from and how the styles of the many applications that share a single page are kept apart. It is the fourth Area in the link:{dev-docs-index}[Dev Docs index].
@@ -54,32 +56,34 @@ flowchart TD
   slotHost --> slot
 ----
 
-The six pages in this Area so far:
+The eight pages in this Area so far:
 
 * *Why isolation & style kinds* (Unit 1) covers why isolation exists and the kinds of stylesheets that exist on a page; Unit 3 carries the detailed `@scope` model.
 * *App/Remote Component stylesheet load & removal* (Unit 2) covers the load-on-demand and remove-on-unuse lifecycle with per-App/Slot usage counting.
 * *`@scope` scoping model* (Unit 3) covers how the `@scope` at-rule binds an application's styles to its content, including nested Remote Components.
 * *Shell's own stylesheets & legacy portal layout* (Unit 4) covers where the Shell's own and the legacy portal-layout stylesheets come from, how `styleInitializer` loads them, and how they are scoped.
 * *Angular component styles* (Unit 5) covers how Angular component styles — already encapsulated by the compiler — fit into style isolation and where the model takes over for their shared variables.
+* *Dynamic content via patching* (Unit 6) covers how an overlay or dialog rendered outside the app's scope is stamped at creation time, attributed from the trigger element, and then wrapped once it reaches `document.body`.
+* *Dynamic content via container* (Unit 7) covers how out-of-scope content can instead be inserted into an app-owned dynamic container so it inherits the app's scope without being patched directly.
 * *Scope polyfill* (Unit 8) covers how the Shell rewrites scoped stylesheets when the browser does not support `@scope`.
 
 == Unit map
 
-The Units of this Area, in reading order. Units 1, 2, 3, 4, 5 and 8 are written; the rest are planned.
+The Units of this Area, in reading order. Units 1, 2, 3, 4, 5, 6, 7 and 8 are written; the rest are planned.
 
 . *Why isolation & style kinds* — link:{u1}[why-style-isolation.adoc] _(written)_
 . *App/Remote Component stylesheet load & removal (usage counting)* — link:{u2}[stylesheet-loading.adoc] _(written)_
 . *`@scope` scoping model* — link:{u3}[scope-model.adoc] _(written)_
 . *Shell's own stylesheets & legacy portal layout* — link:{u4}[shell-stylesheets.adoc] _(written)_
 . *Angular component styles* — link:{u5}[angular-component-styles.adoc] _(written)_
-. *Dynamic content attribution (trigger element)* — `dynamic-content-attribution.adoc` _(planned)_
-. *Dynamic content wrapping & listeners* — `dynamic-content-wrapping.adoc` _(planned)_
+. *Dynamic content via patching* — link:{u6}[dynamic-content-via-patching.adoc] _(written)_
+. *Dynamic content via container* — link:{u7}[dynamic-content-via-container.adoc] _(written)_
 . *Scope polyfill* — link:{u8}[scope-polyfill.adoc] _(written)_
 . *PrimeNG/PrimeReact style scoping* — `primeng-style-scoping.adoc` _(planned)_
 
 == Reading order
 
-Start with Units 1 and 2 for the isolation problem statement and stylesheet categories, then read Unit 3 for the detailed `@scope` model and Unit 8 for the polyfill that rewrites it on browsers without native support. The Shell's own stylesheets, component styles, dynamic content attribution, and PrimeNG variable scoping build on the same scope ids and attributes and are the natural next steps.
+Start with Units 1 and 2 for the isolation problem statement and stylesheet categories, then read Unit 3 for the detailed `@scope` model and Unit 8 for the polyfill that rewrites it on browsers without native support. The Shell's own stylesheets, component styles, dynamic content patching, dynamic-container insertion, and PrimeNG variable scoping build on the same scope ids and attributes and are the natural next steps.
 
 == Related Areas
 

@@ -38,7 +38,7 @@ flowchart TD
 
 Both flavours set the same `RemoteComponentConfig` on the rendered child.
 
-Both flavours also mark the child for style isolation with `data-style-id` (set to `{productName}|{appId}`) and `data-style-isolation` — see link:../styling/dynamic-content-attribution.adoc[Dynamic content attribution] in Area 4.
+Both flavours also mark the child for style isolation with `data-style-id` (set to `{productName}|{appId}`) and `data-style-isolation` — see link:../styling/scope-model.adoc[`@scope` scoping model] in Area 4.
 
 === Angular-init flavour
 
@@ -88,7 +88,7 @@ The Draft Outline (commit `6108bdff`) documents an `ocxRemoteComponentContext` p
 * link:slot-assignment.adoc[Assignment] — how a slot gets the components it renders.
 * Remote Component config & host communication — the `RemoteComponentConfig` and the host↔component communication in depth. (`host-communication.adoc`, not yet written)
 * Slot size reporting — how a rendered slot publishes its dimensions. (`slot-size-reporting.adoc`, not yet written)
-* link:../styling/dynamic-content-attribution.adoc[Dynamic content attribution] (Area 4) — the style-isolation attributes set on slot children.
+* link:../styling/scope-model.adoc[`@scope` scoping model] (Area 4) — the style-isolation attributes set on slot children.
 
 == Sources
 

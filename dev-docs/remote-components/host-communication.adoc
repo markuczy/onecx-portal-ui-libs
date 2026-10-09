@@ -37,7 +37,7 @@ type RemoteComponentConfig = {
 }
 ----
 
-* `appId` and `productName` identify the component's owning application; they are also what style isolation keys off (`{productName}|{appId}`, see link:../styling/dynamic-content-attribution.adoc[Dynamic content attribution] in Area 4).
+* `appId` and `productName` identify the component's owning application; they are also what style isolation keys off (`{productName}|{appId}`, see link:../styling/scope-model.adoc[`@scope` scoping model] in Area 4).
 * `permissions` is the list the host resolved for this component (through the link:{libs}/angular-remote-components/src/lib/services/permission.service.ts[`PermissionService`], see link:slot-assignment.adoc[Assignment]).
 * `baseUrl` is the component's origin, used to load its own styles.
 
@@ -121,7 +121,7 @@ The payload and the two contracts are identical across frameworks; the wiring of
 * link:slot-rendering.adoc[Slot rendering] — the two flavours that deliver the config.
 * link:shell-slots-catalogue.adoc[Shell Slots catalogue] — the Shell's Slot Groups, which push `slotGroupName` through the `inputs` channel.
 * Slot size reporting — how a rendered slot publishes its dimensions. (`slot-size-reporting.adoc`)
-* link:../styling/dynamic-content-attribution.adoc[Dynamic content attribution] (Area 4) — the `data-style-id` derived from `productName`/`appId`.
+* link:../styling/scope-model.adoc[`@scope` scoping model] (Area 4) — the `data-style-id` derived from `productName`/`appId`.
 * link:../permissions/remote-component-permissions.adoc[Remote Component permissions] (Area 9) — where the `permissions` field is resolved.
 
 == Sources
