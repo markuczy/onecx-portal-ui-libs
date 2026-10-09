@@ -190,9 +190,9 @@ The kinds of failure, where each one ends up, and how the user is informed.
 
 . Failure taxonomy map — `failure-taxonomy.adoc`
 . Initialization failures & init-error page — `initialization-failures.adoc`
-. App load failures & global errors — `app-load-failures-and-global-errors.adoc`
-. Global loading — `global-loading.adoc`
-. Portal Messages & Notifications (incl. the Shell's toast Remote Component, which shows only when assigned to a Slot) — `portal-messages-and-notifications.adoc`
+. link:./errors-feedback/app-load-failures-and-global-errors.adoc[App load failures & global errors]
+. link:./errors-feedback/global-loading.adoc[Global loading]
+. link:./errors-feedback/portal-messages-and-notifications.adoc[Portal Messages & Notifications (incl. the Shell's toast Remote Component, which shows only when assigned to a Slot)]
 ====
 
 [#state-management]
