@@ -47,7 +47,7 @@ A `BroadcastChannel` connects only listeners with the same name. The v2 name end
 
 === Why the channel name encodes the Topic (context)
 
-Encoding `name|version` in the channel name lets the browser filter traffic before any JavaScript runs. Unlike the rest of this Unit, this rationale comes from the audit team and is not traced to a commit or diff.
+Encoding `name|version` in the channel name lets the browser filter traffic before any JavaScript runs. Unlike the rest of this Unit, this rationale is provided as team context and is not traced to a commit or diff.
 
 * *Before:* an earlier accelerator used one channel for all Topics. Every `Topic` instance deserialized every message and checked `name`/`version` in JavaScript before dropping it, which scaled badly with many Topics and instances.
 * *Now (v2):* the name includes `name|version` and `tabId`, so the browser never wakes an instance of a different Topic. The broad v1 channel survives only for peers that have not upgraded.
@@ -147,4 +147,4 @@ Code::
 * link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts` (Shell)]
 
 Context given by the team::
-* The shared-channel rationale in "Why the channel name encodes the Topic (context)" above was given as context by the team running this audit, not traced to a specific commit or file.
+* The shared-channel rationale in "Why the channel name encodes the Topic (context)" above was provided by the team as context, not traced to a specific commit or file.

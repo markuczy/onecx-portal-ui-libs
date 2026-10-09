@@ -25,7 +25,7 @@ Three columns need a definition:
 
 * *Publisher:* who normally publishes the value. That is the Shell for shared state and the App/Remote Component for Topics an App publishes at bootstrap. RPC Topics name both the *ask* side and the *answer* side.
 * *Consumers:* the framework adapters that wrap the Topic so App code can read it and, where relevant, write it. See link:framework-adapters.adoc[Framework adapters].
-* *Owning Area:* the Dev Docs Area that explains the Topic's *meaning*. Links use the planned slugs in the link:{dev-docs-index}[index]; the PR lists targets that are not written yet.
+* *Owning Area:* the Dev Docs Area that explains the Topic's *meaning*. Links use the planned slugs in the link:{dev-docs-index}[index]; some target pages are not written yet.
 
 === Topics
 
