@@ -57,7 +57,7 @@ RPC Topics and `Gatherer` build request/response on the same `publish` (link:gat
 
 * *Angular:* the owning service destroys its `Topic` in `ngOnDestroy`.
 * *React:* `useTopic` destroys the `Topic` it created on unmount, but not an external instance.
-* *Shell:* as the long-lived tab host, it publishes initial state and answers RPCs for the whole tab, so its Topics are generally not destroyed on navigation (for example link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts`]).
+* *Shell:* as the long-lived tab host, it publishes initial state and answers RPCs for the whole tab. Its services are root-provided and created once per tab, so any `destroy` they run fires when the tab closes, not on navigation. Some never destroy their Topics at all (for example link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`]); others, such as link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts`], call `destroy` in `ngOnDestroy`.
 
 <<angular-react>> gives the framework details; link:framework-adapters.adoc[Framework adapters] covers the adapters as a whole.
 
