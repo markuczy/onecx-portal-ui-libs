@@ -55,13 +55,13 @@ How Apps and the Shell communicate through Topics. This Area covers the messagin
 ====
 
 [#bootstrap]
-.2. Application Bootstrap — `bootstrap/`
+.2. link:./bootstrap/README.adoc[Application Bootstrap] — `bootstrap/`
 [%collapsible]
 ====
 From the Shell's `index.html` to a running App or Remote Component.
 
-. index.html → first App timeline — `startup-timeline.adoc`
-. Module Federation in OneCX — `module-federation.adoc`
+. link:./bootstrap/startup-timeline.adoc[index.html → first App timeline] — `startup-timeline.adoc`
+. link:./bootstrap/module-federation.adoc[Module Federation in OneCX] — `module-federation.adoc`
 . Shared dependency config & mismatch — `shared-dependencies.adoc`
 . Preloaders (build time and runtime) — `preloaders.adoc`
 . Loading the matched remote — `loading-matched-remote.adoc`
