@@ -78,7 +78,7 @@ await api.get('/some/protected/endpoint')
 
 === Shell side
 
-The Shell authenticates (publishing `isAuthenticated$`) and mounts the `window` proxy the interceptors read (see link:./obtaining-tokens.adoc[How Apps obtain tokens]). The interceptors run in the *App*, not the Shell, so their behavior depends on the framework implementation. The Shell's own initialisers also await `isAuthenticated$.isInitialized`, but that gating is the Shell's concern, covered by the link:./mechanism-selection.adoc[Ownership & mechanism selection] Unit. No Shell code is modified by this mechanism; the Shell repository is read-only here. React consumers should gate requests themselves when necessary, as the proxy's presence does not guarantee auth initialization is complete.
+The Shell authenticates (publishing `isAuthenticated$`) and mounts the `window` proxy the interceptors read (see link:./obtaining-tokens.adoc[How Apps obtain tokens]). The interceptors run in the *App*, not the Shell, so their behavior depends on the framework implementation. The Shell's own initialisers also await `isAuthenticated$.isInitialized`, but that gating is the Shell's concern, covered by the link:./mechanism-selection.adoc[Ownership & mechanism selection] Unit. No Shell code is modified by this mechanism; the Shell repository is read-only here.
 
 == Angular / React
 
