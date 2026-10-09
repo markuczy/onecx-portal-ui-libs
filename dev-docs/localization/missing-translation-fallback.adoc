@@ -114,7 +114,7 @@ The Shell owns the *supply*. It is the only participant that can provide *dynami
 
 * The handler logs under the `MultiLanguageMissingTranslationHandler` namespace: a debug line on entry, a warning when a single locale misses both legs, and a warning when the whole walk falls through to the raw key.
 * The dynamic service logs under `DynamicTranslationService`, including the capability check, the cache categorisation (missing/pending), the `REQUESTED` message and each `RECEIVED`.
-* The `dynamicTranslations` Topic (v1) traffic is visible with the general Topic tooling in link:../diagnostics/tracing-communication.adoc[13. Diagnostics].
+* The `dynamicTranslations` Topic (v1) traffic is visible with the general Topic tooling in the planned `tracing-communication.adoc` Unit (Area 13 — Diagnostics).
 * `globalThis['@onecx/integration-interface'].dynamicTranslationsCache` (Angular/React) and `window.onecx-shell-capabilities` are both inspectable from the console to confirm whether the dynamic leg is even active.
 
 [#known-issues]
