@@ -44,14 +44,16 @@ This Unit documents the framework-agnostic patching contract only: app or librar
 
 Two responsibilities cooperate:
 
-* Libs-side code resolves the owning app and stamps short-lived `data-intermediate-style-*` attributes on the semantic node that will later reach `document.body`.
+* Build-time rewrites performed by app or library build tooling arrange for calls that resolve the owning app and stamp short-lived `data-intermediate-style-*` attributes on the semantic node that will later reach `document.body`. The helper implementations referenced here are implemented in the Shell runtime; app/library build tooling simply rewrites calls to invoke them.
 * Shell-side code watches global insertion and removal, promotes those temporary markers into permanent scope data or wrappers, and removes the wrapper again when the dynamic node disappears.
 
 == Libs side / Shell side
 
-=== Libs side
+=== App/library build rewrites (build-time)
 
-The interception point lives in app or library build plumbing, not in arbitrary application code. The local migration guides for link:{primeng_plugin_guide}[PrimeNG] and link:{material_plugin_guide}[Angular Material / CDK] describe the required Webpack rewrites, and the reviewed link:{help_ui_webpack}[`onecx-help-ui` webpack.config.js] shows the concrete `ModifySourcePlugin` / `ReplaceOperation` rules that replace library `document.createElement(...)` calls with Shell-provided helpers.
+The interception point is the app or library build plumbing: local build tooling rewrites the library/framework calls so that, at runtime, they invoke Shell-owned helper implementations. App and library authors are responsible for configuring those build-time rewrites; the helper code itself lives in the Shell runtime. The local migration guides for link:{primeng_plugin_guide}[PrimeNG] and link:{material_plugin_guide}[Angular Material / CDK] describe the required Webpack rewrites, and the reviewed link:{help_ui_webpack}[`onecx-help-ui` webpack.config.js] shows the concrete `ModifySourcePlugin` / `ReplaceOperation` rules that perform these replacements.
+
+Note: the helper implementations and the body-hooks they rely on are owned and maintained in the Shell; apps/libraries only opt into them by applying the build rewrites.
 
 The document-level helper inventory is:
 
