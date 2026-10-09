@@ -5,41 +5,57 @@
 :libs: ../../libs
 :shell: https://github.com/onecx/onecx-shell-ui/blob/main
 
-This Unit covers Unit 2 of the link:README.adoc[Integration Contract & Topics] Area. Unit 1 (link:why-message-based.adoc[Why a message-based contract]) explains *why* the units only talk through Topics; this Unit explains *how a single message travels from the publisher to every subscriber and why it ends up in the right order*.
+Unit 2 of the link:README.adoc[Integration Contract & Topics] Area. Unit 1, link:why-message-based.adoc[Why a message-based contract], explains *why* units talk only through Topics. This Unit explains *how* a message reaches every subscriber in the right order.
 
 == Question answered
 
-How does a Topic message reach every subscriber, how are messages ordered by id and timestamp, how is a late subscriber replayed the current value, and what is the init/resolve handshake?
+How does a published Topic value reach every subscriber, including late ones, in the right order, and when is the publish confirmed?
 
 == Why it exists
 
-A `Topic` is a value that is *shared* between units that are not loaded together. Three consequences follow, and the delivery mechanism exists to handle each:
+A `Topic` value is shared between units that are not loaded together. Delivery must handle three consequences:
 
-* A publisher and its subscribers are independent `Topic` instances. A new value must *propagate* to every existing instance, not be read from a shared field.
-* A subscriber may appear *after* the value was already published (the Shell published the workspace before an App's `Topic` was constructed). A late subscriber must still receive the current value, not stay empty forever.
-* Messages arrive out of order and in duplicate across transports. A subscriber must accept only the *latest* value and must be able to tell when a published value has actually been applied everywhere, so a caller can `await` a publish.
-
-The delivery design below answers all three.
+* *Propagation.* The publisher and its subscribers are independent `Topic` instances. A new value must reach every instance; there is no shared field.
+* *Late subscribers.* A subscriber created after the publish, for example an App `Topic` constructed after the Shell published the workspace, must still receive the current value.
+* *Ordering and confirmation.* Messages arrive out of order and duplicated across transports. A subscriber must keep only the latest value, and a caller must be able to `await` a publish until the value is applied everywhere.
 
 == How it works
 
 === Message types
 
-All messages are instances of `TopicMessage`, which extends the base `Message` (link:{libs}/accelerator/src/lib/topic/message.ts[`message.ts`], link:{libs}/accelerator/src/lib/topic/topic-message.ts[`topic-message.ts`]). Every `Message` carries a `timestamp` (from `performance.now()`) and an `id` from a page-wide monotonically increasing counter (`globalThis.onecxMessageId++`). There are three message types (`TopicMessageType`, link:{libs}/accelerator/src/lib/topic/topic-message-type.ts[`topic-message-type.ts`]):
+Every message is a `TopicMessage`, which extends the base `Message` (link:{libs}/accelerator/src/lib/topic/message.ts[`message.ts`], link:{libs}/accelerator/src/lib/topic/topic-message.ts[`topic-message.ts`]). Each `Message` carries:
 
-* `TopicNext` — the payload itself. `TopicDataMessage<T>` extends `TopicMessage` and adds `data: T` (link:{libs}/accelerator/src/lib/topic/topic-data-message.ts[`topic-data-message.ts`]). Sent whenever a value is published.
-* `TopicGet` — a request for the current value. Sent by a `Topic` at construction (see below) and by a late subscriber. A `Topic` that already has a value answers it by re-sending its `TopicNext` (link:{libs}/accelerator/src/lib/topic/topic.ts[`handleTopicGetMessage`]).
-* `TopicResolve` — an acknowledgement. `TopicResolveMessage` extends `TopicMessage` and carries `resolveId` = the `id` of the `TopicNext` it confirms (link:{libs}/accelerator/src/lib/topic/topic-resolve-message.ts[`topic-resolve-message.ts`]).
+* a `timestamp` from `performance.now()`;
+* an `id` from a page-wide, monotonically increasing counter (`globalThis.onecxMessageId++`).
+
+`TopicMessageType` (link:{libs}/accelerator/src/lib/topic/topic-message-type.ts[`topic-message-type.ts`]) defines three types:
+
+[cols="1,2,3", options="header"]
+|===
+|Type |Class |Purpose
+
+|`TopicNext`
+|`TopicDataMessage<T>` extends `TopicMessage` and adds `data: T` (link:{libs}/accelerator/src/lib/topic/topic-data-message.ts[`topic-data-message.ts`])
+|Carries the payload. Sent on every publish.
+
+|`TopicGet`
+|`TopicMessage`
+|Requests the current value. Sent by a new `Topic` at construction (see below). A `Topic` that has a value answers by re-sending its `TopicNext` (link:{libs}/accelerator/src/lib/topic/topic.ts[`handleTopicGetMessage`]).
+
+|`TopicResolve`
+|`TopicResolveMessage` extends `TopicMessage` and adds `resolveId`, the `id` of the `TopicNext` it confirms (link:{libs}/accelerator/src/lib/topic/topic-resolve-message.ts[`topic-resolve-message.ts`])
+|Acknowledges a publish.
+|===
 
 === publish and the resolve handshake
 
-`TopicPublisher.publish(value)` (link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`]) does three things:
+`TopicPublisher.publish(value)` (link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`]):
 
 1. Builds a `TopicNext` (`TopicDataMessage`) for the value and sends it.
 2. Builds a `TopicResolve` whose `resolveId` is that message's `id`, registers a resolver promise for that `id` in `publishPromiseResolver`, and sends it.
 3. Returns the promise.
 
-Every `Topic` that receives the `TopicResolve` with a matching `resolveId` resolves the promise it stored for it and stops the event's propagation (`handleTopicResolveMessage`, link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). Because the browser processes queued messages in order, the `TopicNext` is always applied before the `TopicResolve` is handled, so `await topic.publish(value)` only resolves once the value has been processed. This is what makes `publish` awaitable and is what `Gatherer` relies on when it awaits a publish before reading the gathered responses (link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]).
+The `Topic` holding the resolver for that `resolveId` resolves it and stops the event's propagation (`handleTopicResolveMessage`, link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). The browser processes queued messages in order, so every `Topic` instance in the tab handles the `TopicNext` before the `TopicResolve`. `await topic.publish(value)` therefore returns only after every instance could apply the value. `Gatherer` awaits a publish this way before reading the gathered responses (link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]).
 
 [source,mermaid]
 ----
@@ -58,77 +74,77 @@ sequenceDiagram
   Note over Publisher: publish() resolves only now
 ----
 
-The queue guarantees the `TopicNext` is always processed before its `TopicResolve`, which is why `await publish(...)` only returns once every `Topic` instance in the tab has had the chance to apply the value.
-
 ==== Worked example: three live instances
 
-Every `Topic` registers its `window` `message` listener once, in its own constructor (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). A browser dispatches one message event to all of a target's listeners in the order they were added, so for a given incoming message, instances are visited in the order they were *created* — the first `Topic` constructed for a `name`/`version` is always the first to see that message, the second-constructed is next, and so on. Concretely, with three live instances of the same `name`/`version` — `T1` (constructed first), `T2` (constructed second) and `P` (constructed third, and the one about to publish) — a single `P.publish(value)` call plays out as:
+Within one message, instances run oldest-created first. Each `Topic` registers its `window` `message` listener once, in its constructor (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]), and the browser calls a target's listeners in the order they were added. Across messages, every instance finishes the `TopicNext` before the `TopicResolve` is dispatched.
+
+Take three live instances of the same `name`/`version`: `T1` (created first), `T2` (created second) and `P` (created third, about to publish). One `P.publish(value)` call runs like this:
 
 1. `P` builds the `TopicNext` (`id=1`) and sends it (`postMessage`/`BroadcastChannel`).
-2. `P` builds the `TopicResolve` (`resolveId=1`), stores a resolver for `id=1` in its own `publishPromiseResolver`, and sends it. `P.publish(...)` now returns a pending promise.
-3. The browser delivers the queued `TopicNext` message, dispatching it to every registered listener in creation order:
-.. `T1.handleTopicNextMessage` runs first and applies the value (it beats `T1`'s stored id/timestamp).
-.. `T2.handleTopicNextMessage` runs next and applies the value.
-.. `P.handleTopicNextMessage` runs last — `P` is itself a subscribing `Topic` instance, so it applies the value to itself too.
-4. Only once *all three* instances have processed the `TopicNext` does the browser deliver the next queued message, the `TopicResolve`, again dispatching it to every listener in the same creation order:
-.. `T1.handleTopicResolveMessage` runs, finds no resolver registered for `resolveId=1` (it never published anything) and does nothing.
-.. `T2.handleTopicResolveMessage` runs, same no-op.
-.. `P.handleTopicResolveMessage` runs, finds its own resolver for `resolveId=1`, resolves it and calls `stopImmediatePropagation` (link:{libs}/accelerator/src/lib/topic/topic.ts[`handleTopicResolveMessage`]).
+2. `P` builds the `TopicResolve` (`resolveId=1`), stores a resolver for `id=1` in its `publishPromiseResolver`, sends it and returns a pending promise.
+3. The browser delivers the `TopicNext` to every listener in creation order:
+.. `T1.handleTopicNextMessage` applies the value (it beats `T1`'s stored id/timestamp).
+.. `T2.handleTopicNextMessage` applies the value.
+.. `P.handleTopicNextMessage` applies the value, because `P` is a subscribing instance too.
+4. Only then does the browser deliver the `TopicResolve`, in the same order:
+.. `T1.handleTopicResolveMessage` finds no resolver for `resolveId=1` (it published nothing) and does nothing.
+.. `T2.handleTopicResolveMessage` does the same.
+.. `P.handleTopicResolveMessage` finds its resolver, resolves it and calls `stopImmediatePropagation` (link:{libs}/accelerator/src/lib/topic/topic.ts[`handleTopicResolveMessage`]).
 5. Only now does `await P.publish(value)` return.
-
-The ordering guarantee is therefore two-layered: within one message, every live instance is given a turn, oldest-created first; across messages, the `TopicNext` is always fully drained by every instance before the matching `TopicResolve` is even looked at.
 
 === Ordering by id and timestamp
 
-A subscriber keeps exactly one value, in a `BehaviorSubject` called `data`. On each incoming `TopicNext` it applies `handleTopicNextMessage` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]), which *accepts* the message only when:
+A subscriber keeps exactly one value, in a `BehaviorSubject` called `data`. For each incoming `TopicNext`, `handleTopicNextMessage` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]) accepts the message only when one of these holds:
 
-* it has no value yet (first value always wins, regardless of ordering), **or**
-* it is already initialised and the incoming message's `id` is defined and greater than the stored value's `id`, **or**
-* it is already initialised and the incoming `timestamp` is greater than the stored value's `timestamp`.
+* The subscriber has no value yet. The first value always wins, regardless of order.
+* The subscriber is initialised, both messages have an `id`, and the incoming `id` is greater than the stored one.
+* The subscriber is initialised and the incoming `timestamp` is greater than the stored one.
 
-Accepting also flips `isInit` to `true` and resolves the topic's `isInitialized` promise. Anything that does not beat the stored value on id or timestamp is *dropped* — this is what keeps a late or out-of-order `TopicNext` from overwriting a newer value.
+Accepting sets `isInit` to `true` and resolves the `isInitialized` promise. Any other message is dropped, so a late or out-of-order `TopicNext` never overwrites a newer value.
 
-`TopicGet` is answered only when the answering topic is initialised *and* holds a value (`onWindowMessage` / `onBroadcastChannelMessageV2`, link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). A `TopicGet` therefore replays the current value to a late subscriber; a topic that has not received its first value yet does not answer.
+A `Topic` answers a `TopicGet` only when it is initialised *and* holds a value (`onWindowMessage` / `onBroadcastChannelMessageV2`, link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). A `Topic` still waiting for its first value stays silent.
 
 === init and the first `TopicGet`
 
-When a `Topic` is constructed with `sendGetMessage = true` (the default), it immediately broadcasts a `TopicGet` so that an already-running instance will replay its value to it (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], constructor). When the Shell has just started (`topic.initDate` within the last 2 seconds), the request is delayed 100 ms so that the other Topics have time to initialise before answering. A `Topic` built with `sendGetMessage = false` does not ask for state on start-up — this is how request/response (RPC) Topics and the `Gatherer`'s internal topic avoid an unwanted replay (link:why-message-based.adoc[Unit 1]).
+With `sendGetMessage = true` (the default), the `Topic` constructor broadcasts a `TopicGet` so that a running instance replays its value (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], constructor). If the Shell has just started (`topic.initDate` less than 2 seconds ago), the request waits 100 ms so other Topics can initialise first, and is skipped if the `Topic` received a value meanwhile.
 
-The `isInitialized` promise (exposed as `Topic.isInitialized`) resolves the moment the first value is applied, and `asObservable()` filters out anything until `isInit` is set (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). Consumers use this to know when a value is safe to read.
+With `sendGetMessage = false`, the `Topic` does not ask for state at start-up. Request/response (RPC) Topics and the `Gatherer`'s internal topic use this to avoid an unwanted replay (link:why-message-based.adoc[Unit 1], link:gatherers-and-rpc-topics.adoc[Gatherers & RPC Topics]).
+
+`Topic.isInitialized` resolves as soon as the first value is applied, and `asObservable()` emits nothing until `isInit` is set (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). Consumers use these to know when a value is safe to read.
 
 == Libs side / Shell side
 
 === Libs side
 
-The whole mechanism — message classes, ordering, replay and the resolve handshake — lives in the accelerator and is framework-agnostic (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`], link:{libs}/accelerator/src/lib/topic/message.ts[`message.ts`], the three message type files, link:{libs}/accelerator/src/lib/declarations.ts[`declarations.ts`]). The `@onecx/integration-interface` Topics are thin subclasses that do not override any of this; they only fix `name` and `version` (and, for RPC Topics, `sendGetMessage = false`).
+The accelerator holds the whole framework-agnostic mechanism: message classes, ordering, replay and the resolve handshake (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`], link:{libs}/accelerator/src/lib/topic/message.ts[`message.ts`], the three message type files, link:{libs}/accelerator/src/lib/declarations.ts[`declarations.ts`]). The `@onecx/integration-interface` Topics are thin subclasses that override none of it. They only fix `name` and `version`, and RPC Topics also set `sendGetMessage = false`.
 
 === Shell side
 
-The Shell is the primary *first* publisher: it constructs the shared Topics and publishes the initial state (workspace, theme, user profile, …), which is what other Topics' `TopicGet` requests get replayed. It is also the answerer of RPC Topics (link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`], `ParametersTopic` publishing in link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts`]). The ordering and replay described above is what lets an App that starts up *after* the Shell still receive the initial state.
+The Shell is the primary *first* publisher. It constructs the shared Topics and publishes the initial state (workspace, theme, user profile, …) that later `TopicGet` requests replay. An App that starts after the Shell therefore still receives it. The Shell also answers RPC Topics (link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`], `ParametersTopic` publishing in link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts`]).
 
 == Angular / React
 
-There is no framework difference in delivery: both adapters subscribe to and publish the same framework-agnostic `Topic`. The only observable difference is how each waits for the first value:
+Delivery is the same in both: each adapter uses the framework-agnostic `Topic`. They differ only in how they wait for the first value:
 
 * *Angular* services expose the topic's `isInitialized` promise and read values with `firstValueFrom(topic.asObservable())` (link:{libs}/angular-integration-interface/src/lib/services/configuration.service.ts[`configuration.service.ts`]).
-* *React* contexts subscribe the topic to React state and surface `isInitialized: config$.isInitialized` in the context value (link:{libs}/react-integration-interface/src/lib/contexts/configurationContext.tsx[`configurationContext.tsx`]).
+* *React* contexts subscribe the topic to React state and expose `isInitialized: config$.isInitialized` in the context value (link:{libs}/react-integration-interface/src/lib/contexts/configurationContext.tsx[`configurationContext.tsx`]).
 
-Both rely on the `asObservable()`/`isInit` filter so a component never renders with a value that has not yet been delivered.
+In both, the `asObservable()`/`isInit` filter prevents rendering an undelivered value.
 
 == Edge cases & pitfalls
 
-* *Read-after-write is not guaranteed on the publisher.* `getValue`-style synchronous reads and the `isInitialized` promise describe the *delivered* value, not the value that will be applied to other instances. `SyncableTopic` (link:{libs}/accelerator/src/lib/topic/syncable-topic.ts[`syncable-topic.ts`]) exposes this directly and is `@deprecated` for exactly that reason.
-* *Equal timestamps.* If two messages share a `timestamp` and one has an `id` while the other does not (an "old style" message), the subscriber drops it and logs a warning telling you to upgrade all libraries to the latest version (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). This is a migration aid, not normal operation.
-* *Not every transport is live at once.* A `Topic` listens on the page message channel and, when enabled, on BroadcastChannel v1 and v2 channels (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). Which channel is used and how the fallback between them is decided is the subject of the planned Unit link:transports-and-tab-scope.adoc[Transports & tab scope].
-* *Replay is best-effort.* A late subscriber is replayed only if some other instance of the same topic is already initialised and holds a value. If it is genuinely the first instance, it waits for the first real `TopicNext`.
+* *No read-after-write on the publisher.* Synchronous `getValue`-style reads and the `isInitialized` promise describe the *delivered* value, not the value other instances will apply. `SyncableTopic` (link:{libs}/accelerator/src/lib/topic/syncable-topic.ts[`syncable-topic.ts`]) exposes exactly this and is `@deprecated` for that reason.
+* *Equal timestamps.* If two messages share a `timestamp` and only one has an `id` (the other is an "old style" message), the subscriber drops the incoming one. It logs a warning to upgrade all libraries to the latest version (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). This is a migration aid, not normal operation.
+* *Several transports.* A `Topic` listens on the page message channel and, when enabled, on the BroadcastChannel v1 and v2 channels (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). Channel choice and fallback are covered in link:transports-and-tab-scope.adoc[Transports & tab scope].
+* *Replay is best-effort.* Replay needs another initialised instance of the same topic that holds a value. The first instance waits for the first real `TopicNext`.
 
 == Debugging
 
-Topic delivery is the thing you watch when debugging — the accelerator logs each received message and the drop/accept decisions under its per-topic namespace (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). See the Area's link:README.adoc#debugging-conventions[Debugging conventions] for the `localStorage.debug` patterns.
+The accelerator logs each received message and each accept/drop decision under the topic's own namespace (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). For the `localStorage.debug` patterns, see the Area's link:README.adoc#debugging-conventions[Debugging conventions].
 
 == Known issues
 
-None in the delivery core on current `main`. The deprecated `SyncableTopic` (see Edge cases) is the one place where the code exposes the delivery model in a way that is easy to misuse; it is documented as deprecated in its JSDoc (link:{libs}/accelerator/src/lib/topic/syncable-topic.ts[`syncable-topic.ts`]).
+None in the delivery core on current `main`. The deprecated `SyncableTopic` (see Edge cases) exposes the delivery model in an easily misused way; its JSDoc marks it deprecated (link:{libs}/accelerator/src/lib/topic/syncable-topic.ts[`syncable-topic.ts`]).
 
 == Related Units
 

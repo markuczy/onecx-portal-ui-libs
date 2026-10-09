@@ -5,27 +5,27 @@
 :libs: ../../libs
 :shell: https://github.com/onecx/onecx-shell-ui/blob/main
 
-This Unit covers Unit 8 of the link:README.adoc[Integration Contract & Topics] Area. It is the reference table for this Area: every shared `Topic` and `Gatherer` the libraries define, with its version, its publisher and consumers, and the Area that owns its meaning. Units 1–7 explain the contract these entries are built on; this Unit is the index of the concrete entries.
+Unit 8 of the link:README.adoc[Integration Contract & Topics] Area is its reference table: every shared `Topic` and `Gatherer` the libraries define. Units 1–7 explain the contract these entries build on.
 
 == Question answered
 
-What shared `Topic`s and `Gatherer`s do the OneCX libraries define, and for each, what is its version, who publishes it, who consumes it, and which Area owns its meaning?
+Which shared `Topic`s and `Gatherer`s do the OneCX libraries define, and what is each one's version, publisher, consumers and owning Area?
 
 == Why it exists
 
-The messaging contract (Units 1–6) is general; the concrete channels are the pieces every other Area builds on. A single list of all `Topic` and `Gatherer` implementations, pinned to the current `main` code, answers two questions a reader needs: *which* Topics exist (and at which version), and *where* the detail for each one lives (its owning Area). It also makes the contract auditable — a new Topic or a version bump shows up here as a row.
+Units 1–6 describe the general messaging contract, but every other Area builds on the concrete channels. One list of all `Topic` and `Gatherer` implementations, pinned to `main`, shows *which* Topics exist, at which version, and *where* each one is explained (its owning Area). It also makes the contract auditable: a new Topic or a version bump shows up here as a row.
 
-This Unit lists the entries but does not re-explain them. The *mechanism* of a Topic is Unit 1–4; the *meaning* of each Topic belongs to the Area that owns it; this page is the cross-reference table.
+This page does not re-explain entries. Units 1–4 cover the Topic *mechanism*; the owning Area covers each Topic's *meaning*.
 
 == How it works
 
-A `Topic` is a `name`/`version` pair that subclasses the framework-agnostic base `Topic` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]) and, for request/response, carries `sendGetMessage = false`. A `Gatherer` is a `name`/`version` pair that subclasses the base `Gatherer` (link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]). Every concrete entry in `@onecx/integration-interface` is a thin subclass that only fixes the name, version and (for RPC Topics) the flag; the tables below were taken from those subclass definitions on `main`.
+A `Topic` is a `name`/`version` pair that subclasses the framework-agnostic base `Topic` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). Request/response Topics also set `sendGetMessage = false`. A `Gatherer` is a `name`/`version` pair that subclasses the base `Gatherer` (link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]). Each concrete entry in `@onecx/integration-interface` is a thin subclass that only fixes the name, the version and, for RPC Topics, the flag. The tables below come from those subclass definitions on `main`.
 
-Two columns need a definition before the tables:
+Three columns need a definition:
 
-* *Publisher* — the unit that normally publishes the Topic's value. For shared state that is the Shell; for Topics an app publishes at bootstrap it is the App/Remote Component; for RPC Topics the *ask* and the *answer* differ, so both are named.
-* *Consumers* — the framework adapters that wrap the Topic so app code can read (and, where relevant, write) it. See link:framework-adapters.adoc[Framework adapters].
-* *Owning Area* — the Dev Docs Area that explains the Topic's *meaning*. Links point at the planned slugs in the link:{dev-docs-index}[index]; they are listed in the PR where the target page is not written yet.
+* *Publisher:* who normally publishes the value. That is the Shell for shared state and the App/Remote Component for Topics an App publishes at bootstrap. RPC Topics name both the *ask* side and the *answer* side.
+* *Consumers:* the framework adapters that wrap the Topic so App code can read it and, where relevant, write it. See link:framework-adapters.adoc[Framework adapters].
+* *Owning Area:* the Dev Docs Area that explains the Topic's *meaning*. Links use the planned slugs in the link:{dev-docs-index}[index]; the PR lists targets that are not written yet.
 
 === Topics
 
@@ -120,7 +120,7 @@ Two columns need a definition before the tables:
 |link:{libs}/integration-interface/src/lib/topics/message/v1/message.topic.ts[`MessageTopic`]
 |User-facing toast/message to display.
 |1
-|Shell and Apps/Remote Components
+|Shell and Apps/RC
 |Angular `PortalMessageService`; React `portalMessageContext`
 |Area 11 — Errors & Feedback
 
@@ -188,7 +188,7 @@ Two columns need a definition before the tables:
 |Area 10 — Localization
 |===
 
-`IconTopic`, `PermissionsRpcTopic`, `DynamicTranslationsTopic`, `ResizedEventsTopic` and `EventsTopic` are built with `sendGetMessage = false`, so they carry requests rather than replayed shared state (link:message-delivery.adoc[Unit 2]). The `ResizedEventsTopic` is consumed as a `Topic` while a sibling `ResizedEventsPublisher` (a `TopicPublisher`, link:{libs}/integration-interface/src/lib/topics/resized-events/v1/resized-events.topic.ts[`resized-events.topic.ts`]) is what publishes on it — one entry, two classes.
+`IconTopic`, `PermissionsRpcTopic`, `DynamicTranslationsTopic`, `ResizedEventsTopic` and `EventsTopic` set `sendGetMessage = false`, so they carry requests rather than replayed shared state (link:message-delivery.adoc[Unit 2]).
 
 === Gatherers
 
@@ -199,36 +199,36 @@ Two columns need a definition before the tables:
 |`GuardGatherer` (not a named class) |Collects cross-App route guard results so the Shell can decide navigation. |1 |link:{libs}/angular-utils/guards/src/services/guards-gatherer.service.ts[Angular `GuardsGathererService`], link:{libs}/react-utils/src/lib/guards/services/guards-gatherer.ts[React `GuardsGatherer`] |the cross-App guards machinery (one instance per app on the page) |Area 7 — Navigation
 |===
 
-The guards build a plain `Gatherer('GuardGatherer', 1, callback)` rather than a named subclass (link:gatherers-and-rpc-topics.adoc[Unit 5]). The AI gatherers `AiCompletionGatherer` (`'aiCompletion', 1`) and `AiContextGatherer` (`'aiContext', 1`) exist in `@onecx/integration-interface` (link:{libs}/integration-interface/src/lib/gatherers/ai-completion/v1/ai-completion.gatherer.ts[`ai-completion.gatherer.ts`], link:{libs}/integration-interface/src/lib/gatherers/ai-context/v1/ai-context.gatherer.ts[`ai-context.gatherer.ts`]) but are *deliberately out of scope* for this catalogue.
+The guards build a plain `Gatherer('GuardGatherer', 1, callback)`, not a named subclass (link:gatherers-and-rpc-topics.adoc[Unit 5]). This catalogue *deliberately excludes* the AI gatherers in `@onecx/integration-interface`: `AiCompletionGatherer` (`'aiCompletion', 1`, link:{libs}/integration-interface/src/lib/gatherers/ai-completion/v1/ai-completion.gatherer.ts[`ai-completion.gatherer.ts`]) and `AiContextGatherer` (`'aiContext', 1`, link:{libs}/integration-interface/src/lib/gatherers/ai-context/v1/ai-context.gatherer.ts[`ai-context.gatherer.ts`]).
 
 == Libs side / Shell side
 
 === Libs side
 
-`@onecx/integration-interface` defines every entry in the tables: the `Topic` subclasses under `src/lib/topics/`, the `Gatherer` subclasses under `src/lib/gatherers/`, and all exported from the package barrel (link:{libs}/integration-interface/src/index.ts[`index.ts`]). Two entries live outside the shared package: `TranslationCacheTopic` in `@onecx/angular-utils` and the guards `GuardGatherer` in `@onecx/angular-utils/guards` and `@onecx/react-utils`.
+`@onecx/integration-interface` defines the entries: `Topic` subclasses under `src/lib/topics/` and `Gatherer` subclasses under `src/lib/gatherers/`, all exported from the package barrel (link:{libs}/integration-interface/src/index.ts[`index.ts`]). Two entries live elsewhere: `TranslationCacheTopic` in `@onecx/angular-utils`, and the guards' `GuardGatherer` in `@onecx/angular-utils/guards` and `@onecx/react-utils`.
 
 === Shell side
 
-The Shell is the *publisher* for most shared-state Topics and the *answerer* for the `PermissionsRpcTopic` it owns (link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`], parameters publishing in link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts`]). The Shell advertises which of these Topics it provides through the capability list covered in link:versioning-and-capabilities.adoc[Unit 6].
+The Shell *publishes* most shared-state Topics, including parameters (link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts`]). It *answers* the `PermissionsRpcTopic` it owns (link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`]). It advertises which Topics it provides through the capability list (link:versioning-and-capabilities.adoc[Unit 6]).
 
 == Angular / React
 
-The catalogue itself is framework-agnostic, but the *consumers* column differs per framework: the Angular adapter is an `@Injectable` service and the React adapter a context/hook, wrapping the same `Topic` (link:framework-adapters.adoc[Unit 7]). The framework-agnostic services (`IconService`, `NotificationService`, `ImageRepositoryService`, `DynamicTranslationService`) are shared across both.
+Only the *Consumers* column differs per framework. The Angular adapter is an `@Injectable` service and the React adapter a context/hook; both wrap the same `Topic` (link:framework-adapters.adoc[Unit 7]). Both frameworks share the framework-agnostic `IconService`, `NotificationService`, `ImageRepositoryService` and `DynamicTranslationService`.
 
 == Edge cases & pitfalls
 
-* *The table is a snapshot of `main`.* `Topics` are versioned per directory; a new `v2/` folder is a new row, and a version bump changes the `Version` column. If this page and the code disagree, the code wins.
-* *`name` and class name can differ.* `CurrentWorkspaceTopic` publishes under the name `currentPortal`, and `RemoteComponentsTopic` under `remoteComponentsInfo`. The transport channel is keyed on `name`|`version`, not the class name (link:transports-and-tab-scope.adoc[Unit 3]).
-* *`sendGetMessage = false` is not "RPC only."* `IconTopic`, `EventsTopic` and `ResizedEventsTopic` suppress the initial `TopicGet` for other reasons (Unit 2); only some of them are true request/response channels.
-* *Two classes per resized Topic.* `ResizedEventsTopic` (the read side) and `ResizedEventsPublisher` (the publish side) are separate classes that share the name/version; they are one catalogue entry.
+* *The table is a snapshot of `main`.* `Topics` are versioned per directory: a new `v2/` folder adds a row, and a version bump changes the `Version` column. If this page and the code disagree, the code wins.
+* *`name` and class name can differ.* `CurrentWorkspaceTopic` publishes under the name `currentPortal`, and `RemoteComponentsTopic` under `remoteComponentsInfo`. The transport channel is keyed on `name`|`version`, not on the class name (link:transports-and-tab-scope.adoc[Unit 3]).
+* *`sendGetMessage = false` is not "RPC only."* `IconTopic`, `EventsTopic` and `ResizedEventsTopic` suppress the initial `TopicGet` for other reasons (Unit 2). Not every Topic with this flag is a true request/response channel.
+* *Two classes per resized Topic.* `ResizedEventsTopic` (the read side) and `ResizedEventsPublisher` (the publish side, a `TopicPublisher` in link:{libs}/integration-interface/src/lib/topics/resized-events/v1/resized-events.topic.ts[`resized-events.topic.ts`]) are separate classes that share the name/version. They form one catalogue entry.
 
 == Debugging
 
-To watch a concrete Topic or Gatherer from the catalogue, enable its namespace (look up the concrete `name` in the linked Topic/Gatherer definition, e.g. `CurrentWorkspaceTopic` declares `currentPortal`) using the Area's link:README.adoc#debugging-conventions[Debugging conventions].
+To watch a Topic or Gatherer, enable its namespace as described in the Area's link:README.adoc#debugging-conventions[Debugging conventions]. Take the `name` from the linked definition; for example, `CurrentWorkspaceTopic` declares `currentPortal`.
 
 == Known issues
 
-* *`TranslationCacheTopic` runs ahead of the rest at version 2.* Every other Topic in this catalogue is at version `1`; `TranslationCacheTopic` is the live example of a bumped version (link:versioning-and-capabilities.adoc[Unit 6]).
+* *`TranslationCacheTopic` runs ahead of the rest at version 2.* Every other Topic here is at version `1`, so `TranslationCacheTopic` is the live example of a version bump (link:versioning-and-capabilities.adoc[Unit 6]).
 
 == Related Units
 

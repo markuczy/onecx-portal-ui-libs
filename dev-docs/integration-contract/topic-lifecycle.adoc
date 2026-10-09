@@ -5,97 +5,105 @@
 :libs: ../../libs
 :shell: https://github.com/onecx/onecx-shell-ui/blob/main
 
-This Unit covers Unit 4 of the link:README.adoc[Integration Contract & Topics] Area. Units 2 and 3 (link:message-delivery.adoc[Topic message delivery], link:transports-and-tab-scope.adoc[Transports & tab scope]) explain how a message travels and where; this Unit explains the *lifecycle* of a Topic: how it is created and publishes, when and how it is destroyed, and what a destroyed Topic still holds on to.
+This is Unit 4 of the link:README.adoc[Integration Contract & Topics] Area. Units 2 and 3 (link:message-delivery.adoc[Topic message delivery], link:transports-and-tab-scope.adoc[Transports & tab scope]) explain how and where a message travels. This Unit covers the *lifecycle* of a Topic: creation, publishing, destruction, and what a destroyed Topic still holds.
 
 == Question answered
 
-How is a Topic created and how does it publish, what does `destroy` release and what it leaves behind, where do Topic/Gatherer instances get destroyed in the Angular and React adapters, and where can leaks or double-destroy come from?
+What is the lifecycle of a Topic: what creation and `destroy` acquire and release, where the Angular and React adapters destroy Topic/Gatherer instances, and where leaks or double-destroy can come from?
 
 == Why it exists
 
-A `Topic` is not a value but a *subscription*: at construction it registers a `window` `message` listener and opens one or two `BroadcastChannel` handles (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]). Those resources are held for the life of the instance. On a OneCX page the units that own `Topic` instances (App routes, Remote Components, React components) load and unload all the time. If a destroyed unit keeps holding listeners and open channels, each unload leaks a little: more idle listeners on `window`, more open `BroadcastChannel`s, and Topics that keep reacting to traffic after the code that created them is gone. This Unit describes the contract for creating and cleaning those up, and points out where the current code leaks.
+A `Topic` is a *subscription*, not a value. Its constructor registers a `window` `message` listener and opens one or two `BroadcastChannel` handles, and the instance holds them until it is destroyed (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]).
 
-This is not just a memory concern. Every message sent on a Topic's channel is delivered to *every* listener still attached to that channel, and every delivery runs `handleTopicNextMessage`/`handleTopicGetMessage` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]) even for an instance nobody reads from anymore. If a route is visited repeatedly and its `Topic` is never destroyed, the number of live listeners for that Topic only grows across the session; each later publish then does proportionally more work — one JavaScript callback invocation per surviving instance — even though only the current instance's value matters. Destroying a `Topic` when its owner is torn down keeps the per-publish cost bounded to the instances actually in use, which is why the lifecycle discipline below matters for performance, not only for tidiness.
+The owners of `Topic` instances (App routes, Remote Components, React components) load and unload constantly. If a destroyed owner keeps its Topics alive, each unload leaks idle `window` listeners and open `BroadcastChannel`s, and those Topics keep reacting to traffic.
+
+The cost is also performance. Every message on a channel reaches *every* attached listener and runs `handleTopicNextMessage`/`handleTopicGetMessage` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]), even for instances nobody reads. If a repeatedly visited route never destroys its `Topic`, live listeners grow across the session, and each publish costs one callback per surviving instance. Destroying a `Topic` with its owner keeps that cost bounded to the instances in use.
 
 == How it works
 
 === Creation
 
-Constructing a `Topic` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]) does the following:
+Constructing a `Topic` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`]):
 
 * Registers a `window` `message` listener (`onWindowMessage`).
-* If the transport is enabled, opens the v1 and v2 `BroadcastChannel` *read* handles (the v1/v2 *publish* handles are created lazily on the first `sendMessage` via `createBroadcastChannel`, link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`]).
-* Sends an initial `TopicGet` (unless built with `sendGetMessage = false`), so it can be replayed the current value — see link:message-delivery.adoc[Unit 2].
-* When stats are enabled, increments the per-topic *instances created* counter on `globalThis` (`increaseInstanceCount`, link:{libs}/accelerator/src/lib/utils/logs.utils.ts[`logs.utils.ts`]).
+* If the transport is enabled, opens the v1 and v2 `BroadcastChannel` *read* handles. The v1/v2 *publish* handles are created lazily on the first `sendMessage` via `createBroadcastChannel` (link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`]).
+* Sends an initial `TopicGet` so the current value is replayed, unless built with `sendGetMessage = false` (see link:message-delivery.adoc[Unit 2]).
+* With stats enabled, increments the per-topic *instances created* counter on `globalThis` (`increaseInstanceCount`, link:{libs}/accelerator/src/lib/utils/logs.utils.ts[`logs.utils.ts`]).
 
-A topic is therefore "alive" the moment it is constructed, and it owns the resources above until `destroy` is called.
+The Topic is alive from construction and owns these resources until `destroy` is called.
 
 === Publishing
 
-Publishing is on the base class `TopicPublisher`, which `Topic` extends (link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`]). `publish(value)` sends a `TopicNext` message and a `TopicResolve` message and returns a promise that resolves once the value has been applied (the resolve handshake is explained in link:message-delivery.adoc[Unit 2]). Two publishing shapes exist:
+`Topic` extends `TopicPublisher`, which provides publishing (link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`]). `publish(value)` sends a `TopicNext` and a `TopicResolve` message. It returns a promise that resolves once the value is applied (resolve handshake: link:message-delivery.adoc[Unit 2]). There are two publishing shapes:
 
-* *A `Topic` as its own publisher* — most shared Topics publish from the topic itself (e.g. `configuration.service.ts` calls `config$.publish(…)`).
-* *A standalone publisher* — a class that extends `TopicPublisher` and publishes on a topic without keeping the `Topic` alive for reads. The `ResizedEventsPublisher` is this shape: it extends `TopicPublisher` and publishes a `resizedEvents` topic, while a separate `ResizedEventsTopic` (built with `sendGetMessage = false`) is what consumers subscribe to (link:{libs}/integration-interface/src/lib/topics/resized-events/v1/resized-events.topic.ts[`resized-events.topic.ts`]). A standalone publisher has no `destroy` of its own because it owns no listeners — it only lazily creates publish channels.
+* *A `Topic` as its own publisher.* Most shared Topics publish this way, for example `configuration.service.ts` calls `config$.publish(…)`.
+* *A standalone publisher.* A class extends `TopicPublisher` and publishes without keeping a `Topic` alive for reads. For example, `ResizedEventsPublisher` publishes the `resizedEvents` topic, while consumers subscribe to a separate `ResizedEventsTopic` built with `sendGetMessage = false` (link:{libs}/integration-interface/src/lib/topics/resized-events/v1/resized-events.topic.ts[`resized-events.topic.ts`]). A standalone publisher owns no listeners, only lazily created publish channels, so it has no `destroy`.
 
-RPC Topics and `Gatherer` build the request/response side on top of the same `publish` (link:gatherers-and-rpc-topics.adoc[Request/response: Gatherers & RPC Topics]); the Shell answers an RPC Topic by publishing onto it (link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`]).
+RPC Topics and `Gatherer` build request/response on the same `publish` (link:gatherers-and-rpc-topics.adoc[Request/response: Gatherers & RPC Topics]). The Shell answers an RPC Topic by publishing onto it (link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`]).
 
 === Destroy and cleanup
 
-`Topic.destroy()` performs this cleanup (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], `destroy`):
+`Topic.destroy()` (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], `destroy`):
 
-* Attempts to remove the `window` `message` listener; the current capture-flag mismatch leaves it attached (see Known issues).
+* Tries to remove the `window` `message` listener, but a capture-flag mismatch leaves it attached (see <<known-issues>>).
 * Closes the v1 and v2 *read* `BroadcastChannel` handles.
 * Closes the v1 and v2 *publish* `BroadcastChannel` handles.
 
-`Gatherer.destroy()` adds its own bookkeeping: it unsubscribes its internal topic subscription, calls `topic.destroy()`, and deletes its pending request ids from the shared `acceleratorState.gatherer.promises` map (link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]).
+`Gatherer.destroy()` also unsubscribes its internal topic subscription, calls `topic.destroy()`, and deletes its pending request ids from the shared `acceleratorState.gatherer.promises` map (link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]).
 
-What `destroy` does **not** do: it does not clear `publishPromiseResolver`, complete the internal `data` `BehaviorSubject`, unsubscribe external subscribers, or reset `isInit`. The channels close, but the leaked `window` listener can still deliver messages to the Topic (see Known issues); `destroy` does not tear down its internal state.
+`destroy` does *not* clear `publishPromiseResolver`, complete the internal `data` `BehaviorSubject`, unsubscribe external subscribers, or reset `isInit`. The channels close, but the leaked `window` listener can still deliver messages to the Topic.
 
 === Where destroy is called
 
-* *Angular:* services that own a `Topic` implement `OnDestroy` and call `destroy` on the topic in `ngOnDestroy`. For example `ConfigurationService` holds one lazily-created `ConfigurationTopic` and destroys it on service teardown (link:{libs}/angular-integration-interface/src/lib/services/configuration.service.ts[`configuration.service.ts`]).
-* *React:* the `useTopic` hook creates a `Topic` lazily (only when no external instance is passed) and destroys the instance it created on unmount. The unmount destruction is deferred by a zero-delay `setTimeout` guarded by a mounted ref so that a StrictMode double-mount does not destroy a topic the component immediately reuses (link:{libs}/react-integration-interface/src/lib/utils/use-topic.utils.ts[`use-topic.utils.ts`]). A topic passed in as an *external* instance is **not** destroyed by the hook — ownership stays with the caller.
-* *Shell / App services that answer RPC Topics:* the Shell is a long-lived host; it publishes initial state and answers RPCs for the life of the tab rather than per-route, so its Topics are generally not destroyed on navigation (for example link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts`]).
+* *Angular:* the owning service destroys its `Topic` in `ngOnDestroy`.
+* *React:* `useTopic` destroys the `Topic` it created on unmount, but not an external instance.
+* *Shell:* as the long-lived tab host, it publishes initial state and answers RPCs for the whole tab, so its Topics are generally not destroyed on navigation (for example link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts`]).
+
+<<angular-react>> gives the framework details; link:framework-adapters.adoc[Framework adapters] covers the adapters as a whole.
 
 === Deprecated: SyncableTopic
 
-`SyncableTopic` (link:{libs}/accelerator/src/lib/topic/syncable-topic.ts[`syncable-topic.ts`]) is a `@deprecated` subclass of `Topic` that exposes the value synchronously via `getValue()` with no read-after-write guarantee. It does not change the lifecycle above — it is destroyed exactly like a `Topic`. It is deprecated because reading asynchronous shared state synchronously is unsafe; use a regular `Topic` and `await isInitialized` instead.
+`SyncableTopic` (link:{libs}/accelerator/src/lib/topic/syncable-topic.ts[`syncable-topic.ts`]) is a `@deprecated` `Topic` subclass that exposes the value synchronously via `getValue()`, with no read-after-write guarantee. Its lifecycle and `destroy` are the same as `Topic`. Reading asynchronous shared state synchronously is unsafe, so use a regular `Topic` and `await isInitialized` instead.
 
 == Libs side / Shell side
 
 === Libs side
 
-The lifecycle primitives live in `@onecx/accelerator`: `Topic`/`TopicPublisher` (`destroy`, the read/publish channels, the resolve map) in link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`] and link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`], and `Gatherer.destroy` in link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`]. The framework adapters are the ones that actually *call* `destroy` at the right lifecycle point: the Angular `OnDestroy` hook (link:{libs}/angular-integration-interface/src/lib/services/configuration.service.ts[`configuration.service.ts`]) and the React `useTopic` cleanup (link:{libs}/react-integration-interface/src/lib/utils/use-topic.utils.ts[`use-topic.utils.ts`]).
+`@onecx/accelerator` provides the lifecycle primitives:
+
+* `Topic`/`TopicPublisher` (`destroy`, the read/publish channels, the resolve map) in link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`] and link:{libs}/accelerator/src/lib/topic/topic-publisher.ts[`topic-publisher.ts`].
+* `Gatherer.destroy` in link:{libs}/accelerator/src/lib/utils/gatherer.ts[`gatherer.ts`].
+
+The framework adapters *call* `destroy` at the right lifecycle point: the Angular `OnDestroy` hook (link:{libs}/angular-integration-interface/src/lib/services/configuration.service.ts[`configuration.service.ts`]) and the React `useTopic` cleanup (link:{libs}/react-integration-interface/src/lib/utils/use-topic.utils.ts[`use-topic.utils.ts`]).
 
 === Shell side
 
-The Shell creates and holds its shared Topics for the tab's lifetime and answers its RPC Topics by publishing (link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts`], link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`]). Because the Shell is the tab's host rather than a per-route unit, it is the one long-lived holder of Topics; the per-route cleanup responsibility falls on the Apps and Remote Components, through the adapters described above.
+The Shell holds its shared Topics for the tab's lifetime and answers its RPC Topics by publishing (link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts`], link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts`]). It is the only long-lived Topic holder, so per-route cleanup falls to Apps and Remote Components through the adapters.
 
+[#angular-react]
 == Angular / React
 
-The destroy *point* differs, and that is the main lifecycle difference between the frameworks:
+Only the destroy *point* differs. Both trigger the same `Topic.destroy`.
 
-* *Angular:* a service owns one `Topic` and destroys it in `ngOnDestroy` (link:{libs}/angular-integration-interface/src/lib/services/configuration.service.ts[`configuration.service.ts`]).
-* *React:* `useTopic` owns the topic it created and defers its `destroy` to a `setTimeout(0)` on unmount, guarded so a StrictMode re-mount cancels the destruction (link:{libs}/react-integration-interface/src/lib/utils/use-topic.utils.ts[`use-topic.utils.ts`]). Topics supplied externally are left for their owner to destroy.
-
-The underlying `Topic.destroy` it triggers is the same in both cases.
+* *Angular:* a service implements `OnDestroy` and destroys its `Topic` in `ngOnDestroy`. For example, `ConfigurationService` holds one lazily created `ConfigurationTopic` and destroys it on teardown (link:{libs}/angular-integration-interface/src/lib/services/configuration.service.ts[`configuration.service.ts`]).
+* *React:* `useTopic` creates a `Topic` lazily, only when no external instance is passed. On unmount it defers `destroy` with a zero-delay `setTimeout`, guarded by a mounted ref, so a StrictMode double-mount does not destroy a topic the component immediately reuses (link:{libs}/react-integration-interface/src/lib/utils/use-topic.utils.ts[`use-topic.utils.ts`]). The hook never destroys an *external* instance; ownership stays with the caller.
 
 == Edge cases & pitfalls
 
-* *Calling `destroy` twice is safe.* `destroy` calls `removeEventListener` and `close` on the channels; the `BroadcastChannel` handles are optional-chained and closing an already-closed channel is a no-op, so double-destroy does not throw.
-* *External React topics are not cleaned up by the hook.* If you pass an existing `Topic` into `useTopic`, the hook will never destroy it — the caller keeps that responsibility. Forgetting to destroy such a topic on route change leaks it.
-* *Destroy does not stop in-flight `publish` promises.* `publishPromiseResolver` is not cleared by `destroy`; a publish in flight when the topic is destroyed still resolves when its `TopicResolve` message is processed.
-* *Destroy does not complete external subscriptions.* Any `asObservable()` subscription a consumer holds remains active; the leaked `window` listener may still deliver messages to the Topic (see Known issues). Consumers should unsubscribe themselves as usual.
-* *Leak watch-point.* The one real leak in the current code is the `window` message listener (see Known issues): everything else — the four `BroadcastChannel` handles — is released by `destroy`.
+* *Calling `destroy` twice is safe.* The `BroadcastChannel` handles are optional-chained, and `removeEventListener` and closing an already-closed channel are no-ops, so double-destroy does not throw.
+* *The `useTopic` hook does not clean up external React topics.* The caller must destroy a `Topic` it passes in. Forgetting this on route change leaks the topic.
+* *Destroy does not stop in-flight `publish` promises.* `destroy` does not clear `publishPromiseResolver`, so a pending publish still resolves when its `TopicResolve` message is processed.
+* *Destroy does not complete external subscriptions.* `asObservable()` subscriptions stay active, and the leaked `window` listener may still deliver messages. Consumers must unsubscribe themselves.
+* *Leak watch-point.* The `window` message listener is the only real leak in the current code (see <<known-issues>>). `destroy` releases all four `BroadcastChannel` handles.
 
 == Debugging
 
-* *Count instances.* With stats enabled, `globalThis['@onecx/accelerator'].topic.stats.instancesCreated` shows how many `Topic` instances have been created per topic name (link:{libs}/accelerator/src/lib/utils/logs.utils.ts[`logs.utils.ts`]). A growing count for a topic that should be singletons per tab is the first symptom of a leak.
-* *Watch the lifecycle logs.* `Topic` and `TopicPublisher` log at `@onecx/accelerator:Topic:<name>` / `:TopicPublisher:<name>`; `Gatherer` logs at `@onecx/accelerator:Gatherer:<name>` including its `created`/`destroyed` milestones. See the Area's link:README.adoc#debugging-conventions[Debugging conventions] for the `localStorage.debug` patterns.
+* *Count instances.* With stats enabled, `globalThis['@onecx/accelerator'].topic.stats.instancesCreated` shows the `Topic` instances created per topic name (link:{libs}/accelerator/src/lib/utils/logs.utils.ts[`logs.utils.ts`]). A growing count for a topic that should be a singleton per tab is the first sign of a leak.
+* *Watch the lifecycle logs.* `Topic` and `TopicPublisher` log at `@onecx/accelerator:Topic:<name>` / `:TopicPublisher:<name>`. `Gatherer` logs at `@onecx/accelerator:Gatherer:<name>`, including its `created`/`destroyed` milestones. For `localStorage.debug` patterns, see the Area's link:README.adoc#debugging-conventions[Debugging conventions].
 
 == Known issues
 
-* *The `window` message listener is not actually removed on `destroy`.* A `Topic` registers its `window` listener in the constructor with the default options (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], constructor), but `destroy` removes it with the *capture* flag set: `removeEventListener('message', this.windowEventListener, true)`. Per the DOM spec, a listener registered in the bubble phase (capture `false`) is only removed by a `removeEventListener` call with matching capture (`false`); a call with `true` does not remove it. The result is that a destroyed `Topic` keeps a live `window` `message` listener, and that listener can still call `handleTopicNextMessage` and apply values to the Topic after `destroy`. The repository's own spec (link:{libs}/accelerator/src/lib/topic/topic.spec.ts[`topic.spec.ts`]) pins the `true` argument in the `destroy` removal call, so it records the current behaviour rather than flagging it as a bug. _Follow-up for the PR:_ `removeEventListener` should be called with the same capture value the constructor used (i.e. no capture argument), so that `destroy` truly detaches the listener.
+* *`destroy` does not actually remove the `window` message listener.* The constructor registers the listener with default options (link:{libs}/accelerator/src/lib/topic/topic.ts[`topic.ts`], constructor), but `destroy` calls `removeEventListener('message', this.windowEventListener, true)`. Per the DOM spec, removal must use the same capture value as registration (`false`), so the call with `true` removes nothing. A destroyed `Topic` therefore keeps a live listener that can still call `handleTopicNextMessage` and apply values. The repository's spec (link:{libs}/accelerator/src/lib/topic/topic.spec.ts[`topic.spec.ts`]) pins the `true` argument, recording the current behaviour rather than flagging a bug. _Follow-up for the PR:_ call `removeEventListener` without a capture argument, matching the constructor, so `destroy` detaches the listener.
 
 == Related Units
 
