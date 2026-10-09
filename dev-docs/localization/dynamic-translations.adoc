@@ -47,7 +47,7 @@ sequenceDiagram
 
 === Libs side
 
-The mechanism is framework-agnostic in `@onecx/integration-interface`: the `DynamicTranslationService`, the `dynamicTranslations` Topic and its `REQUESTED`/`RECEIVED` model, and the `ShellCapability` check. Each framework wires it in: Angular exposes a `providedIn: 'root'` wrapper service and records advertised capabilities via `ShellCapabilityService.setCapabilities`; React does the same through link:{libs}/react-integration-interface/src/lib/contexts/shellCapability.ts[`shellCapability.ts`] (`setCapabilities`, `useShellCapability`). Both then consume the shared service through the fallback handler described in link:./missing-translation-fallback.adoc[Missing-translation fallback].
+The mechanism is framework-agnostic in `@onecx/integration-interface`: the `DynamicTranslationService`, the `dynamicTranslations` Topic and its `REQUESTED`/`RECEIVED` model, and the `ShellCapability` check. Angular wires that mechanism into an automatic missing-key path: `@onecx/angular-integration-interface` exposes a `providedIn: 'root'` wrapper service, records advertised capabilities via `ShellCapabilityService.setCapabilities`, and feeds the shared service into the Angular fallback handler described in link:./missing-translation-fallback.adoc[Missing-translation fallback]. React is lighter: link:{libs}/react-integration-interface/src/lib/contexts/shellCapability.ts[`shellCapability.ts`] only sets and checks capability values (`setCapabilities`, `useShellCapability`); the React libraries shown here do not automatically call `getTranslations()` or consume the shared service.
 
 === Shell side
 
@@ -55,11 +55,11 @@ The Shell owns the *supply*. For the dynamic leg to do anything it must (a) adve
 
 == Angular / React
 
-The service, the Topic and the capability are identical on both sides; only the capability plumbing differs — Angular's `ShellCapabilityService` versus the React `shellCapability.ts` helpers. Everything else (the cache, the `REQUESTED`/`RECEIVED` flow, the degradation) is shared.
+The service, the Topic and the capability model are shared, but the framework integration is not symmetrical. Angular has the automatic wrapper + missing-translation-handler path. React has capability plumbing only; an App can still call the framework-agnostic `DynamicTranslationService` explicitly, but that is app code rather than built-in library wiring.
 
 == Edge cases & pitfalls
 
-* **The dynamic leg is silent unless the capability is advertised.** `hasShellCapability` reads a page-global the Shell must set; a page that never registers it skips the dynamic leg entirely, with no per-key error — the key simply falls through (link:./missing-translation-fallback.adoc#known-issues[see the related Known issues]).
+* **The dynamic leg is silent unless the capability is advertised.** `hasShellCapability` reads a page-global the Shell must set; a page that never registers it skips the dynamic leg entirely, with no per-key error. Angular's automatic fallback then drops to the next fallback step; React code sees nothing unless an App explicitly calls the shared service (link:./missing-translation-fallback.adoc#known-issues[see the related Known issues]).
 * **A `RECEIVED` that never comes.** The service waits for a `RECEIVED` with no built-in timeout, so if the Shell advertises the capability but never answers, the wait can stay pending — documented in link:./missing-translation-fallback.adoc#known-issues[Missing-translation fallback — Known issues].
 * **Versioned vs unversioned contexts.** An unversioned context resolves to the first cached version; a versioned one matches an exact version, else the highest cached version that satisfies the requested semver. See link:./missing-translation-fallback.adoc[Missing-translation fallback] for the full rules.
 
@@ -93,9 +93,3 @@ Code::
 * link:{libs}/react-integration-interface/src/lib/contexts/shellCapability.ts[`setCapabilities`, `useShellCapability` (shellCapability.ts)]
 * link:{shell}/src/app/app.module.ts[Shell capability wiring / absence (Shell)]
 * link:{shell}/src/app/shared/generated/api/translation.service.ts[unused `TranslationBffService` (Shell)]
-
-Verification Sources checked::
-* Draft Outline commit 6108bff — no prior page for this Area's Unit 7; the Topic, capability gate and cache were cross-checked against the existing `dev-docs/integration-contract/` and `dev-docs/diagnostics/` pages.
-* in-code JSDoc in `dynamic-translation.service.ts` and `shell-capability.utils.ts`.
-* Shell `app.module.ts` and `src/app/shared/generated/api/translation.service.ts` (via the Shell repository, `main` branch) for the absent capability and the unused `TranslationBffService`.
-* link:./missing-translation-fallback.adoc[Missing-translation fallback] (this Area) for the full fallback chain and the end-to-end known issue.
