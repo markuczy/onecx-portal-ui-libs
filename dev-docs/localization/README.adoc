@@ -71,7 +71,7 @@ All planned Units of this Area, in reading order. Units whose page exists are li
 
 * link:../authentication/obtaining-tokens.adoc[8. Authentication] — the identity that the profile is built from; the Dev Docs index notes that the user profile itself is covered here, in Area 10.
 * link:../shell-context/current-app-and-api-base-url.adoc[3. Shell Context & Runtime Configuration] — where the profile and its settings come from.
-* link:../styles/primeng-scoping.adoc[4. PrimeNG Styles Scoping] — the `primeng` translation keys are handed to the PrimeNG configuration on every language change.
+* link:../styling/primeng-style-scoping.adoc[4. PrimeNG/PrimeReact style scoping] — the `primeng` translation keys are handed to the PrimeNG configuration on every language change.
 * link:../diagnostics/logging.adoc[13. Diagnostics] — general tools for observing the Topics and `window` state these Units rely on.
 
 == Cross-Area links
@@ -90,8 +90,8 @@ The Units in this Area link out to the following Units in other Areas. Each path
 |link:../shell-context/current-app-and-api-base-url.adoc[`shell-context/current-app-and-api-base-url.adoc`]
 |3. Shell Context & Runtime Configuration — Current App & API base URL resolution
 
-|link:../styles/primeng-scoping.adoc[`styles/primeng-scoping.adoc`]
-|4. PrimeNG Styles Scoping — PrimeNG/PrimeReact style scoping
+|link:../styling/primeng-style-scoping.adoc[`styling/primeng-style-scoping.adoc`]
+|4. Styling & Style Isolation — PrimeNG/PrimeReact style scoping
 
 |link:../authentication/obtaining-tokens.adoc[`authentication/obtaining-tokens.adoc`]
 |8. Authentication — How Apps obtain tokens

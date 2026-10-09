@@ -12,6 +12,7 @@
 :u6: ./dynamic-content-via-patching.adoc
 :u7: ./dynamic-content-via-container.adoc
 :u8: ./scope-polyfill.adoc
+:u9: ./primeng-style-scoping.adoc
 
 This Area explains where CSS on a OneCX page comes from and how the styles of the many applications that share a single page are kept apart. It is the fourth Area in the link:{dev-docs-index}[Dev Docs index].
 
@@ -56,7 +57,7 @@ flowchart TD
   slotHost --> slot
 ----
 
-The eight pages in this Area so far:
+The nine pages in this Area so far:
 
 * *Why isolation & style kinds* (Unit 1) covers why isolation exists and the kinds of stylesheets that exist on a page; Unit 3 carries the detailed `@scope` model.
 * *App/Remote Component stylesheet load & removal* (Unit 2) covers the load-on-demand and remove-on-unuse lifecycle with per-App/Slot usage counting.
@@ -66,10 +67,11 @@ The eight pages in this Area so far:
 * *Dynamic content via patching* (Unit 6) covers how an overlay or dialog rendered outside the app's scope is stamped at creation time, attributed from the trigger element, and then wrapped once it reaches `document.body`.
 * *Dynamic content via container* (Unit 7) covers how out-of-scope content can instead be inserted into an app-owned dynamic container so it inherits the app's scope without being patched directly.
 * *Scope polyfill* (Unit 8) covers how the Shell rewrites scoped stylesheets when the browser does not support `@scope`.
+* *PrimeNG/PrimeReact style scoping* (Unit 9) covers how the component-library stylesheets PrimeNG and PrimeReact inject are wrapped in the owning application's scope and how its design-token variables are renamed per scope.
 
 == Unit map
 
-The Units of this Area, in reading order. Units 1, 2, 3, 4, 5, 6, 7 and 8 are written; the rest are planned.
+The Units of this Area, in reading order. Units 1, 2, 3, 4, 5, 6, 7, 8 and 9 are written; the rest are planned.
 
 . *Why isolation & style kinds* — link:{u1}[why-style-isolation.adoc] _(written)_
 . *App/Remote Component stylesheet load & removal (usage counting)* — link:{u2}[stylesheet-loading.adoc] _(written)_
@@ -79,7 +81,7 @@ The Units of this Area, in reading order. Units 1, 2, 3, 4, 5, 6, 7 and 8 are wr
 . *Dynamic content via patching* — link:{u6}[dynamic-content-via-patching.adoc] _(written)_
 . *Dynamic content via container* — link:{u7}[dynamic-content-via-container.adoc] _(written)_
 . *Scope polyfill* — link:{u8}[scope-polyfill.adoc] _(written)_
-. *PrimeNG/PrimeReact style scoping* — `primeng-style-scoping.adoc` _(planned)_
+. *PrimeNG/PrimeReact style scoping* — link:{u9}[primeng-style-scoping.adoc] _(written)_
 
 == Reading order
 

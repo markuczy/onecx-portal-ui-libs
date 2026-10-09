@@ -98,7 +98,7 @@ Where CSS comes from and how the styles of different Apps are kept apart.
 . link:./styling/dynamic-content-via-patching.adoc[Dynamic content via patching] — `dynamic-content-via-patching.adoc`
 . link:./styling/dynamic-content-via-container.adoc[Dynamic content via container] — `dynamic-content-via-container.adoc`
 . link:./styling/scope-polyfill.adoc[Scope polyfill] — `scope-polyfill.adoc`
-. PrimeNG/PrimeReact style scoping — `primeng-style-scoping.adoc`
+. link:./styling/primeng-style-scoping.adoc[PrimeNG/PrimeReact style scoping] — `primeng-style-scoping.adoc`
 ====
 
 [#theming-assets]
@@ -231,9 +231,6 @@ The following older folders still remain in this folder. Each one is removed by 
 
 |`topics/`, `gatherer/`
 |1. Integration Contract & Topics (debugging parts: 13. Diagnostics)
-
-|`styles/`
-|4. Styling & Style Isolation
 |===
 
 == Other
