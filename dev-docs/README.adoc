@@ -178,9 +178,9 @@ User profile, language choice, translations and formatting.
 . link:./localization/app-translations.adoc[App translations load & sharing] — `app-translations.adoc`
 . link:./localization/remote-component-translations.adoc[Remote Component translations] — `remote-component-translations.adoc`
 . link:./localization/missing-translation-fallback.adoc[Missing-translation fallback] — `missing-translation-fallback.adoc`
-. Locale & timezone formatting — `locale-and-timezone-formatting.adoc`
-. React translations — `react-translations.adoc`
-. Dynamic translations — `dynamic-translations.adoc`
+. link:./localization/locale-and-timezone-formatting.adoc[Locale & timezone formatting] — `locale-and-timezone-formatting.adoc`
+. link:./localization/react-translations.adoc[React translations] — `react-translations.adoc`
+. link:./localization/dynamic-translations.adoc[Dynamic translations] — `dynamic-translations.adoc`
 ====
 
 [#errors-feedback]

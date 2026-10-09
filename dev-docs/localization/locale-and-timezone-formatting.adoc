@@ -1,0 +1,113 @@
+= Locale & timezone formatting
+:toc: macro
+:toc-title: Contents
+:toclevels: 2
+:idprefix:
+:idseparator: -
+:libs: ../../libs
+:shell: https://github.com/onecx/onecx-shell-ui/blob/main
+
+toc::[]
+
+== Question answered
+
+Once the page has decided *which language* to use, how do the locale and timezone settings actually drive the formatting of dates and numbers that reach the user?
+
+== Why it exists
+
+Choosing a language is only the first half of localization. A date or a number must also be rendered in the conventions of the user's locale (month names, digit grouping, calendar, time format) and — ideally — the user's timezone. A OneCX page has two constraints that shape the mechanism:
+
+* The language is decided once, in a single framework-agnostic place (link:./profile-and-language.adoc[Profile load & language decision]), but every framework on the page must *format* with it — and each framework formats through its own engine (Angular's `Intl`-backed pipes, a React App's own `Intl` calls).
+* On the Angular side the locale cannot be a static string baked in at build time: the page may change language at runtime when the profile arrives, so whatever Angular's pipes and injected code read for "the locale" must track the live language stream.
+
+The design answers this by keeping one *source of truth* — the `lang$` stream from the profile decision — and adapting it to each framework: on Angular by making `LOCALE_ID` a *live* value bound to `lang$` and by lazily registering the matching `Intl` locale data, and on React by handing the same language straight to the App's own `Intl` usage.
+
+== How it works
+
+The framework-agnostic core is one fact: **every formatter on the page reads the same language, the one `resolveProfileLanguage` decided** (see link:./profile-and-language.adoc[Profile load & language decision]). The language is read from the profile's `settings.locales`, falling back to the legacy `accountSettings.localeAndTimeSettings.locale` and then to the browser, in `link:{libs}/integration-interface/src/lib/utils/user-language.utils.ts[`resolveProfileLanguage`]` / `link:{libs}/integration-interface/src/lib/utils/user-language.utils.ts[`resolveLegacyLanguage`]. Those two fields — plus the timezone — live on the link:{libs}/integration-interface/src/lib/topics/user-profile/v1/user-profile.model.ts[`UserProfile`]: `settings.locales` (`string[]`) and `accountSettings.localeAndTimeSettings` (`{locale, timezone}`, each optional `string`).
+
+Formatting then happens per framework against that one language.
+
+[source,mermaid]
+----
+flowchart TD
+  P["UserProfileTopic"] --> D["resolveProfileLanguage()<br/>(one language, Unit 1)"]
+  D --> L["lang$"]
+  L --> A["Angular: LOCALE_ID = DynamicLocaleId<br/>(valueOf() -> lang$.getValue())"]
+  L --> S["startup: localeLoaders[lang] -> registerLocaleData"]
+  A --> F["Intl.DateTimeFormat(locale, options)<br/>DateUtils.localizedDate"]
+  S --> F
+  L --> R["React: App formats its own dates/numbers<br/>with Intl, keyed by the same lang$"]
+----
+
+* **One language, from the profile.** The language is the output of `resolveProfileLanguage` (link:./profile-and-language.adoc[Profile load & language decision]). Both frameworks consume that same `lang$`, so formatting never diverges from the language decision.
+* **The profile fields.** `settings.locales` is the modern, multi-entry preference list; `accountSettings.localeAndTimeSettings.locale` is the legacy single value; and `accountSettings.localeAndTimeSettings.timezone` is the IANA timezone the user has chosen. Note that *only the locale reaches the formatters* — see link:#timezone[Timezone] below.
+
+== Libs side / Shell side
+
+=== Libs side
+
+`@onecx/angular-integration-interface` / `@onecx/angular-utils` turn the one language into something Angular's formatting machinery can use, and expose a small date helper for direct calls.
+
+* **A live `LOCALE_ID`.** Instead of a static string, `@onecx/angular-utils` provides `LOCALE_ID` as link:{libs}/angular-utils/src/lib/utils/dynamic-locale-id.utils.ts[`DynamicLocaleId`]: an object whose `valueOf()` returns `userService.lang$.getValue()` (its current value) and which proxies the remaining `String` methods. Because `valueOf()` re-reads the stream on every call, any Angular code that `inject(LOCALE_ID)` and passes it to `Intl` — or any Angular pipe that resolves `LOCALE_ID` — formats with the *current* language, not a build-time constant. It is wired in both link:{libs}/angular-utils/src/lib/providers/angular-utils.providers.ts[`provideAngularUtils()`] and the `providers` of link:{libs}/angular-accelerator/src/lib/angular-accelerator.module.ts[`AngularAcceleratorModule`].
+* **Registering the locale data at startup.** `Intl` needs *locale data* registered for a locale before Angular's `date`/`currency` pipes will format correctly. `@onecx/angular-utils` ships link:{libs}/angular-utils/src/lib/utils/angular-locales.ts[`localeLoaders`], an auto-generated `Record<locale, () => Promise<any>>` mapping each supported locale (hundreds, from `@angular/common/locales`) to a dynamic `import`. `provideAngularUtils()` adds a `provideAppInitializer` that reads the *current* `lang$` value and calls `localeLoaders[lang]?.().then(data => registerLocaleData(data.default ?? data))`, warning (not throwing) when no loader exists for the language. `AngularAcceleratorModule` adds its own `APP_INITIALIZER` that instead does `firstValueFrom(userService.lang$.pipe(skip(1)))` — it waits for the *second* `lang$` emission, i.e. the profile-driven value (the first emission is the browser/default seed), then registers that locale's data. The two initializers therefore cover the bootstrap language and the authoritative language; the `DynamicLocaleId` keeps the *injected* value live either way.
+* **A direct date formatter.** For code that formats without a template pipe, link:{libs}/angular-accelerator/src/lib/utils/dateutils.ts[`DateUtils.localizedDate(value)`] builds `new Intl.DateTimeFormat(this.locale, this.options)` — `this.locale` is the injected `LOCALE_ID` (so the live language) and `this.options` is a fixed date+time shape (`month: 'short'`, `day: '2-digit'`, `year: 'numeric'`, `hour`, `minute`, `second: '2-digit'`) — and returns `''` for a nullish value. Framework-agnostic date helpers that need to sidestep the local timezone at all are in link:{libs}/accelerator/src/lib/utils/date.utils.ts[`date.utils.ts`]: `isValidDate` and `getUTCDateWithoutTimezoneIssues`, which normalises a `Date` to its UTC calendar date (midnight) so day boundaries do not shift across timezones.
+
+=== Shell side
+
+The Shell owns the *input*: it is the only participant that fetches the signed-in profile and publishes it to the `UserProfileTopic`, so it is what supplies `settings.locales`, the legacy `locale` and the `timezone` the formatters above read. That publishing happens in the Shell's user-profile initialiser, wired into its providers in link:{shell}/src/app/app.module.ts[`app.module.ts`] (`userProfileInitializer`). The initialiser also computes a *normalised* locale list for itself — `profile.settings.locales ? normalizeLocales(profile.settings.locales) : getNormalizedBrowserLocales()` — but publishes the profile to the Topic; the formatting decisions on the page still run through `resolveProfileLanguage` over the published profile (see link:./profile-and-language.adoc#known-issues[Profile load & language decision — Known issues] for why the published `settings.locales` shape matters).
+
+[#timezone]
+=== Timezone
+
+The profile carries a timezone (`accountSettings.localeAndTimeSettings.timezone`), but the libraries do not read it for formatting: `DateUtils` and every Angular pipe format through `Intl.DateTimeFormat(locale, options)` with a *locale* only, so times render in the **browser's own** IANA timezone unless an App opts in to a per-user zone by passing a `timeZone` option itself. In other words, today the *locale* drives formatting and the *timezone* is carried in the model but not applied by the shared code. The only timezone handling in the shared libs is the defensive `getUTCDateWithoutTimezoneIssues`, which removes a local timezone from a `Date` so a calendar *day* is stable — it does not format in a chosen zone.
+
+== Angular / React
+
+* **Angular** — `LOCALE_ID` is the live `DynamicLocaleId`, `registerLocaleData` is called at startup for the relevant locale, and `DateUtils.localizedDate` (or the `date`/`currency` pipes) produce the formatted value. All of this is driven by the single `lang$` from the profile decision.
+* **React** — there is no library `LOCALE_ID` and no shared `Intl` helper in `@onecx/react-utils`. A React App holds the same `lang$` (see link:./react-translations.adoc[React translations]) and formats its own dates and numbers directly with the browser `Intl` APIs, keyed by that language. The framework-agnostic `date.utils.ts` helpers (`isValidDate`, `getUTCDateWithoutTimezoneIssues`) are usable from React as well because they have no Angular dependency.
+
+== Edge cases & pitfalls
+
+* **Locale data not registered for the active language.** `Intl.DateTimeFormat` still runs, but Angular's `date`/`currency` pipes fall back to default conventions and may not match the language. The initializers warn (`Could not load locale data for '<lang>'`) instead of throwing, so a page keeps working with slightly-off formatting rather than failing to bootstrap.
+* **Two different startup emissions.** `provideAngularUtils` registers data for the *current* `lang$` value at app start (the browser/default seed), while `AngularAcceleratorModule` waits for `skip(1)` — the profile-driven value. If a profile-driven language has no `localeLoaders` entry, that locale's data is never registered; `DynamicLocaleId` still reports the right language, so direct `Intl` calls are fine but the pipes are not.
+* **`lang$` before the profile arrives.** The first emission is the browser/default language; formatting keyed to it reflects that until the profile upgrades the stream. Code that formats once at construction (rather than re-reading on change) can show the bootstrap language.
+* **Timezone is not applied by the shared code.** A page showing a user in, say, `Asia/Tokyo` still renders clock times in the *viewer's* local zone unless an App explicitly passes a `timeZone` option to `Intl`. See link:#timezone[Timezone].
+* **Day-boundary drift.** A `Date` built from a local midnight can shift to the previous day when compared across timezones; use `getUTCDateWithoutTimezoneIssues` when a calendar *day* must be stable.
+
+== Debugging
+
+* The language every formatter uses is `UserService.lang$` (Angular) / `useUserService().lang$` (React) — the same stream documented in link:./profile-and-language.adoc[Profile load & language decision]. Log it to confirm the locale in use.
+* To see whether locale data was registered, watch the console for the `Could not load locale data for '<lang>'` warning from the app initializers.
+* To confirm the timezone actually applied, log `new Intl.DateTimeFormat(<locale>).resolvedOptions().timeZone` — it will be the browser's zone unless an App overrides it.
+* General Topic / `window` tooling lives in link:../diagnostics/tracing-communication.adoc[13. Diagnostics].
+
+== Known issues
+
+There is no known issue in this Unit as of the current `main` code. The *timezone* field being carried in the profile but not applied by the shared formatters is a deliberate scope boundary of the code as written (documented in link:#timezone[Timezone]), not a defect — the locale, which is the field the formatters are built around, flows correctly end to end.
+
+== Related Units
+
+* link:./profile-and-language.adoc[Profile load & language decision] — the `lang$` and profile fields this Unit formats from; the language every formatter uses.
+* link:./app-translations.adoc[App translations load & sharing] — the translation pipeline; formatting is the *other* half of what a language setting changes.
+* link:./react-translations.adoc[React translations] — the React pipeline that supplies the same `lang$` a React App formats with.
+* link:../styling/primeng-style-scoping.adoc[4. PrimeNG/PrimeReact style scoping] — the `primeng` translation keys are handed to the component configuration on every language change; a related runtime reaction to the same `lang$`.
+* link:../diagnostics/tracing-communication.adoc[13. Diagnostics] — observing the profile Topic and the resolved language.
+
+== Sources
+
+Code::
+* link:{libs}/integration-interface/src/lib/topics/user-profile/v1/user-profile.model.ts[`UserProfile` model — `settings.locales`, `accountSettings.localeAndTimeSettings` (user-profile.model.ts)]
+* link:{libs}/integration-interface/src/lib/utils/user-language.utils.ts[`resolveProfileLanguage`, `resolveLegacyLanguage` (user-language.utils.ts)]
+* link:{libs}/angular-utils/src/lib/utils/dynamic-locale-id.utils.ts[`DynamicLocaleId` (dynamic-locale-id.utils.ts)]
+* link:{libs}/angular-utils/src/lib/providers/angular-utils.providers.ts[`provideAngularUtils` — `LOCALE_ID` and the `provideAppInitializer` (angular-utils.providers.ts)]
+* link:{libs}/angular-utils/src/lib/utils/angular-locales.ts[`localeLoaders` (angular-locales.ts, auto-generated)]
+* link:{libs}/angular-accelerator/src/lib/angular-accelerator.module.ts[`AngularAcceleratorModule` — `LOCALE_ID` and `appInitializer` (angular-accelerator.module.ts)]
+* link:{libs}/angular-accelerator/src/lib/utils/dateutils.ts[`DateUtils.localizedDate` (dateutils.ts)]
+* link:{libs}/accelerator/src/lib/utils/date.utils.ts[`isValidDate`, `getUTCDateWithoutTimezoneIssues` (date.utils.ts)]
+* link:{shell}/src/app/app.module.ts[`userProfileInitializer` — locale computation (Shell)]
+
+Verification Sources checked::
+* Draft Outline commit 6108bff — no prior page for this Area's Unit 5; the `LOCALE_ID`/`DynamicLocaleId`, `localeLoaders`/`registerLocaleData` and `Intl`-based formatting claims were cross-checked against the existing `dev-docs/` pages and against `@ngx-translate` / `@angular/common` locale handling.
+* in-code JSDoc in `user-profile.model.ts`, `dynamic-locale-id.utils.ts`, `angular-utils.providers.ts` and `date.utils.ts`.
+* Shell `app.module.ts` (via the Shell repository, `main` branch) for the `userProfileInitializer` locale computation.
