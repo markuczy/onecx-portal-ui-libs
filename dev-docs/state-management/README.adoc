@@ -52,7 +52,7 @@ flowchart LR
   LS -.-> |persist / rehydrate| LS2[(localStorage)]
 ----
 
-Reading it: the Shell publishes the context Topics and drives the shared URL; the store connectors turn both into `OneCxActions` dispatched into the `onecx` slice; the fragment-params helpers keep a URL-derived slice of state in sync with `window.location`; the `localStorage` helpers persist and rehydrate App state across reloads. The Shell never touches the store directly — it is the single producer of the context and of the URL, and everything else is App-side wiring.
+Reading it: the Shell publishes the context Topics and drives navigation / `current-location`; the store connectors turn both into `OneCxActions` dispatched into the `onecx` slice; the fragment-params helpers keep a URL-derived slice of state in sync with `window.location`, and App code can also update the shared URL through those helpers; the `localStorage` helpers persist and rehydrate App state across reloads. The Shell never touches the store directly — it is the publisher of the context, while URL updates can come from either the Shell or an App, and everything else is App-side wiring.
 
 The Shell-side details (which Topics exist, when they are ready, how the URL is shared and activated) are not re-explained here. They belong to the other Areas: Area 3 (Shell Context & Runtime Configuration) for the context Topics, and Area 7 (Navigation & Routing) for the shared URL and `current-location`. This Area only describes what the NgRx side does with them.
 
