@@ -119,9 +119,3 @@ Code::
 * link:{libs}/ngrx-integration-interface/src/lib/store-connector/store-connectors/index.ts[`ngrx-integration-interface/.../store-connectors/index.ts`]
 * link:{libs}/ngrx-integration-interface/src/lib/store-connector/store-connectors/current-workspace-store-connector-service.ts[`ngrx-integration-interface/.../current-workspace-store-connector-service.ts`]
 * link:{shell}/src/bootstrap.ts[`bootstrap.ts` (Shell)]
-
-Verification Sources checked::
-* old `dev-docs/topics/debug.adoc` — `localStorage.debug` namespaces and patterns (inlined into Debugging above).
-* old `dev-docs/topics/overview.adoc` — the sync model the adapters build on (matches the code).
-* in-code JSDoc of `ConfigurationService`, `AppStateService`, the `useTopic` hook, `configurationContext` and the store connectors.
-* Draft Outline (commit `6108bdf`) — see the Area's link:README.adoc#verification-note[Verification note].

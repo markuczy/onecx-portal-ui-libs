@@ -133,9 +133,5 @@ Code::
 * link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts` (Shell)]
 * link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts` (Shell)]
 
-Verification Sources checked::
-* old `dev-docs/topics/overview.adoc` — the sync model and the `postMessage` baseline (matches the code; the old page does not describe the v1/v2 split, which this Unit documents from the code).
-* old `dev-docs/topics/debug.adoc` — debug namespaces and `localStorage.debug` patterns (inlined into Debugging above).
-* in-code JSDoc and the `acceleratorState` defaults in link:{libs}/accelerator/src/lib/declarations.ts[`declarations.ts`].
-* Draft Outline (commit `6108bdf`) — see the Area's link:README.adoc#verification-note[Verification note].
+Context given by the team::
 * The shared-channel rationale in "Why the channel name encodes the Topic (context)" above was given as context by the team running this audit, not traced to a specific commit or file.

@@ -83,10 +83,3 @@ Code::
 * link:{libs}/integration-interface/src/lib/topics/permissions-rpc/v1/permissions-rpc.topic.ts[`integration-interface/.../permissions-rpc.topic.ts`]
 * link:{shell}/src/bootstrap.ts[`bootstrap.ts` (Shell)]
 * link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts` (Shell)]
-
-Verification Sources checked::
-* old `dev-docs/topics/overview.adoc` — message types and the sync model.
-* old `dev-docs/topics/debug.adoc` — debug namespaces and `localStorage.debug` patterns (inlined into Debugging above).
-* link:../general/overview.adoc[old `dev-docs/general/overview.adoc`] — accelerator lib description.
-* in-code JSDoc of `Topic`, `TopicPublisher`, `Gatherer` and the Topic subclasses.
-* See the Area's link:README.adoc#verification-note[Verification note] for the Draft Outline caveat.

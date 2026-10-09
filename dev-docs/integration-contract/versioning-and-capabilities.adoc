@@ -112,8 +112,3 @@ Code::
 * link:{libs}/react-integration-interface/src/lib/contexts/shellCapability.ts[`react-integration-interface/.../shellCapability.ts`]
 * link:{libs}/react-integration-interface/src/lib/contexts/parametersContext.tsx[`react-integration-interface/.../parametersContext.tsx`]
 * link:{shell}/src/bootstrap.ts[`bootstrap.ts` (Shell)]
-
-Verification Sources checked::
-* old `dev-docs/topics/overview.adoc` — the name/version matching rule for message delivery (matches the code).
-* in-code JSDoc of `ShellCapability`, the `shell-capability.utils.ts` helpers and `ParametersService.get`.
-* Draft Outline (commit `6108bdf`) — see the Area's link:README.adoc#verification-note[Verification note].

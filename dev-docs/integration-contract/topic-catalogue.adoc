@@ -259,9 +259,3 @@ Code::
 * link:{libs}/react-utils/src/lib/guards/services/guards-gatherer.ts[`react-utils/.../guards-gatherer.ts`]
 * link:{shell}/src/app/shell/services/permission-proxy.service.ts[`permission-proxy.service.ts` (Shell)]
 * link:{shell}/src/app/shell/services/parameters.service.ts[`parameters.service.ts` (Shell)]
-
-Verification Sources checked::
-* old `dev-docs/topics/overview.adoc` — the message types and the plain-Topic sync model (matches the code; the old page predates the v1/v2 transport split and does not enumerate the concrete Topics).
-* old `dev-docs/gatherer/debug.adoc` — the `Gatherer` debug namespace.
-* in-code definitions of each `Topic`/`Gatherer` subclass (the name/version/`sendGetMessage` in every table row).
-* Draft Outline (commit `6108bdf`) — see the Area's link:README.adoc#verification-note[Verification note].
